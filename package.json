@@ -1,0 +1,19 @@
+{
+  "name": "travel-map",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --base=/TravelMap/",
+    "build": "vite build --base=/TravelMap/",
+    "preview": "vite preview --host 127.0.0.1 --base=/TravelMap/"
+  },
+  "dependencies": {
+    "vite": "^7.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "lucide-react": "^0.468.0",
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {}
+}
