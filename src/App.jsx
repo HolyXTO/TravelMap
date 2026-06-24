@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   CalendarDays,
   Camera,
@@ -21,53 +23,10 @@ import {
   tripTypes,
 } from "./data/mockData";
 
-const worldBounds = {
-  minLon: -180,
-  maxLon: 180,
-  minLat: -58,
-  maxLat: 84,
-  width: 1000,
-  height: 560,
-};
-
 const profileFilters = [
   { id: "all", label: "两个人" },
   ...profiles.map((profile) => ({ id: profile.id, label: profile.name })),
 ];
-
-function projectPoint([lon, lat]) {
-  const x =
-    ((lon - worldBounds.minLon) / (worldBounds.maxLon - worldBounds.minLon)) *
-    worldBounds.width;
-  const y =
-    ((worldBounds.maxLat - lat) / (worldBounds.maxLat - worldBounds.minLat)) *
-    worldBounds.height;
-  return [x, y];
-}
-
-function ringPath(points) {
-  return points
-    .map((point, index) => {
-      const [x, y] = projectPoint(point);
-      return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(" ")
-    .concat(" Z");
-}
-
-function geometryPath(geometry) {
-  if (!geometry) return "";
-  if (Array.isArray(geometry)) return ringPath(geometry);
-  if (geometry.type === "Polygon") {
-    return geometry.coordinates.map((ring) => ringPath(ring)).join(" ");
-  }
-  if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates
-      .flatMap((polygon) => polygon.map((ring) => ringPath(ring)))
-      .join(" ");
-  }
-  return "";
-}
 
 function geometryCenter(geometry) {
   const points = [];
@@ -110,6 +69,22 @@ function featureToPlace(feature) {
       props.longitude && props.latitude
         ? [Number(props.longitude), Number(props.latitude)]
         : geometryCenter(feature.geometry),
+  };
+}
+
+function placeToFeature(place) {
+  return {
+    type: "Feature",
+    id: place.id,
+    properties: {
+      id: place.id,
+      level: place.level,
+      name: place.name,
+      localName: place.localName,
+    },
+    geometry: Array.isArray(place.geometry)
+      ? { type: "Polygon", coordinates: [place.geometry] }
+      : place.geometry,
   };
 }
 
@@ -161,7 +136,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [visits, setVisits] = useState(initialVisits);
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
-  const [mapPlaces, setMapPlaces] = useState({ country: [], region: [] });
+  const [mapPlaces, setMapPlaces] = useState({ country: [], region: [], city: [] });
   const [mapStatus, setMapStatus] = useState("正在加载真实边界");
 
   useEffect(() => {
@@ -169,24 +144,27 @@ function App() {
     async function loadMaps() {
       try {
         const base = import.meta.env.BASE_URL;
-        const [countriesResponse, statesResponse] = await Promise.all([
+        const [countriesResponse, statesResponse, citiesResponse] = await Promise.all([
           fetch(`${base}maps/countries.geojson`),
           fetch(`${base}maps/states.geojson`),
+          fetch(`${base}maps/china-cities.geojson`),
         ]);
-        if (!countriesResponse.ok || !statesResponse.ok) {
+        if (!countriesResponse.ok || !statesResponse.ok || !citiesResponse.ok) {
           throw new Error("Map response was not ok");
         }
-        const [countries, states] = await Promise.all([
+        const [countries, states, cities] = await Promise.all([
           countriesResponse.json(),
           statesResponse.json(),
+          citiesResponse.json(),
         ]);
         if (!cancelled) {
           setMapPlaces({
             country: countries.features.map(featureToPlace),
             region: states.features.map(featureToPlace),
+            city: cities.features.map(featureToPlace),
           });
           setMapStatus(
-            `${countries.features.length} 个国家/地区，${states.features.length} 个二级行政区`,
+            `${countries.features.length} 个国家/地区，${states.features.length} 个二级行政区，${cities.features.length} 个中国城市`,
           );
         }
       } catch {
@@ -207,7 +185,7 @@ function App() {
   const placeLookup = useMemo(() => {
     const lookup = new Map();
     for (const place of places) lookup.set(place.id, place);
-    for (const level of ["country", "region"]) {
+    for (const level of ["country", "region", "city"]) {
       for (const place of mapPlaces[level]) lookup.set(place.id, place);
     }
     return lookup;
@@ -260,18 +238,17 @@ function App() {
   }, [activeLevel, filteredVisits]);
 
   const displayPlaces = useMemo(() => {
-    if (activeLevel === "city") return cityPlaces;
     const loaded = mapPlaces[activeLevel];
     return loaded.length > 0
       ? loaded
       : places.filter((place) => place.level === activeLevel);
-  }, [activeLevel, cityPlaces, mapPlaces]);
+  }, [activeLevel, mapPlaces]);
 
   const selectedVisits = useMemo(() => {
     const selected = placeLookup.get(selectedPlaceId);
     if (!selected) return [];
     return filteredVisits.filter((visit) => {
-      if (selected.level === "city") return visit.placeId === selected.id;
+      if (selected.level === "city") return resolveMapIdForLevel(visit.placeId, "city") === selected.id;
       return resolveMapIdForLevel(visit.placeId, selected.level) === selected.id;
     });
   }, [filteredVisits, placeLookup, selectedPlaceId]);
@@ -285,7 +262,7 @@ function App() {
       for (const place of chain) {
         if (place.level === "country") countries.add(place.mapId || place.id);
         if (place.level === "region") regions.add(place.mapId || place.id);
-        if (place.level === "city") cities.add(place.id);
+        if (place.level === "city") cities.add(place.mapId || place.id);
       }
     }
     const recent = [...filteredVisits].sort((a, b) =>
@@ -329,7 +306,7 @@ function App() {
       photos,
     };
     setVisits((current) => [nextVisit, ...current]);
-    setSelectedPlaceId(nextVisit.placeId);
+    setSelectedPlaceId(resolveMapIdForLevel(nextVisit.placeId, activeLevel) || nextVisit.placeId);
     event.currentTarget.reset();
   }
 
@@ -467,6 +444,7 @@ function App() {
         <section className="workspace">
           <MapView
             activeLevel={activeLevel}
+            cityPlaces={cityPlaces}
             displayPlaces={displayPlaces}
             mapStatus={mapStatus}
             selectedPlaceId={selectedPlaceId}
@@ -483,7 +461,7 @@ function App() {
 
       {viewMode === "list" && <VisitList placeLookup={placeLookup} visits={filteredVisits} />}
 
-      {viewMode === "admin" && <AdminForm addVisit={addVisit} />}
+      {viewMode === "admin" && <AdminForm addVisit={addVisit} placeLookup={placeLookup} />}
     </main>
   );
 }
@@ -503,12 +481,112 @@ function Metric({ detail, icon, label, value }) {
 
 function MapView({
   activeLevel,
+  cityPlaces,
   displayPlaces,
   mapStatus,
   selectedPlaceId,
   setSelectedPlaceId,
   visitedByLevel,
 }) {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const layerRef = useRef(null);
+  const lastLevelRef = useRef(null);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+
+    const map = L.map(containerRef.current, {
+      center: [31.2, 104],
+      zoom: 3,
+      minZoom: 2,
+      maxZoom: 10,
+      scrollWheelZoom: true,
+      worldCopyJump: true,
+    });
+
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 20,
+      subdomains: "abcd",
+    }).addTo(map);
+
+    mapRef.current = map;
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || displayPlaces.length === 0) return;
+
+    if (layerRef.current) {
+      layerRef.current.remove();
+    }
+
+    const featureCollection = {
+      type: "FeatureCollection",
+      features: displayPlaces.map(placeToFeature),
+    };
+
+    const layer = L.geoJSON(featureCollection, {
+      style: (feature) => {
+        const id = feature.properties.id;
+        const visitInfo = visitedByLevel.get(id);
+        const isSelected = selectedPlaceId === id;
+        const hasBoth = visitInfo?.profileIds.size > 1;
+        return {
+          color: isSelected ? "#111c16" : visitInfo ? "#9a5a16" : "#6f7d72",
+          weight: isSelected ? 2.4 : activeLevel === "country" ? 0.8 : 0.65,
+          opacity: 0.95,
+          fillColor: visitInfo ? (hasBoth ? "#6dbb9a" : "#f4b35e") : "#f7f3ea",
+          fillOpacity: visitInfo ? 0.72 : 0.45,
+        };
+      },
+      onEachFeature: (feature, leafletLayer) => {
+        leafletLayer.bindTooltip(feature.properties.localName || feature.properties.name, {
+          sticky: true,
+        });
+        leafletLayer.on("click", () => setSelectedPlaceId(feature.properties.id));
+      },
+    }).addTo(map);
+
+    for (const city of cityPlaces) {
+      const id = city.mapId || city.id;
+      const visitInfo = visitedByLevel.get(id);
+      const [lon, lat] = city.center;
+      L.circleMarker([lat, lon], {
+        radius: activeLevel === "city" ? 5 : 3.5,
+        color: "#ffffff",
+        weight: 1.5,
+        fillColor: visitInfo || activeLevel !== "city" ? "#18241b" : "#7d8a80",
+        fillOpacity: visitInfo || activeLevel !== "city" ? 0.9 : 0.45,
+      })
+        .bindTooltip(city.localName, { sticky: true })
+        .on("click", () => setSelectedPlaceId(id))
+        .addTo(layer);
+    }
+
+    layerRef.current = layer;
+
+    const bounds = layer.getBounds();
+    if (bounds.isValid() && lastLevelRef.current !== activeLevel) {
+      map.fitBounds(bounds, { padding: [18, 18], animate: false });
+      lastLevelRef.current = activeLevel;
+    }
+  }, [
+    activeLevel,
+    cityPlaces,
+    displayPlaces,
+    selectedPlaceId,
+    setSelectedPlaceId,
+    visitedByLevel,
+  ]);
+
   return (
     <div className="map-surface">
       <div className="map-head">
@@ -518,63 +596,9 @@ function MapView({
         </div>
         <p>{mapStatus}</p>
       </div>
-      <svg
-        aria-label="足迹地图原型"
-        className="travel-map"
-        role="img"
-        viewBox={`0 0 ${worldBounds.width} ${worldBounds.height}`}
-      >
-        <rect className="ocean" height="560" width="1000" x="0" y="0" />
-        <g key={activeLevel}>
-          {displayPlaces.map((place) => {
-            const visitInfo = visitedByLevel.get(place.id);
-            const isVisited = Boolean(visitInfo);
-            const isSelected = selectedPlaceId === place.id;
-            const hasBoth = visitInfo?.profileIds.size > 1;
-            return (
-              <path
-                className={[
-                  "map-region",
-                  isVisited ? "visited" : "",
-                  hasBoth ? "both" : "",
-                  isSelected ? "selected" : "",
-                ].join(" ")}
-                d={geometryPath(place.geometry)}
-                fillRule="evenodd"
-                key={place.id}
-                onClick={() => setSelectedPlaceId(place.id)}
-              >
-                <title>{place.localName}</title>
-              </path>
-            );
-          })}
-        </g>
-        <g>
-          {cityPlacesForDots().map((city) => {
-            const [x, y] = projectPoint(city.center);
-            const visited = visitedByLevel.get(city.id);
-            return (
-              <circle
-                aria-label={city.localName}
-                className={visited || activeLevel !== "city" ? "city-dot" : "city-dot muted"}
-                cx={x}
-                cy={y}
-                key={city.id}
-                onClick={() => setSelectedPlaceId(city.id)}
-                r={activeLevel === "city" ? 5 : 3.5}
-                role="button"
-                tabIndex="0"
-              />
-            );
-          })}
-        </g>
-      </svg>
+      <div className="leaflet-map" ref={containerRef} />
     </div>
   );
-}
-
-function cityPlacesForDots() {
-  return places.filter((place) => place.level === "city");
 }
 
 function DetailPanel({ placeLookup, selectedPlaceId, visits }) {
@@ -639,7 +663,7 @@ function VisitList({ placeLookup, visits }) {
   );
 }
 
-function AdminForm({ addVisit }) {
+function AdminForm({ addVisit, placeLookup }) {
   return (
     <section className="admin-view">
       <div className="section-title">
@@ -664,7 +688,7 @@ function AdminForm({ addVisit }) {
               .filter((place) => place.level === "city")
               .map((place) => (
                 <option key={place.id} value={place.id}>
-                  {formatPath(place.id, new Map())}
+                  {formatPath(place.id, placeLookup)}
                 </option>
               ))}
           </select>

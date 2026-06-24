@@ -261,56 +261,35 @@ h2 {
   font-weight: 800;
 }
 
-.travel-map {
+.leaflet-map {
   display: block;
   width: 100%;
   height: min(66vh, 620px);
   min-height: 480px;
 }
 
-.ocean {
-  fill: #dfe9eb;
+.leaflet-container {
+  background: #dfe9eb;
+  font-family:
+    Inter, "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
 }
 
-.map-region {
-  fill: #f8f5ec;
-  stroke: #8a978d;
-  stroke-width: 1.2;
-  transition:
-    fill 160ms ease,
-    stroke 160ms ease,
-    stroke-width 160ms ease;
+.leaflet-control-attribution {
+  color: #4e5c52;
+  font-size: 11px;
 }
 
-.map-region:hover {
-  fill: #d9efe3;
-  stroke: #265936;
+.leaflet-control-attribution a {
+  color: #245a38;
+  font-weight: 700;
 }
 
-.map-region.visited {
-  fill: #f4b35e;
-  stroke: #9a5a16;
-}
-
-.map-region.visited.both {
-  fill: #6dbb9a;
-  stroke: #1e684f;
-}
-
-.map-region.selected {
-  stroke: #111c16;
-  stroke-width: 3;
-}
-
-.city-dot {
-  fill: #18241b;
-  stroke: white;
-  stroke-width: 2;
-}
-
-.city-dot.muted {
-  fill: #7d8a80;
-  opacity: 0.5;
+.leaflet-tooltip {
+  border: 1px solid #cbd7d0;
+  border-radius: 6px;
+  color: #1e2c22;
+  font-weight: 800;
+  box-shadow: 0 6px 18px #18332024;
 }
 
 .detail-panel {
@@ -504,7 +483,7 @@ h2 {
     grid-column: auto;
   }
 
-  .travel-map {
+  .leaflet-map {
     min-height: 380px;
   }
 }

@@ -1,18 +1,20 @@
 # TravelMap
 
-Personal travel footprint map for two people. The current version is a working prototype with real country and admin-1 boundary data from local SHP files, mock visit records, and a future Supabase integration path.
+Personal travel footprint map for two people. The current version uses React, Vite, Leaflet, CARTO basemap tiles, local GeoJSON boundary files, mock visit data, and a Supabase schema prepared for one editor account.
 
 ## What Is Included
 
 - React + Vite app
 - GitHub Pages workflow
+- Leaflet map with Web Mercator interaction
+- CARTO basemap with OSM/CARTO attribution
 - Profile switch for two people
 - Layer switch: country / state-province / city
-- Real country boundaries from `世界地图/WorldBoundaries.shp`
-- Real admin-1 boundaries from `世界地图/WorldStates.shp`
-- City layer prototype with sample city polygons and dots
+- Country boundaries generated from `世界地图/WorldBoundaries.shp`
+- Admin-1 boundaries generated from `世界地图/WorldStates.shp`
+- China city boundaries generated from `世界地图/ChinaCityBoundaries.shp`
 - Dashboard metrics, filters, map view, list view, edit prototype
-- Supabase schema draft in `supabase/schema.sql`
+- Supabase schema in `supabase/schema.sql`
 
 ## Local Run
 
@@ -42,6 +44,7 @@ Input SHP files:
 ```text
 世界地图/WorldBoundaries.shp
 世界地图/WorldStates.shp
+世界地图/ChinaCityBoundaries.shp
 ```
 
 Generated web files:
@@ -49,6 +52,7 @@ Generated web files:
 ```text
 public/maps/countries.geojson
 public/maps/states.geojson
+public/maps/china-cities.geojson
 ```
 
 Regenerate them with:
@@ -59,30 +63,34 @@ python scripts/convert_maps.py
 
 The converter currently:
 
-- Reads the SHP files with `pyshp`
-- Converts `WGS_1984_World_Mercator` coordinates back to lon/lat
+- Reads SHP files with `pyshp`
+- Converts `WGS_1984_World_Mercator` country/state coordinates back to lon/lat
+- Keeps China city data in WGS84 lon/lat
 - Simplifies polygon rings
-- Preserves all country and admin-1 features
-- Uses stable country ids such as `CHN`, `USA`, `DEU`, `JPN`, `FRA`
+- Filters country boundaries to UN member states plus observer states when present in the source
+- Merges Northern Cyprus and the Cyprus buffer zone into Cyprus
+- Merges Kosovo into Serbia for this 195-state framing
+- Outputs China city boundaries only, not global city boundaries
 
 Current generated counts:
 
 ```text
-countries.geojson: 209 features
+countries.geojson: 194 features
 states.geojson: 4596 features
+china-cities.geojson: 361 features
 ```
 
-When city-level SHP data is available, add it to `世界地图/`, then extend `scripts/convert_maps.py` with a third output such as:
+The country count is 194 because the current `WorldBoundaries.shp` source does not include a separate Palestine boundary feature. Palestine is still in the target whitelist, so it can be added later from a vetted compatible boundary source.
+
+## OSM / CARTO
+
+The map uses CARTO's light basemap tiles:
 
 ```text
-public/maps/cities.geojson
+https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png
 ```
 
-## OSM / CARTO Note
-
-The current prototype does not use OSM or CARTO map tiles. It renders local boundary GeoJSON directly as SVG.
-
-If a future version adds an OSM/CARTO/MapTiler basemap, keep the attribution visible on the map, for example:
+The visible attribution is:
 
 ```text
 © OpenStreetMap contributors © CARTO
@@ -111,11 +119,19 @@ After Pages is enabled, pushes to `main` should publish the site.
 In Supabase:
 
 1. Create a project.
-2. Open SQL Editor.
-3. Run `supabase/schema.sql`.
-4. Create a Storage bucket named `travel-photos`.
-5. Create two editor users in Authentication.
-6. Copy the Project URL and anon public key.
+2. Create one Auth user for yourself.
+3. Open SQL Editor.
+4. Run `supabase/schema.sql`.
+5. Find your Auth user UUID.
+6. Add yourself as the only editor:
+
+```sql
+insert into public.app_editors (user_id)
+values ('YOUR_AUTH_USER_UUID');
+```
+
+7. Create a Storage bucket named `travel-photos`.
+8. Copy the Project URL and anon public key.
 
 Create a local `.env`:
 

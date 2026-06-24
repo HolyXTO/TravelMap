@@ -11,6 +11,36 @@ import shapefile
 
 WGS84_A = 6378137.0
 WGS84_E = 0.08181919084262149
+
+UN_AND_OBSERVER_ISO3 = {
+    "AFG", "ALB", "DZA", "AND", "AGO", "ATG", "ARG", "ARM", "AUS", "AUT",
+    "AZE", "BHS", "BHR", "BGD", "BRB", "BLR", "BEL", "BLZ", "BEN", "BTN",
+    "BOL", "BIH", "BWA", "BRA", "BRN", "BGR", "BFA", "BDI", "CPV", "KHM",
+    "CMR", "CAN", "CAF", "TCD", "CHL", "CHN", "COL", "COM", "COG", "CRI",
+    "CIV", "HRV", "CUB", "CYP", "CZE", "COD", "DNK", "DJI", "DMA", "DOM",
+    "ECU", "EGY", "SLV", "GNQ", "ERI", "EST", "SWZ", "ETH", "FJI", "FIN",
+    "FRA", "GAB", "GMB", "GEO", "DEU", "GHA", "GRC", "GRD", "GTM", "GIN",
+    "GNB", "GUY", "HTI", "HND", "HUN", "ISL", "IND", "IDN", "IRN", "IRQ",
+    "IRL", "ISR", "ITA", "JAM", "JPN", "JOR", "KAZ", "KEN", "KIR", "PRK",
+    "KOR", "KWT", "KGZ", "LAO", "LVA", "LBN", "LSO", "LBR", "LBY", "LIE",
+    "LTU", "LUX", "MDG", "MWI", "MYS", "MDV", "MLI", "MLT", "MHL", "MRT",
+    "MUS", "MEX", "FSM", "MDA", "MCO", "MNG", "MNE", "MAR", "MOZ", "MMR",
+    "NAM", "NRU", "NPL", "NLD", "NZL", "NIC", "NER", "NGA", "MKD", "NOR",
+    "OMN", "PAK", "PLW", "PAN", "PNG", "PRY", "PER", "PHL", "POL", "PRT",
+    "QAT", "ROU", "RUS", "RWA", "KNA", "LCA", "VCT", "WSM", "SMR", "STP",
+    "SAU", "SEN", "SRB", "SYC", "SLE", "SGP", "SVK", "SVN", "SLB", "SOM",
+    "ZAF", "SSD", "ESP", "LKA", "SDN", "SUR", "SWE", "CHE", "SYR", "TJK",
+    "THA", "TLS", "TGO", "TON", "TTO", "TUN", "TUR", "TKM", "TUV", "UGA",
+    "UKR", "ARE", "GBR", "TZA", "USA", "URY", "UZB", "VUT", "VEN", "VNM",
+    "YEM", "ZMB", "ZWE", "VAT", "PSE",
+}
+
+COUNTRY_MERGE_OVERRIDES = {
+    "CYN": "CYP",
+    "CNM": "CYP",
+    "KOS": "SRB",
+}
+
 COUNTRY_NAME_ALIASES_ZH = {
     "CHN": "中国",
     "USA": "美国",
@@ -23,7 +53,9 @@ def mercator_to_lonlat(x, y):
     lat = math.pi / 2 - 2 * math.atan(t)
     for _ in range(8):
         esin = WGS84_E * math.sin(lat)
-        lat = math.pi / 2 - 2 * math.atan(t * ((1 - esin) / (1 + esin)) ** (WGS84_E / 2))
+        lat = math.pi / 2 - 2 * math.atan(
+            t * ((1 - esin) / (1 + esin)) ** (WGS84_E / 2)
+        )
     return [lon, math.degrees(lat)]
 
 
@@ -127,15 +159,24 @@ def clean_code(value):
     return value
 
 
+def merge_geometry(base, extra):
+    base_polygons = [base["coordinates"]] if base["type"] == "Polygon" else list(base["coordinates"])
+    extra_polygons = [extra["coordinates"]] if extra["type"] == "Polygon" else list(extra["coordinates"])
+    return {"type": "MultiPolygon", "coordinates": base_polygons + extra_polygons}
+
+
 def build_feature(record: dict[str, Any], geometry, kind: str):
     if kind == "country":
-        fid = (
+        source_id = clean_code(record.get("ADM0_A3"))
+        fid = COUNTRY_MERGE_OVERRIDES.get(source_id) or (
             clean_code(record.get("ISO_A3_EH"))
             or clean_code(record.get("ADM0_ISO"))
             or clean_code(record.get("ISO_A3"))
-            or clean_code(record.get("ADM0_A3"))
+            or source_id
             or clean_code(record.get("SOV_A3"))
         )
+        if fid not in UN_AND_OBSERVER_ISO3:
+            return None
         props = {
             "id": fid,
             "level": "country",
@@ -150,7 +191,7 @@ def build_feature(record: dict[str, Any], geometry, kind: str):
             "region": record.get("REGION_UN") or record.get("CONTINENT"),
             "subregion": record.get("SUBREGION"),
         }
-    else:
+    elif kind == "region":
         fid = record.get("adm1_code") or record.get("iso_3166_2")
         props = {
             "id": fid,
@@ -166,6 +207,21 @@ def build_feature(record: dict[str, Any], geometry, kind: str):
             "latitude": record.get("latitude"),
             "longitude": record.get("longitude"),
         }
+    else:
+        fid = record.get("ADM2_PCODE")
+        props = {
+            "id": fid,
+            "level": "city",
+            "parentId": record.get("ADM1_PCODE"),
+            "name": record.get("ADM2_EN"),
+            "localName": record.get("ADM2_ZH") or record.get("ADM2_EN"),
+            "code": fid,
+            "country": record.get("ADM0_EN"),
+            "countryCode": record.get("ADM0_PCODE"),
+            "province": record.get("ADM1_ZH") or record.get("ADM1_EN"),
+            "provinceCode": record.get("ADM1_PCODE"),
+            "type": record.get("Admin_type"),
+        }
     return {"type": "Feature", "id": props["id"], "properties": props, "geometry": geometry}
 
 
@@ -179,7 +235,15 @@ def convert(source: Path, target: Path, kind: str, tolerance: float, min_area: f
         geometry = simplify_geometry(shape_record.shape.__geo_interface__, tolerance, min_area)
         if not geometry:
             continue
-        features.append(build_feature(record, geometry, kind))
+        feature = build_feature(record, geometry, kind)
+        if not feature:
+            continue
+        if kind == "country":
+            existing = next((item for item in features if item["id"] == feature["id"]), None)
+            if existing:
+                existing["geometry"] = merge_geometry(existing["geometry"], feature["geometry"])
+                continue
+        features.append(feature)
 
     collection = {
         "type": "FeatureCollection",
@@ -193,7 +257,10 @@ def convert(source: Path, target: Path, kind: str, tolerance: float, min_area: f
         "features": features,
     }
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(collection, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    target.write_text(
+        json.dumps(collection, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
     print(f"{target}: {len(features)} features, {target.stat().st_size / 1024 / 1024:.2f} MB")
 
 
@@ -209,7 +276,7 @@ def main():
         source_dir / "WorldBoundaries.shp",
         output_dir / "countries.geojson",
         "country",
-        tolerance=0.12,
+        tolerance=0.18,
         min_area=0,
     )
     convert(
@@ -217,6 +284,13 @@ def main():
         output_dir / "states.geojson",
         "region",
         tolerance=0.12,
+        min_area=0,
+    )
+    convert(
+        source_dir / "ChinaCityBoundaries.shp",
+        output_dir / "china-cities.geojson",
+        "city",
+        tolerance=0.03,
         min_area=0,
     )
 

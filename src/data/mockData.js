@@ -238,6 +238,7 @@ export const places = [
   },
   {
     id: "city-shanghai",
+    mapId: "CN031010",
     level: "city",
     parentId: "cn-shanghai",
     name: "Shanghai",
@@ -253,6 +254,7 @@ export const places = [
   },
   {
     id: "city-suzhou",
+    mapId: "CN032070",
     level: "city",
     parentId: "cn-jiangsu",
     name: "Suzhou",
@@ -268,6 +270,7 @@ export const places = [
   },
   {
     id: "city-hangzhou",
+    mapId: "CN033010",
     level: "city",
     parentId: "cn-zhejiang",
     name: "Hangzhou",
@@ -283,6 +286,7 @@ export const places = [
   },
   {
     id: "city-beijing",
+    mapId: "CN011010",
     level: "city",
     parentId: "cn-beijing",
     name: "Beijing",

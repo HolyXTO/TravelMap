@@ -1,5 +1,24 @@
 -- TravelMap first-version schema for Supabase.
 -- Run this in Supabase SQL Editor after creating the project.
+-- Editing is restricted to users listed in public.app_editors.
+
+create table if not exists public.app_editors (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create or replace function public.is_travelmap_editor()
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.app_editors
+    where user_id = auth.uid()
+  );
+$$;
 
 create table if not exists public.travel_profiles (
   id uuid primary key default gen_random_uuid(),
@@ -25,7 +44,7 @@ create table if not exists public.places (
 create table if not exists public.visits (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid not null references public.travel_profiles(id) on delete cascade,
-  place_id text not null references public.places(id) on delete restrict,
+  place_id text not null,
   visited_at date not null,
   trip_type text not null,
   note text,
@@ -42,6 +61,7 @@ create table if not exists public.visit_photos (
   created_at timestamptz not null default now()
 );
 
+alter table public.app_editors enable row level security;
 alter table public.travel_profiles enable row level security;
 alter table public.places enable row level security;
 alter table public.visits enable row level security;
@@ -51,46 +71,68 @@ create policy "Public can read profiles"
   on public.travel_profiles for select
   using (true);
 
+create policy "Only editor can manage profiles"
+  on public.travel_profiles for all
+  to authenticated
+  using (public.is_travelmap_editor())
+  with check (public.is_travelmap_editor());
+
 create policy "Public can read places"
   on public.places for select
   using (true);
+
+create policy "Only editor can manage places"
+  on public.places for all
+  to authenticated
+  using (public.is_travelmap_editor())
+  with check (public.is_travelmap_editor());
 
 create policy "Public can read visits"
   on public.visits for select
   using (true);
 
+create policy "Only editor can insert visits"
+  on public.visits for insert
+  to authenticated
+  with check (public.is_travelmap_editor() and auth.uid() = created_by);
+
+create policy "Only editor can update visits"
+  on public.visits for update
+  to authenticated
+  using (public.is_travelmap_editor())
+  with check (public.is_travelmap_editor());
+
+create policy "Only editor can delete visits"
+  on public.visits for delete
+  to authenticated
+  using (public.is_travelmap_editor());
+
 create policy "Public can read visit photos"
   on public.visit_photos for select
   using (true);
 
-create policy "Authenticated editors can insert visits"
-  on public.visits for insert
-  to authenticated
-  with check (auth.uid() = created_by);
-
-create policy "Authenticated editors can update own visits"
-  on public.visits for update
-  to authenticated
-  using (auth.uid() = created_by)
-  with check (auth.uid() = created_by);
-
-create policy "Authenticated editors can delete own visits"
-  on public.visits for delete
-  to authenticated
-  using (auth.uid() = created_by);
-
-create policy "Authenticated editors can insert photos"
+create policy "Only editor can insert photos"
   on public.visit_photos for insert
   to authenticated
-  with check (auth.uid() = created_by);
+  with check (public.is_travelmap_editor() and auth.uid() = created_by);
 
-create policy "Authenticated editors can update own photos"
+create policy "Only editor can update photos"
   on public.visit_photos for update
   to authenticated
-  using (auth.uid() = created_by)
-  with check (auth.uid() = created_by);
+  using (public.is_travelmap_editor())
+  with check (public.is_travelmap_editor());
 
-create policy "Authenticated editors can delete own photos"
+create policy "Only editor can delete photos"
   on public.visit_photos for delete
   to authenticated
-  using (auth.uid() = created_by);
+  using (public.is_travelmap_editor());
+
+insert into public.travel_profiles (display_name, color)
+values
+  ('Person A', '#2563eb'),
+  ('Person B', '#dc2626')
+on conflict do nothing;
+
+-- After creating your own auth user, add yourself as the only editor:
+-- insert into public.app_editors (user_id)
+-- values ('YOUR_AUTH_USER_UUID');
