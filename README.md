@@ -1,6 +1,6 @@
 # TravelMap
 
-Personal travel footprint map for two people. The current version uses React, Vite, Leaflet, CARTO basemap tiles, local GeoJSON boundary files, mock visit data, and a Supabase schema prepared for one editor account.
+Personal travel footprint map for two people. The current version uses React, Vite, Leaflet, CARTO basemap tiles, local GeoJSON boundary files, and Supabase for persisted visits, editor login, and photo uploads.
 
 ## What Is Included
 
@@ -13,8 +13,9 @@ Personal travel footprint map for two people. The current version uses React, Vi
 - Country boundaries generated from `世界地图/WorldBoundaries.shp`
 - Admin-1 boundaries generated from `世界地图/WorldStates.shp`
 - China city boundaries generated from `世界地图/ChinaCityBoundaries.shp`
-- Dashboard metrics, filters, map view, list view, edit prototype
+- Dashboard metrics, filters, map view, list view, and login-gated editor
 - Supabase schema in `supabase/schema.sql`
+- Supabase Storage policies in `supabase/storage_policies.sql`
 
 ## Local Run
 
@@ -131,9 +132,10 @@ values ('YOUR_AUTH_USER_UUID');
 ```
 
 7. Create a Storage bucket named `travel-photos`.
-8. Copy the Project URL and anon public key.
+8. Run `supabase/storage_policies.sql`.
+9. Copy the Project URL and anon public key.
 
-Create a local `.env`:
+The current public deployment is already configured with the provided Project URL and anon public key. For a different Supabase project, create a local `.env`:
 
 ```text
 VITE_SUPABASE_URL=your project URL

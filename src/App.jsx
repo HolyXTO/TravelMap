@@ -22,11 +22,9 @@ import {
   profiles,
   tripTypes,
 } from "./data/mockData";
+import { supabase } from "./lib/supabase";
 
-const profileFilters = [
-  { id: "all", label: "两个人" },
-  ...profiles.map((profile) => ({ id: profile.id, label: profile.name })),
-];
+const PHOTO_BUCKET = "travel-photos";
 
 function geometryCenter(geometry) {
   const points = [];
@@ -126,6 +124,40 @@ function formatPath(placeId, placeLookup) {
   return placeLookup.get(placeId)?.localName ?? placeId;
 }
 
+function photoFromPath(path) {
+  const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+  return {
+    name: path.split("/").pop() || "旅行照片",
+    url: data.publicUrl,
+  };
+}
+
+function mapProfile(row) {
+  return {
+    id: row.id,
+    name: row.display_name,
+    color: row.color,
+  };
+}
+
+function mapVisit(row) {
+  return {
+    id: row.id,
+    profileId: row.profile_id,
+    placeId: row.place_id,
+    visitedAt: row.visited_at,
+    type: row.trip_type,
+    note: row.note || "",
+    photos: (row.visit_photos || []).map((photo) =>
+      photoFromPath(photo.storage_path),
+    ),
+  };
+}
+
+function safeStorageName(name) {
+  return name.replace(/[^\w.-]+/g, "_").slice(-100) || "photo";
+}
+
 function App() {
   const [activeProfile, setActiveProfile] = useState("all");
   const [activeLevel, setActiveLevel] = useState("country");
@@ -134,10 +166,55 @@ function App() {
   const [regionFilter, setRegionFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const [visits, setVisits] = useState(initialVisits);
+  const [appProfiles, setAppProfiles] = useState(profiles);
+  const [visits, setVisits] = useState([]);
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
   const [mapPlaces, setMapPlaces] = useState({ country: [], region: [], city: [] });
   const [mapStatus, setMapStatus] = useState("正在加载真实边界");
+  const [dataStatus, setDataStatus] = useState("正在连接 Supabase");
+  const [session, setSession] = useState(null);
+  const [isEditor, setIsEditor] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const profileFilters = useMemo(
+    () => [
+      { id: "all", label: "两个人" },
+      ...appProfiles.map((profile) => ({ id: profile.id, label: profile.name })),
+    ],
+    [appProfiles],
+  );
+
+  const loadTravelData = async () => {
+    try {
+      setDataStatus("正在同步 Supabase 数据");
+      const [profilesResult, visitsResult] = await Promise.all([
+        supabase
+          .from("travel_profiles")
+          .select("id, display_name, color, created_at")
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("visits")
+          .select(
+            "id, profile_id, place_id, visited_at, trip_type, note, visit_photos(id, storage_path, caption)",
+          )
+          .order("visited_at", { ascending: false }),
+      ]);
+
+      if (profilesResult.error) throw profilesResult.error;
+      if (visitsResult.error) throw visitsResult.error;
+
+      const nextProfiles = profilesResult.data.map(mapProfile);
+      setAppProfiles(nextProfiles.length > 0 ? nextProfiles : profiles);
+      setVisits(visitsResult.data.map(mapVisit));
+      setDataStatus("Supabase 已连接");
+    } catch (error) {
+      console.error(error);
+      setAppProfiles(profiles);
+      setVisits(initialVisits);
+      setDataStatus("Supabase 暂不可用，正在显示本地示例数据");
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +253,48 @@ function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function boot() {
+      await loadTravelData();
+      const { data } = await supabase.auth.getSession();
+      if (!cancelled) setSession(data.session);
+    }
+
+    boot();
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthMessage("");
+    });
+
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkEditor() {
+      if (!session) {
+        setIsEditor(false);
+        return;
+      }
+      const { data, error } = await supabase.rpc("is_travelmap_editor");
+      if (!cancelled) {
+        setIsEditor(Boolean(data) && !error);
+        if (error) setAuthMessage("登录成功，但暂时无法确认编辑权限。");
+      }
+    }
+
+    checkEditor();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const cityPlaces = useMemo(
     () => places.filter((place) => place.level === "city"),
@@ -283,31 +402,78 @@ function App() {
     [visits],
   );
 
-  function addVisit(event) {
+  async function addVisit(event) {
     event.preventDefault();
+    if (!session || !isEditor) {
+      setAuthMessage("请先用已授权账号登录。");
+      return;
+    }
     const form = new FormData(event.currentTarget);
     const file = form.get("photo");
-    const photos =
-      file && file.size
-        ? [
-            {
-              name: file.name,
-              url: URL.createObjectURL(file),
-            },
-          ]
-        : [];
-    const nextVisit = {
-      id: `visit-${Date.now()}`,
-      profileId: form.get("profileId"),
-      placeId: form.get("placeId"),
-      visitedAt: form.get("visitedAt"),
-      type: form.get("type"),
-      note: form.get("note") || "新添加的足迹。",
-      photos,
-    };
-    setVisits((current) => [nextVisit, ...current]);
-    setSelectedPlaceId(resolveMapIdForLevel(nextVisit.placeId, activeLevel) || nextVisit.placeId);
-    event.currentTarget.reset();
+    const placeId = form.get("placeId");
+
+    try {
+      setIsSaving(true);
+      setAuthMessage("");
+      const { data: createdVisit, error: visitError } = await supabase
+        .from("visits")
+        .insert({
+          profile_id: form.get("profileId"),
+          place_id: placeId,
+          visited_at: form.get("visitedAt"),
+          trip_type: form.get("type"),
+          note: form.get("note") || "",
+          created_by: session.user.id,
+        })
+        .select("id")
+        .single();
+
+      if (visitError) throw visitError;
+
+      if (file && file.size) {
+        const storagePath = `${session.user.id}/${createdVisit.id}/${Date.now()}-${safeStorageName(file.name)}`;
+        const { error: uploadError } = await supabase.storage
+          .from(PHOTO_BUCKET)
+          .upload(storagePath, file, {
+            contentType: file.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (uploadError) throw uploadError;
+
+        const { error: photoError } = await supabase.from("visit_photos").insert({
+          visit_id: createdVisit.id,
+          storage_path: storagePath,
+          created_by: session.user.id,
+        });
+        if (photoError) throw photoError;
+      }
+
+      await loadTravelData();
+      setSelectedPlaceId(resolveMapIdForLevel(placeId, activeLevel) || placeId);
+      setAuthMessage("已保存到 Supabase。");
+      event.currentTarget.reset();
+    } catch (error) {
+      console.error(error);
+      setAuthMessage(`保存失败：${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function signIn(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setAuthMessage("正在登录");
+    const { error } = await supabase.auth.signInWithPassword({
+      email: form.get("email"),
+      password: form.get("password"),
+    });
+    setAuthMessage(error ? `登录失败：${error.message}` : "登录成功。");
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    setAuthMessage("已退出登录。");
   }
 
   return (
@@ -319,10 +485,10 @@ function App() {
         </div>
         <div className="status-strip" aria-label="项目状态">
           <span>
-            <Database size={16} /> Mock 数据
+            <Database size={16} /> {dataStatus}
           </span>
           <span>
-            <ShieldCheck size={16} /> 待接 Supabase
+            <ShieldCheck size={16} /> {session ? "已登录编辑账号" : "公开只读"}
           </span>
         </div>
       </header>
@@ -453,15 +619,34 @@ function App() {
           />
           <DetailPanel
             placeLookup={placeLookup}
+            profiles={appProfiles}
             selectedPlaceId={selectedPlaceId}
             visits={selectedVisits}
           />
         </section>
       )}
 
-      {viewMode === "list" && <VisitList placeLookup={placeLookup} visits={filteredVisits} />}
+      {viewMode === "list" && (
+        <VisitList
+          placeLookup={placeLookup}
+          profiles={appProfiles}
+          visits={filteredVisits}
+        />
+      )}
 
-      {viewMode === "admin" && <AdminForm addVisit={addVisit} placeLookup={placeLookup} />}
+      {viewMode === "admin" && (
+        <AdminForm
+          addVisit={addVisit}
+          authMessage={authMessage}
+          isEditor={isEditor}
+          isSaving={isSaving}
+          onSignIn={signIn}
+          onSignOut={signOut}
+          placeLookup={placeLookup}
+          profiles={appProfiles}
+          session={session}
+        />
+      )}
     </main>
   );
 }
@@ -601,7 +786,7 @@ function MapView({
   );
 }
 
-function DetailPanel({ placeLookup, selectedPlaceId, visits }) {
+function DetailPanel({ placeLookup, profiles, selectedPlaceId, visits }) {
   const place = placeLookup.get(selectedPlaceId);
   if (!place) return null;
 
@@ -634,7 +819,7 @@ function DetailPanel({ placeLookup, selectedPlaceId, visits }) {
   );
 }
 
-function VisitList({ placeLookup, visits }) {
+function VisitList({ placeLookup, profiles, visits }) {
   return (
     <section className="list-view">
       <div className="section-title">
@@ -663,12 +848,66 @@ function VisitList({ placeLookup, visits }) {
   );
 }
 
-function AdminForm({ addVisit, placeLookup }) {
+function AdminForm({
+  addVisit,
+  authMessage,
+  isEditor,
+  isSaving,
+  onSignIn,
+  onSignOut,
+  placeLookup,
+  profiles,
+  session,
+}) {
+  if (!session) {
+    return (
+      <section className="admin-view">
+        <div className="section-title">
+          <p className="eyebrow">Editor Login</p>
+          <h2>登录后编辑足迹</h2>
+        </div>
+        <form className="editor-form auth-form" onSubmit={onSignIn}>
+          <label>
+            Supabase 邮箱
+            <input name="email" required type="email" />
+          </label>
+          <label>
+            密码
+            <input name="password" required type="password" />
+          </label>
+          <button className="primary-action" type="submit">
+            <ShieldCheck size={18} />
+            登录
+          </button>
+          {authMessage && <p className="form-message wide">{authMessage}</p>}
+        </form>
+      </section>
+    );
+  }
+
+  if (!isEditor) {
+    return (
+      <section className="admin-view">
+        <div className="section-title">
+          <p className="eyebrow">Editor Permission</p>
+          <h2>当前账号没有编辑权限</h2>
+        </div>
+        <p className="form-message">
+          已登录 {session.user.email}，但它不在 app_editors 表里。
+        </p>
+        <button className="primary-action inline-action" onClick={onSignOut} type="button">
+          退出登录
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section className="admin-view">
       <div className="section-title">
-        <p className="eyebrow">Editor Prototype</p>
+        <p className="eyebrow">Editor</p>
         <h2>添加足迹</h2>
+        <p className="editor-account">已登录 {session.user.email}</p>
       </div>
       <form className="editor-form" onSubmit={addVisit}>
         <label>
@@ -713,13 +952,17 @@ function AdminForm({ addVisit, placeLookup }) {
         </label>
         <label className="upload wide">
           <Camera size={18} />
-          <span>上传一张照片预览</span>
+          <span>上传一张照片</span>
           <input accept="image/*" name="photo" type="file" />
         </label>
-        <button className="primary-action" type="submit">
+        <button className="primary-action" disabled={isSaving} type="submit">
           <Plus size={18} />
-          添加到当前原型
+          {isSaving ? "正在保存" : "保存到 Supabase"}
         </button>
+        <button className="secondary-action" onClick={onSignOut} type="button">
+          退出登录
+        </button>
+        {authMessage && <p className="form-message wide">{authMessage}</p>}
       </form>
     </section>
   );

@@ -436,6 +436,48 @@ h2 {
   font-weight: 900;
 }
 
+.primary-action:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.secondary-action,
+.inline-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid #b8c7bd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #214131;
+  font-weight: 900;
+}
+
+.inline-action {
+  margin-top: 12px;
+  padding: 0 18px;
+}
+
+.auth-form {
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) 160px;
+}
+
+.form-message,
+.editor-account {
+  margin: 0;
+  color: #516158;
+  font-weight: 800;
+}
+
+.form-message {
+  align-self: center;
+  border: 1px solid #d7e1dc;
+  border-radius: 8px;
+  background: #f8faf7;
+  padding: 11px 12px;
+}
+
 @media (max-width: 1020px) {
   .control-band,
   .filters,
