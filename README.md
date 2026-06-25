@@ -10,9 +10,10 @@ Personal travel footprint map for two people. The current version uses React, Vi
 - CARTO basemap with OSM/CARTO attribution
 - Profile switch for two people
 - Layer switch: country / state-province / city
-- Country boundaries generated from `世界地图/WorldBoundaries.shp`
-- Admin-1 boundaries generated from `世界地图/WorldStates.shp`
+- Country boundaries generated from `世界地图/world-administrative-boundaries_256.shp`
+- Admin-1 boundaries filtered to China from `世界地图/WorldStates.shp`
 - China city boundaries generated from `世界地图/ChinaCityBoundaries.shp`
+- Searchable non-China city points generated from `世界地图/世界地名points.shp`
 - Dashboard metrics, filters, map view, list view, and login-gated editor
 - Supabase schema in `supabase/schema.sql`
 - Supabase Storage policies in `supabase/storage_policies.sql`
@@ -43,9 +44,10 @@ The production output goes to `dist/`.
 Input SHP files:
 
 ```text
-世界地图/WorldBoundaries.shp
+世界地图/world-administrative-boundaries_256.shp
 世界地图/WorldStates.shp
 世界地图/ChinaCityBoundaries.shp
+世界地图/世界地名points.shp
 ```
 
 Generated web files:
@@ -54,6 +56,7 @@ Generated web files:
 public/maps/countries.geojson
 public/maps/states.geojson
 public/maps/china-cities.geojson
+public/maps/place-index.json
 ```
 
 Regenerate them with:
@@ -65,23 +68,22 @@ python scripts/convert_maps.py
 The converter currently:
 
 - Reads SHP files with `pyshp`
-- Converts `WGS_1984_World_Mercator` country/state coordinates back to lon/lat
-- Keeps China city data in WGS84 lon/lat
-- Simplifies polygon rings
+- Keeps the current WGS84 lon/lat coordinates
+- Lightly simplifies polygon rings
 - Filters country boundaries to UN member states plus observer states when present in the source
-- Merges Northern Cyprus and the Cyprus buffer zone into Cyprus
-- Merges Kosovo into Serbia for this 195-state framing
-- Outputs China city boundaries only, not global city boundaries
+- Merges territories such as Taiwan, Hong Kong, and Macao into China for this 195-state framing
+- Keeps Antarctica as a visible map feature, but marks it as not counted as a country
+- Outputs China-only province and city boundary layers
+- Outputs a search index for countries, China provinces, China cities, and non-China city points
 
 Current generated counts:
 
 ```text
-countries.geojson: 194 features
-states.geojson: 4596 features
+countries.geojson: 196 features, including 195 countries plus Antarctica
+states.geojson: 31 China province-level features
 china-cities.geojson: 361 features
+place-index.json: 7023 searchable places
 ```
-
-The country count is 194 because the current `WorldBoundaries.shp` source does not include a separate Palestine boundary feature. Palestine is still in the target whitelist, so it can be added later from a vetted compatible boundary source.
 
 ## OSM / CARTO
 

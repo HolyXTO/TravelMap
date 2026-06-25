@@ -3,7 +3,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   CalendarDays,
-  Camera,
   Database,
   Globe2,
   Layers3,
@@ -13,6 +12,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  X,
   Users,
 } from "lucide-react";
 import {
@@ -25,6 +25,24 @@ import {
 import { supabase } from "./lib/supabase";
 
 const PHOTO_BUCKET = "travel-photos";
+const CHINA_BOUNDS = [
+  [18, 73],
+  [54, 135],
+];
+const WORLD_BOUNDS = [
+  [-85, -180],
+  [84, 180],
+];
+const CONTINENT_LABELS = {
+  Asia: "亚洲",
+  Europe: "欧洲",
+  Africa: "非洲",
+  Oceania: "大洋洲",
+  Americas: "美洲",
+  "North America": "北美洲",
+  "South America": "南美洲",
+  Antarctica: "南极洲",
+};
 
 function geometryCenter(geometry) {
   const points = [];
@@ -53,14 +71,27 @@ function geometryCenter(geometry) {
   ];
 }
 
+function flagEmoji(isoA2) {
+  if (!isoA2 || isoA2.length !== 2) return "◇";
+  return isoA2
+    .toUpperCase()
+    .split("")
+    .map((char) => String.fromCodePoint(0x1f1e6 + char.charCodeAt(0) - 65))
+    .join("");
+}
+
 function featureToPlace(feature) {
   const props = feature.properties;
   return {
+    ...props,
     id: props.id,
     level: props.level,
     name: props.name,
     localName: props.localName || props.name,
     parentId: props.parentId,
+    countryCode: props.countryCode || props.code || props.id,
+    countryName: props.country || props.localName || props.name,
+    flag: flagEmoji(props.isoA2),
     region: props.region || props.continent,
     geometry: feature.geometry,
     center:
@@ -86,42 +117,111 @@ function placeToFeature(place) {
   };
 }
 
-function findPlace(placeId) {
-  return places.find((place) => place.id === placeId);
+function findPlace(placeId, placeLookup) {
+  return placeLookup?.get(placeId) || places.find((place) => place.id === placeId);
 }
 
-function placeChain(placeId) {
+function placeChain(placeId, placeLookup) {
   const chain = [];
-  let current = findPlace(placeId);
+  let current = findPlace(placeId, placeLookup);
+  const seen = new Set();
   while (current) {
+    if (seen.has(current.id)) break;
+    seen.add(current.id);
     chain.unshift(current);
-    current = current.parentId ? findPlace(current.parentId) : null;
+    current = current.parentId ? findPlace(current.parentId, placeLookup) : null;
   }
   return chain;
 }
 
-function resolvePlaceForLevel(placeId, level) {
-  const chain = placeChain(placeId);
+function resolvePlaceForLevel(placeId, level, placeLookup) {
+  const chain = placeChain(placeId, placeLookup);
   if (level === "country") {
     return chain.find((place) => place.level === "country");
   }
   if (level === "region") {
     return chain.find((place) => place.level === "region") ?? chain[0];
   }
-  return findPlace(placeId);
+  return findPlace(placeId, placeLookup);
 }
 
-function resolveMapIdForLevel(placeId, level) {
-  const place = resolvePlaceForLevel(placeId, level);
+function resolveMapIdForLevel(placeId, level, placeLookup) {
+  const place = resolvePlaceForLevel(placeId, level, placeLookup);
   return place?.mapId || place?.id;
 }
 
 function formatPath(placeId, placeLookup) {
-  const chain = placeChain(placeId);
+  const chain = placeChain(placeId, placeLookup);
   if (chain.length > 0) {
     return chain.map((place) => place.localName).join(" / ");
   }
   return placeLookup.get(placeId)?.localName ?? placeId;
+}
+
+function regionLabel(region) {
+  return CONTINENT_LABELS[region] || region || "其他";
+}
+
+function placeSearchText(place) {
+  return [
+    place.flag,
+    place.localName,
+    place.name,
+    place.countryName,
+    place.province,
+    place.region,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function buildContinentSummary(visits, placeLookup) {
+  const buckets = new Map();
+  for (const visit of visits) {
+    const chain = placeChain(visit.placeId, placeLookup);
+    const country = chain.find((place) => place.level === "country");
+    const region = chain.find((place) => place.level === "region");
+    const city = chain.find((place) => place.level === "city");
+    const continent = regionLabel(country?.region || country?.continent || "Other");
+    if (!buckets.has(continent)) {
+      buckets.set(continent, {
+        label: continent,
+        count: 0,
+        countries: new Map(),
+      });
+    }
+    const bucket = buckets.get(continent);
+    bucket.count += 1;
+    const countryId = country?.id || "unknown";
+    if (!bucket.countries.has(countryId)) {
+      bucket.countries.set(countryId, {
+        id: countryId,
+        name: country?.localName || country?.name || "未知地区",
+        regions: new Set(),
+        cities: new Set(),
+        visits: 0,
+      });
+    }
+    const item = bucket.countries.get(countryId);
+    item.visits += 1;
+    if (region) item.regions.add(region.id);
+    if (city) item.cities.add(city.id);
+  }
+
+  const order = ["亚洲", "北美洲", "欧洲", "非洲", "大洋洲", "南美洲", "南极洲", "美洲"];
+  return Array.from(buckets.values())
+    .map((bucket) => ({
+      ...bucket,
+      countries: Array.from(bucket.countries.values()).sort((a, b) =>
+        b.visits - a.visits || a.name.localeCompare(b.name),
+      ),
+    }))
+    .sort((a, b) => {
+      const ai = order.indexOf(a.label);
+      const bi = order.indexOf(b.label);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
 }
 
 function photoFromPath(path) {
@@ -170,6 +270,7 @@ function App() {
   const [visits, setVisits] = useState([]);
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
   const [mapPlaces, setMapPlaces] = useState({ country: [], region: [], city: [] });
+  const [searchPlaces, setSearchPlaces] = useState([]);
   const [mapStatus, setMapStatus] = useState("正在加载真实边界");
   const [dataStatus, setDataStatus] = useState("正在连接 Supabase");
   const [session, setSession] = useState(null);
@@ -221,18 +322,30 @@ function App() {
     async function loadMaps() {
       try {
         const base = import.meta.env.BASE_URL;
-        const [countriesResponse, statesResponse, citiesResponse] = await Promise.all([
+        const [
+          countriesResponse,
+          statesResponse,
+          citiesResponse,
+          indexResponse,
+        ] = await Promise.all([
           fetch(`${base}maps/countries.geojson`),
           fetch(`${base}maps/states.geojson`),
           fetch(`${base}maps/china-cities.geojson`),
+          fetch(`${base}maps/place-index.json`),
         ]);
-        if (!countriesResponse.ok || !statesResponse.ok || !citiesResponse.ok) {
+        if (
+          !countriesResponse.ok ||
+          !statesResponse.ok ||
+          !citiesResponse.ok ||
+          !indexResponse.ok
+        ) {
           throw new Error("Map response was not ok");
         }
-        const [countries, states, cities] = await Promise.all([
+        const [countries, states, cities, placeIndex] = await Promise.all([
           countriesResponse.json(),
           statesResponse.json(),
           citiesResponse.json(),
+          indexResponse.json(),
         ]);
         if (!cancelled) {
           setMapPlaces({
@@ -240,8 +353,9 @@ function App() {
             region: states.features.map(featureToPlace),
             city: cities.features.map(featureToPlace),
           });
+          setSearchPlaces(placeIndex);
           setMapStatus(
-            `${countries.features.length} 个国家/地区，${states.features.length} 个二级行政区，${cities.features.length} 个中国城市`,
+            `${countries.metadata?.countryCount || countries.features.length} 个国家，${states.features.length} 个中国省级单位，${cities.features.length} 个中国城市`,
           );
         }
       } catch {
@@ -297,23 +411,24 @@ function App() {
   }, [session]);
 
   const cityPlaces = useMemo(
-    () => places.filter((place) => place.level === "city"),
-    [],
+    () => searchPlaces.filter((place) => place.level === "city" && place.countryCode === "CHN"),
+    [searchPlaces],
   );
 
   const placeLookup = useMemo(() => {
     const lookup = new Map();
     for (const place of places) lookup.set(place.id, place);
+    for (const place of searchPlaces) lookup.set(place.id, place);
     for (const level of ["country", "region", "city"]) {
       for (const place of mapPlaces[level]) lookup.set(place.id, place);
     }
     return lookup;
-  }, [mapPlaces]);
+  }, [mapPlaces, searchPlaces]);
 
   const filteredVisits = useMemo(() => {
     return visits.filter((visit) => {
-      const place = findPlace(visit.placeId);
-      const chain = placeChain(visit.placeId);
+      const place = findPlace(visit.placeId, placeLookup);
+      const chain = placeChain(visit.placeId, placeLookup);
       const country = chain.find((item) => item.level === "country");
       const text = `${formatPath(visit.placeId, placeLookup)} ${visit.note}`.toLowerCase();
       const year = visit.visitedAt.slice(0, 4);
@@ -341,7 +456,7 @@ function App() {
   const visitedByLevel = useMemo(() => {
     const result = new Map();
     for (const visit of filteredVisits) {
-      const mapId = resolveMapIdForLevel(visit.placeId, activeLevel);
+      const mapId = resolveMapIdForLevel(visit.placeId, activeLevel, placeLookup);
       if (!mapId) continue;
       const current = result.get(mapId) ?? {
         count: 0,
@@ -354,7 +469,7 @@ function App() {
       result.set(mapId, current);
     }
     return result;
-  }, [activeLevel, filteredVisits]);
+  }, [activeLevel, filteredVisits, placeLookup]);
 
   const displayPlaces = useMemo(() => {
     const loaded = mapPlaces[activeLevel];
@@ -367,8 +482,10 @@ function App() {
     const selected = placeLookup.get(selectedPlaceId);
     if (!selected) return [];
     return filteredVisits.filter((visit) => {
-      if (selected.level === "city") return resolveMapIdForLevel(visit.placeId, "city") === selected.id;
-      return resolveMapIdForLevel(visit.placeId, selected.level) === selected.id;
+      if (selected.level === "city") {
+        return resolveMapIdForLevel(visit.placeId, "city", placeLookup) === selected.id;
+      }
+      return resolveMapIdForLevel(visit.placeId, selected.level, placeLookup) === selected.id;
     });
   }, [filteredVisits, placeLookup, selectedPlaceId]);
 
@@ -377,7 +494,7 @@ function App() {
     const regions = new Set();
     const cities = new Set();
     for (const visit of filteredVisits) {
-      const chain = placeChain(visit.placeId);
+      const chain = placeChain(visit.placeId, placeLookup);
       for (const place of chain) {
         if (place.level === "country") countries.add(place.mapId || place.id);
         if (place.level === "region") regions.add(place.mapId || place.id);
@@ -394,7 +511,7 @@ function App() {
       visits: filteredVisits.length,
       recent,
     };
-  }, [filteredVisits]);
+  }, [filteredVisits, placeLookup]);
 
   const years = useMemo(
     () =>
@@ -402,27 +519,65 @@ function App() {
     [visits],
   );
 
-  async function addVisit(event) {
-    event.preventDefault();
+  const visitedPlaceIds = useMemo(
+    () => new Set(visits.map((visit) => visit.placeId)),
+    [visits],
+  );
+
+  const selectedCountryId = useMemo(
+    () => resolveMapIdForLevel(selectedPlaceId, "country", placeLookup) || "CHN",
+    [placeLookup, selectedPlaceId],
+  );
+
+  const selectedCountry = placeLookup.get(selectedCountryId);
+
+  const selectedCountryPlaces = useMemo(
+    () =>
+      searchPlaces.filter(
+        (place) =>
+          place.countryCode === selectedCountryId &&
+          place.level !== "country",
+      ),
+    [searchPlaces, selectedCountryId],
+  );
+
+  const selectedCountryVisits = useMemo(
+    () =>
+      filteredVisits.filter(
+        (visit) =>
+          resolveMapIdForLevel(visit.placeId, "country", placeLookup) === selectedCountryId,
+      ),
+    [filteredVisits, placeLookup, selectedCountryId],
+  );
+
+  const continentSummary = useMemo(
+    () => buildContinentSummary(filteredVisits, placeLookup),
+    [filteredVisits, placeLookup],
+  );
+
+  function changeLevel(levelId) {
+    setActiveLevel(levelId);
+    if (levelId === "region" || levelId === "city") {
+      setSelectedPlaceId("CHN");
+    }
+  }
+
+  async function saveVisit({ file, placeId, profileId, resetTarget, type, visitedAt }) {
     if (!session || !isEditor) {
       setAuthMessage("请先用已授权账号登录。");
-      return;
+      return false;
     }
-    const form = new FormData(event.currentTarget);
-    const file = form.get("photo");
-    const placeId = form.get("placeId");
-
     try {
       setIsSaving(true);
       setAuthMessage("");
       const { data: createdVisit, error: visitError } = await supabase
         .from("visits")
         .insert({
-          profile_id: form.get("profileId"),
+          profile_id: profileId,
           place_id: placeId,
-          visited_at: form.get("visitedAt"),
-          trip_type: form.get("type"),
-          note: form.get("note") || "",
+          visited_at: visitedAt || new Date().toISOString().slice(0, 10),
+          trip_type: type || "旅行",
+          note: "",
           created_by: session.user.id,
         })
         .select("id")
@@ -449,15 +604,47 @@ function App() {
       }
 
       await loadTravelData();
-      setSelectedPlaceId(resolveMapIdForLevel(placeId, activeLevel) || placeId);
+      setSelectedPlaceId(resolveMapIdForLevel(placeId, activeLevel, placeLookup) || placeId);
       setAuthMessage("已保存到 Supabase。");
-      event.currentTarget.reset();
+      resetTarget?.reset?.();
+      return true;
     } catch (error) {
       console.error(error);
       setAuthMessage(`保存失败：${error.message}`);
+      return false;
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function addVisit(event) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    await saveVisit({
+      file: form.get("photo"),
+      placeId: form.get("placeId"),
+      profileId: form.get("profileId"),
+      resetTarget: formElement,
+      type: form.get("type"),
+      visitedAt: form.get("visitedAt"),
+    });
+  }
+
+  async function addPlace(place, options = {}) {
+    const targetProfile =
+      options.profileId ||
+      (activeProfile !== "all" ? activeProfile : appProfiles[0]?.id);
+    if (!targetProfile) {
+      setAuthMessage("还没有可用的人物档案。");
+      return false;
+    }
+    return saveVisit({
+      placeId: place.id,
+      profileId: targetProfile,
+      type: options.type || "旅行",
+      visitedAt: options.visitedAt || "",
+    });
   }
 
   async function signIn(event) {
@@ -478,6 +665,18 @@ function App() {
 
   return (
     <main className="app-shell">
+      <QuickAddDock
+        activeProfile={activeProfile}
+        addPlace={addPlace}
+        authMessage={authMessage}
+        isEditor={isEditor}
+        isSaving={isSaving}
+        profiles={appProfiles}
+        searchPlaces={searchPlaces}
+        session={session}
+        visitedPlaceIds={visitedPlaceIds}
+        visits={visits}
+      />
       <header className="topbar">
         <div>
           <p className="eyebrow">TravelMap Prototype</p>
@@ -512,7 +711,7 @@ function App() {
             <button
               className={activeLevel === level.id ? "active" : ""}
               key={level.id}
-              onClick={() => setActiveLevel(level.id)}
+              onClick={() => changeLevel(level.id)}
               title={level.description}
               type="button"
             >
@@ -556,7 +755,7 @@ function App() {
         <Metric
           icon={<CalendarDays />}
           label="最近一次"
-          value={stats.recent ? findPlace(stats.recent.placeId)?.localName : "-"}
+          value={stats.recent ? findPlace(stats.recent.placeId, placeLookup)?.localName : "-"}
           detail={stats.recent?.visitedAt}
         />
       </section>
@@ -566,7 +765,7 @@ function App() {
           <Search size={16} />
           <input
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索地点或备注"
+            placeholder="搜索地点"
             value={query}
           />
         </label>
@@ -613,16 +812,28 @@ function App() {
             cityPlaces={cityPlaces}
             displayPlaces={displayPlaces}
             mapStatus={mapStatus}
+            placeLookup={placeLookup}
             selectedPlaceId={selectedPlaceId}
             setSelectedPlaceId={setSelectedPlaceId}
             visitedByLevel={visitedByLevel}
+            visitedPlaces={searchPlaces.filter((place) => visitedPlaceIds.has(place.id))}
           />
-          <DetailPanel
-            placeLookup={placeLookup}
-            profiles={appProfiles}
-            selectedPlaceId={selectedPlaceId}
-            visits={selectedVisits}
-          />
+          {selectedCountry && (
+            <CountryPanel
+              addPlace={addPlace}
+              authMessage={authMessage}
+              country={selectedCountry}
+              countryPlaces={selectedCountryPlaces}
+              isEditor={isEditor}
+              isSaving={isSaving}
+              profiles={appProfiles}
+              selectedPlaceId={selectedPlaceId}
+              selectedVisits={selectedVisits}
+              session={session}
+              visits={selectedCountryVisits}
+              visitedPlaceIds={visitedPlaceIds}
+            />
+          )}
         </section>
       )}
 
@@ -647,6 +858,11 @@ function App() {
           session={session}
         />
       )}
+
+      <TravelOverview
+        continentSummary={continentSummary}
+        placeLookup={placeLookup}
+      />
     </main>
   );
 }
@@ -669,9 +885,11 @@ function MapView({
   cityPlaces,
   displayPlaces,
   mapStatus,
+  placeLookup,
   selectedPlaceId,
   setSelectedPlaceId,
   visitedByLevel,
+  visitedPlaces,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -682,10 +900,10 @@ function MapView({
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-      center: [31.2, 104],
-      zoom: 3,
-      minZoom: 2,
-      maxZoom: 10,
+      center: [15, 18],
+      zoom: 2,
+      minZoom: 1,
+      maxZoom: 12,
       scrollWheelZoom: true,
       worldCopyJump: true,
     });
@@ -725,8 +943,8 @@ function MapView({
         const isSelected = selectedPlaceId === id;
         const hasBoth = visitInfo?.profileIds.size > 1;
         return {
-          color: isSelected ? "#111c16" : visitInfo ? "#9a5a16" : "#6f7d72",
-          weight: isSelected ? 2.4 : activeLevel === "country" ? 0.8 : 0.65,
+          color: isSelected ? "#245a38" : visitInfo ? "#9a5a16" : "#6f7d72",
+          weight: isSelected ? 1.4 : activeLevel === "country" ? 0.7 : 0.6,
           opacity: 0.95,
           fillColor: visitInfo ? (hasBoth ? "#6dbb9a" : "#f4b35e") : "#f7f3ea",
           fillOpacity: visitInfo ? 0.72 : 0.45,
@@ -737,13 +955,20 @@ function MapView({
           sticky: true,
         });
         leafletLayer.on("click", () => setSelectedPlaceId(feature.properties.id));
+        leafletLayer.on("mouseover", () => {
+          if (activeLevel === "country") setSelectedPlaceId(feature.properties.id);
+        });
       },
     }).addTo(map);
 
-    for (const city of cityPlaces) {
+    const markerPlaces = activeLevel === "city" ? cityPlaces : visitedPlaces;
+    for (const city of markerPlaces) {
       const id = city.mapId || city.id;
-      const visitInfo = visitedByLevel.get(id);
+      const visitInfo =
+        visitedByLevel.get(id) ||
+        visitedByLevel.get(resolveMapIdForLevel(id, activeLevel, placeLookup));
       const [lon, lat] = city.center;
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
       L.circleMarker([lat, lon], {
         radius: activeLevel === "city" ? 5 : 3.5,
         color: "#ffffff",
@@ -758,18 +983,23 @@ function MapView({
 
     layerRef.current = layer;
 
-    const bounds = layer.getBounds();
+    const bounds =
+      activeLevel === "country"
+        ? L.latLngBounds(WORLD_BOUNDS)
+        : L.latLngBounds(CHINA_BOUNDS);
     if (bounds.isValid() && lastLevelRef.current !== activeLevel) {
-      map.fitBounds(bounds, { padding: [18, 18], animate: false });
+      map.fitBounds(bounds, { padding: [10, 10], animate: false });
       lastLevelRef.current = activeLevel;
     }
   }, [
     activeLevel,
     cityPlaces,
     displayPlaces,
+    placeLookup,
     selectedPlaceId,
     setSelectedPlaceId,
     visitedByLevel,
+    visitedPlaces,
   ]);
 
   return (
@@ -782,6 +1012,251 @@ function MapView({
         <p>{mapStatus}</p>
       </div>
       <div className="leaflet-map" ref={containerRef} />
+    </div>
+  );
+}
+
+function QuickAddDock({
+  activeProfile,
+  addPlace,
+  authMessage,
+  isEditor,
+  isSaving,
+  profiles,
+  searchPlaces,
+  session,
+  visitedPlaceIds,
+  visits,
+}) {
+  return (
+    <aside className="quick-add-dock" aria-label="快速添加足迹">
+      <div className="dock-handle">
+        <Plus size={18} />
+      </div>
+      <PlaceSearchPanel
+        activeProfile={activeProfile}
+        addPlace={addPlace}
+        authMessage={authMessage}
+        isEditor={isEditor}
+        isSaving={isSaving}
+        places={searchPlaces}
+        profiles={profiles}
+        session={session}
+        title="添加足迹"
+        visitedPlaceIds={visitedPlaceIds}
+        visits={visits}
+      />
+    </aside>
+  );
+}
+
+function CountryPanel({
+  addPlace,
+  authMessage,
+  country,
+  countryPlaces,
+  isEditor,
+  isSaving,
+  profiles,
+  selectedVisits,
+  session,
+  visits,
+  visitedPlaceIds,
+}) {
+  const provinceCount = new Set(
+    visits
+      .map((visit) => countryPlaces.find((place) => place.id === visit.placeId)?.parentId)
+      .filter(Boolean),
+  ).size;
+  const cityCount = new Set(visits.map((visit) => visit.placeId)).size;
+  const regionTotal = country.id === "CHN"
+    ? countryPlaces.filter((place) => place.level === "region").length
+    : 0;
+
+  return (
+    <aside className="country-panel">
+      <div className="country-panel-head">
+        <div>
+          <p className="eyebrow">Selected Country</p>
+          <h2>
+            <span>{country.flag || "◇"}</span>
+            {country.localName || country.name}
+          </h2>
+        </div>
+        <X size={18} aria-hidden="true" />
+      </div>
+
+      <div className="country-metrics">
+        <span>
+          <strong>{regionTotal ? provinceCount : "-"}</strong>
+          {regionTotal ? ` / ${regionTotal} 省级单位` : "省级统计暂仅支持中国"}
+        </span>
+        <span>
+          <strong>{cityCount}</strong>
+          打卡城市/地点
+        </span>
+      </div>
+
+      <PlaceSearchPanel
+        addPlace={addPlace}
+        authMessage={authMessage}
+        compact
+        isEditor={isEditor}
+        isSaving={isSaving}
+        places={countryPlaces}
+        profiles={profiles}
+        session={session}
+        title={`添加 ${country.localName || country.name} 的地点`}
+        visitedPlaceIds={visitedPlaceIds}
+        visits={visits}
+      />
+
+      <div className="country-records">
+        <h3>当前选区记录</h3>
+        {selectedVisits.length === 0 && <p className="empty">还没有符合当前筛选的足迹。</p>}
+        {selectedVisits.slice(0, 6).map((visit) => (
+          <p key={visit.id}>
+            <span>{visit.visitedAt}</span>
+            {visit.type}
+          </p>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function PlaceSearchPanel({
+  activeProfile,
+  addPlace,
+  authMessage,
+  compact = false,
+  isEditor,
+  isSaving,
+  places,
+  profiles,
+  session,
+  title,
+  visitedPlaceIds,
+  visits,
+}) {
+  const [query, setQuery] = useState("");
+  const [profileId, setProfileId] = useState(profiles[0]?.id || "");
+  const [visitedAt, setVisitedAt] = useState("");
+  const [type, setType] = useState("旅行");
+
+  useEffect(() => {
+    if (activeProfile && activeProfile !== "all") {
+      setProfileId(activeProfile);
+    } else if (!profileId && profiles[0]) {
+      setProfileId(profiles[0].id);
+    }
+  }, [activeProfile, profileId, profiles]);
+
+  const results = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return places.slice(0, compact ? 6 : 8);
+    return places
+      .filter((place) => placeSearchText(place).includes(needle))
+      .slice(0, compact ? 8 : 12);
+  }, [compact, places, query]);
+
+  const addedPlaces = useMemo(() => {
+    const seen = new Set();
+    return visits
+      .map((visit) => places.find((place) => place.id === visit.placeId))
+      .filter(Boolean)
+      .filter((place) => {
+        if (seen.has(place.id)) return false;
+        seen.add(place.id);
+        return true;
+      })
+      .slice(0, compact ? 4 : 8);
+  }, [compact, places, visits]);
+
+  async function handleAdd(place) {
+    const ok = await addPlace(place, { profileId, type, visitedAt });
+    if (ok) setQuery("");
+  }
+
+  return (
+    <div className={compact ? "place-search compact" : "place-search"}>
+      <div className="place-search-title">
+        <h3>{title}</h3>
+        <span>已添加 {addedPlaces.length}</span>
+      </div>
+      {!session && <p className="empty">请先到“编辑”页登录，登录后这里可以直接添加。</p>}
+      {session && !isEditor && <p className="empty">当前账号没有编辑权限。</p>}
+      <div className="mini-form">
+        <select
+          disabled={!session || !isEditor}
+          onChange={(event) => setProfileId(event.target.value)}
+          value={profileId}
+        >
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+            </option>
+          ))}
+        </select>
+        <select
+          disabled={!session || !isEditor}
+          onChange={(event) => setType(event.target.value)}
+          value={type}
+        >
+          {tripTypes.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+        <input
+          disabled={!session || !isEditor}
+          onChange={(event) => setVisitedAt(event.target.value)}
+          type="date"
+          value={visitedAt}
+        />
+      </div>
+      <label className="search-field">
+        <Search size={16} />
+        <input
+          disabled={!session || !isEditor}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="搜索国家、城市或省份"
+          value={query}
+        />
+      </label>
+      <div className="search-results">
+        {results.map((place) => (
+          <button
+            disabled={!session || !isEditor || isSaving}
+            key={place.id}
+            onClick={() => handleAdd(place)}
+            type="button"
+          >
+            <span className="flag">{place.flag || "◇"}</span>
+            <span>
+              <strong>{place.localName || place.name}</strong>
+              <small>
+                {place.countryName}
+                {place.province ? ` · ${place.province}` : ""}
+              </small>
+            </span>
+            <em>{visitedPlaceIds.has(place.id) ? "已去过" : "+"}</em>
+          </button>
+        ))}
+      </div>
+      {authMessage && <p className="dock-message">{authMessage}</p>}
+      <div className="added-list">
+        <p>你去过的地方</p>
+        {addedPlaces.length === 0 && <small>尚未标记地点。</small>}
+        {addedPlaces.map((place) => (
+          <div key={place.id}>
+            <span className="flag">{place.flag || "◇"}</span>
+            <strong>{place.localName || place.name}</strong>
+            <small>{place.countryName}</small>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -848,6 +1323,46 @@ function VisitList({ placeLookup, profiles, visits }) {
   );
 }
 
+function TravelOverview({ continentSummary }) {
+  const defaultContinents = ["亚洲", "北美洲", "欧洲", "非洲", "大洋洲", "南美洲", "南极洲"];
+  const existing = new Set(continentSummary.map((item) => item.label));
+  const items = [
+    ...continentSummary,
+    ...defaultContinents
+      .filter((label) => !existing.has(label))
+      .map((label) => ({ label, count: 0, countries: [] })),
+  ];
+
+  return (
+    <section className="overview-section" aria-label="足迹总览">
+      <div className="section-title">
+        <p className="eyebrow">Overview</p>
+        <h2>按大洲浏览足迹</h2>
+      </div>
+      <div className="continent-grid">
+        {items.map((continent) => (
+          <article className="continent-block" key={continent.label}>
+            <header>
+              <h3>{continent.label}</h3>
+              <strong>{continent.count}</strong>
+            </header>
+            {continent.countries.length === 0 && <p className="empty">尚未标记地点。</p>}
+            {continent.countries.map((country) => (
+              <div className="country-summary" key={country.id}>
+                <strong>{country.name}</strong>
+                <span>
+                  {country.regions.size ? `${country.regions.size} 省州，` : ""}
+                  {country.cities.size || country.visits} 城市 / 地点
+                </span>
+              </div>
+            ))}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function AdminForm({
   addVisit,
   authMessage,
@@ -905,65 +1420,16 @@ function AdminForm({
   return (
     <section className="admin-view">
       <div className="section-title">
-        <p className="eyebrow">Editor</p>
-        <h2>添加足迹</h2>
+        <p className="eyebrow">Editor Account</p>
+        <h2>编辑账号已连接</h2>
         <p className="editor-account">已登录 {session.user.email}</p>
       </div>
-      <form className="editor-form" onSubmit={addVisit}>
-        <label>
-          人物
-          <select name="profileId" required>
-            {profiles.map((profile) => (
-              <option key={profile.id} value={profile.id}>
-                {profile.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          地点
-          <select name="placeId" required>
-            {places
-              .filter((place) => place.level === "city")
-              .map((place) => (
-                <option key={place.id} value={place.id}>
-                  {formatPath(place.id, placeLookup)}
-                </option>
-              ))}
-          </select>
-        </label>
-        <label>
-          日期
-          <input name="visitedAt" required type="date" />
-        </label>
-        <label>
-          类型
-          <select name="type" required>
-            {tripTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="wide">
-          备注
-          <textarea name="note" placeholder="记录这次旅行的简短说明" rows="4" />
-        </label>
-        <label className="upload wide">
-          <Camera size={18} />
-          <span>上传一张照片</span>
-          <input accept="image/*" name="photo" type="file" />
-        </label>
-        <button className="primary-action" disabled={isSaving} type="submit">
-          <Plus size={18} />
-          {isSaving ? "正在保存" : "保存到 Supabase"}
-        </button>
-        <button className="secondary-action" onClick={onSignOut} type="button">
-          退出登录
-        </button>
-        {authMessage && <p className="form-message wide">{authMessage}</p>}
-      </form>
+      <p className="form-message">
+        回到地图页，把鼠标移到最左侧即可展开添加面板；点击某个国家后，右侧国家面板也可以只搜索该国家内的地点。
+      </p>
+      <button className="primary-action inline-action" onClick={onSignOut} type="button">
+        退出登录
+      </button>
     </section>
   );
 }

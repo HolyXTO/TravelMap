@@ -44,6 +44,30 @@ COUNTRY_MERGE_OVERRIDES = {
 COUNTRY_NAME_ALIASES_ZH = {
     "CHN": "中国",
     "USA": "美国",
+    "DEU": "德国",
+    "FRA": "法国",
+    "ITA": "意大利",
+    "JPN": "日本",
+    "KOR": "韩国",
+    "SGP": "新加坡",
+    "GBR": "英国",
+    "RUS": "俄罗斯",
+    "VAT": "梵蒂冈",
+    "PSE": "巴勒斯坦",
+    "ATA": "南极洲",
+}
+
+STATUS_OWNER_PREFIX = {
+    "UK": "GBR",
+    "FR": "FRA",
+    "AU": "AUS",
+    "US": "USA",
+    "NZ": "NZL",
+    "PT": "PRT",
+    "CN": "CHN",
+    "NL": "NLD",
+    "DK": "DNK",
+    "NO": "NOR",
 }
 
 
@@ -159,6 +183,10 @@ def clean_code(value):
     return value
 
 
+def clean_text(value):
+    return str(value or "").replace("[1]", "").strip()
+
+
 def merge_geometry(base, extra):
     base_polygons = [base["coordinates"]] if base["type"] == "Polygon" else list(base["coordinates"])
     extra_polygons = [extra["coordinates"]] if extra["type"] == "Polygon" else list(extra["coordinates"])
@@ -225,6 +253,122 @@ def build_feature(record: dict[str, Any], geometry, kind: str):
     return {"type": "Feature", "id": props["id"], "properties": props, "geometry": geometry}
 
 
+def target_country_id(record: dict[str, Any]):
+    terr = clean_code(record.get("ISO_3_terr"))
+    owner = clean_code(record.get("ISO_3_coun"))
+    status = record.get("Status") or ""
+    name = record.get("English_Na") or ""
+
+    if terr in UN_AND_OBSERVER_ISO3:
+        return COUNTRY_MERGE_OVERRIDES.get(terr, terr)
+    if terr in {"TWN", "HKG", "MAC"}:
+        return "CHN"
+    if name in {"Gaza Strip", "West Bank"}:
+        return "PSE"
+
+    for prefix, country_id in STATUS_OWNER_PREFIX.items():
+        if status.startswith(prefix):
+            return country_id
+    if status.startswith("Adm. by"):
+        administered_by = status.replace("Adm. by", "").strip()
+        return {"EGY": "EGY", "KEN": "KEN", "SDN": "SDN"}.get(administered_by, owner)
+    if owner in UN_AND_OBSERVER_ISO3:
+        return owner
+    return None
+
+
+def country_props(country_id: str, record: dict[str, Any], is_country=True):
+    country_name_overrides = {
+        "PSE": "Palestine",
+        "VAT": "Holy See",
+        "CHN": "China",
+    }
+    return {
+        "id": country_id,
+        "level": "country",
+        "name": country_name_overrides.get(country_id)
+        or clean_text(record.get("English_Na"))
+        or country_id,
+        "localName": COUNTRY_NAME_ALIASES_ZH.get(country_id)
+        or clean_text(record.get("English_Na"))
+        or country_id,
+        "code": country_id,
+        "isoA2": clean_code(record.get("ISO_3166_1")),
+        "continent": record.get("Continent_") or "Other",
+        "region": record.get("Continent_") or "Other",
+        "subregion": record.get("Region_of_") or "",
+        "isCountry": is_country,
+    }
+
+
+def build_country_features(source: Path, antarctica_source: Path, tolerance: float, min_area: float):
+    reader = shapefile.Reader(str(source), encoding="utf-8", encodingErrors="replace")
+    fields = [field[0] for field in reader.fields[1:]]
+    grouped: dict[str, dict[str, Any]] = {}
+
+    for shape_record in reader.iterShapeRecords():
+        record = dict(zip(fields, shape_record.record))
+        country_id = target_country_id(record)
+        if not country_id:
+            continue
+        geometry = simplify_geometry(shape_record.shape.__geo_interface__, tolerance, min_area)
+        if not geometry:
+            continue
+        is_main = (
+            clean_code(record.get("ISO_3_terr")) == country_id
+            and record.get("Status") in {"Member State", "Permanent Observer to the UN"}
+        ) or country_id == "PSE"
+        props = country_props(country_id, record)
+        current = grouped.get(country_id)
+        if current:
+            current["geometry"] = merge_geometry(current["geometry"], geometry)
+            if is_main:
+                current["properties"].update(props)
+            continue
+        grouped[country_id] = {
+            "type": "Feature",
+            "id": country_id,
+            "properties": props,
+            "geometry": geometry,
+        }
+
+    antarctica = build_antarctica_feature(antarctica_source, tolerance, min_area)
+    if antarctica:
+        grouped["ATA"] = antarctica
+
+    return [grouped[key] for key in sorted(grouped)]
+
+
+def build_antarctica_feature(source: Path, tolerance: float, min_area: float):
+    reader = shapefile.Reader(str(source), encoding="utf-8", encodingErrors="replace")
+    fields = [field[0] for field in reader.fields[1:]]
+    for shape_record in reader.iterShapeRecords():
+        record = dict(zip(fields, shape_record.record))
+        if record.get("ADM0_A3") != "ATA":
+            continue
+        geometry = simplify_geometry(shape_record.shape.__geo_interface__, tolerance, min_area)
+        if not geometry:
+            return None
+        return {
+            "type": "Feature",
+            "id": "ATA",
+            "properties": {
+                "id": "ATA",
+                "level": "country",
+                "name": "Antarctica",
+                "localName": "南极洲",
+                "code": "ATA",
+                "isoA2": "AQ",
+                "continent": "Antarctica",
+                "region": "Antarctica",
+                "subregion": "Antarctica",
+                "isCountry": False,
+            },
+            "geometry": geometry,
+        }
+    return None
+
+
 def convert(source: Path, target: Path, kind: str, tolerance: float, min_area: float):
     reader = shapefile.Reader(str(source), encoding="utf-8", encodingErrors="replace")
     fields = [field[0] for field in reader.fields[1:]]
@@ -262,6 +406,193 @@ def convert(source: Path, target: Path, kind: str, tolerance: float, min_area: f
         encoding="utf-8",
     )
     print(f"{target}: {len(features)} features, {target.stat().st_size / 1024 / 1024:.2f} MB")
+    return collection
+
+
+def convert_countries(source: Path, antarctica_source: Path, target: Path):
+    features = build_country_features(source, antarctica_source, tolerance=0.01, min_area=0)
+    collection = {
+        "type": "FeatureCollection",
+        "metadata": {
+            "source": source.name,
+            "kind": "country",
+            "tolerance": 0.01,
+            "minArea": 0,
+            "countryCount": sum(1 for item in features if item["properties"].get("isCountry", True)),
+            "featureCount": len(features),
+        },
+        "features": features,
+    }
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(collection, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    print(f"{target}: {len(features)} features, {target.stat().st_size / 1024 / 1024:.2f} MB")
+    return collection
+
+
+def convert_china_regions(source: Path, target: Path):
+    reader = shapefile.Reader(str(source), encoding="utf-8", encodingErrors="replace")
+    fields = [field[0] for field in reader.fields[1:]]
+    features = []
+    for shape_record in reader.iterShapeRecords():
+        record = dict(zip(fields, shape_record.record))
+        if record.get("adm0_a3") != "CHN":
+            continue
+        if not str(record.get("adm1_code") or "").startswith("CHN-"):
+            continue
+        geometry = simplify_geometry(shape_record.shape.__geo_interface__, 0.02, 0)
+        if not geometry:
+            continue
+        feature = build_feature(record, geometry, "region")
+        if feature:
+            features.append(feature)
+    collection = {
+        "type": "FeatureCollection",
+        "metadata": {
+            "source": source.name,
+            "kind": "region",
+            "scope": "China only",
+            "tolerance": 0.02,
+            "minArea": 0,
+            "featureCount": len(features),
+        },
+        "features": features,
+    }
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(collection, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    print(f"{target}: {len(features)} features, {target.stat().st_size / 1024 / 1024:.2f} MB")
+    return collection
+
+
+def flag_emoji(iso_a2: str | None):
+    if not iso_a2 or len(iso_a2) != 2:
+        return "◇"
+    iso_a2 = iso_a2.upper()
+    if not iso_a2.isalpha():
+        return "◇"
+    return "".join(chr(0x1F1E6 + ord(char) - ord("A")) for char in iso_a2)
+
+
+def center_from_geometry(geometry):
+    points = []
+
+    def collect(item):
+        if not isinstance(item, list):
+            return
+        if item and isinstance(item[0], (int, float)):
+            points.append(item)
+            return
+        for child in item:
+            collect(child)
+
+    collect(geometry.get("coordinates"))
+    if not points:
+        return [0, 0]
+    lons = [point[0] for point in points]
+    lats = [point[1] for point in points]
+    return [round((min(lons) + max(lons)) / 2, 5), round((min(lats) + max(lats)) / 2, 5)]
+
+
+def place_from_feature(feature):
+    props = feature["properties"]
+    center = [
+        float(props.get("longitude") or 0),
+        float(props.get("latitude") or 0),
+    ]
+    if center == [0.0, 0.0]:
+        center = center_from_geometry(feature["geometry"])
+    return {
+        "id": props["id"],
+        "level": props["level"],
+        "name": clean_text(props.get("name")),
+        "localName": clean_text(props.get("localName")),
+        "parentId": props.get("parentId"),
+        "countryCode": props.get("countryCode") or props.get("code") or props["id"],
+        "countryName": props.get("country") or props.get("localName") or props.get("name"),
+        "region": props.get("region") or props.get("continent") or "",
+        "province": props.get("province") or "",
+        "provinceCode": props.get("provinceCode") or "",
+        "center": center,
+        "flag": flag_emoji(props.get("isoA2") or ("CN" if props.get("countryCode") == "CN" else None)),
+    }
+
+
+def build_place_index(countries, regions, cities, world_points: Path, target: Path):
+    country_by_id = {feature["id"]: feature["properties"] for feature in countries["features"]}
+    province_by_name = {
+        feature["properties"].get("localName"): feature["properties"]["id"]
+        for feature in regions["features"]
+    }
+    places = []
+    for feature in countries["features"]:
+        props = feature["properties"]
+        if props.get("isCountry", True):
+            places.append(place_from_feature(feature))
+    for feature in regions["features"]:
+        place = place_from_feature(feature)
+        place["countryCode"] = "CHN"
+        place["countryName"] = "中国"
+        place["flag"] = "🇨🇳"
+        places.append(place)
+    for feature in cities["features"]:
+        props = feature["properties"]
+        props["parentId"] = province_by_name.get(props.get("province"), props.get("parentId"))
+        feature["properties"] = props
+        place = place_from_feature(feature)
+        place["countryCode"] = "CHN"
+        place["countryName"] = "中国"
+        place["flag"] = "🇨🇳"
+        places.append(place)
+
+    reader = shapefile.Reader(str(world_points), encoding="utf-8", encodingErrors="replace")
+    fields = [field[0] for field in reader.fields[1:]]
+    seen = {place["id"] for place in places}
+    for shape_record in reader.iterShapeRecords():
+        record = dict(zip(fields, shape_record.record))
+        country_id = COUNTRY_MERGE_OVERRIDES.get(clean_code(record.get("ADM0_A3")), clean_code(record.get("ADM0_A3")))
+        if country_id in {"CHN", None}:
+            continue
+        if country_id == "TWN":
+            country_id = "CHN"
+        if country_id not in country_by_id:
+            continue
+        lon = float(record.get("LONGITUDE") or shape_record.shape.points[0][0])
+        lat = float(record.get("LATITUDE") or shape_record.shape.points[0][1])
+        name = clean_text(record.get("NAMEASCII") or record.get("NAME"))
+        local_name = clean_text(record.get("name_zh") or record.get("NAME"))
+        geoname_id = clean_text(record.get("GEONAMEID"))
+        place_id = f"W-{geoname_id}" if geoname_id else f"W-{country_id}-{name}-{round(lon, 3)}-{round(lat, 3)}"
+        if place_id in seen:
+            continue
+        seen.add(place_id)
+        country = country_by_id[country_id]
+        places.append(
+            {
+                "id": place_id,
+                "level": "city",
+                "name": name,
+                "localName": local_name or name,
+                "parentId": country_id,
+                "countryCode": country_id,
+                "countryName": country.get("localName") or country.get("name"),
+                "province": clean_text(record.get("ADM1NAME")),
+                "region": country.get("region") or country.get("continent") or "",
+                "center": [round(lon, 5), round(lat, 5)],
+                "flag": flag_emoji(country.get("isoA2")),
+                "population": int(record.get("POP_MAX") or 0),
+            }
+        )
+
+    places.sort(key=lambda item: (item["level"] != "country", item.get("countryName", ""), item.get("localName", "")))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(places, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"{target}: {len(places)} places, {target.stat().st_size / 1024 / 1024:.2f} MB")
+    return places
 
 
 def main():
@@ -272,26 +603,28 @@ def main():
 
     source_dir = Path(args.source_dir)
     output_dir = Path(args.output_dir)
-    convert(
+    countries = convert_countries(
+        source_dir / "world-administrative-boundaries_256.shp",
         source_dir / "WorldBoundaries.shp",
         output_dir / "countries.geojson",
-        "country",
-        tolerance=0.18,
-        min_area=0,
     )
-    convert(
+    regions = convert_china_regions(
         source_dir / "WorldStates.shp",
         output_dir / "states.geojson",
-        "region",
-        tolerance=0.12,
-        min_area=0,
     )
-    convert(
+    cities = convert(
         source_dir / "ChinaCityBoundaries.shp",
         output_dir / "china-cities.geojson",
         "city",
-        tolerance=0.03,
+        tolerance=0.02,
         min_area=0,
+    )
+    build_place_index(
+        countries,
+        regions,
+        cities,
+        source_dir / "世界地名points.shp",
+        output_dir / "place-index.json",
     )
 
 

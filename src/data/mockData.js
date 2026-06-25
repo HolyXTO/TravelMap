@@ -5,8 +5,8 @@ export const profiles = [
 
 export const placeLevels = [
   { id: "country", label: "国家", description: "195 国家/观察员国层级" },
-  { id: "region", label: "省州", description: "省、州、邦、大区层级" },
-  { id: "city", label: "城市", description: "城市行政区与点位" },
+  { id: "region", label: "省州", description: "中国省级行政区层级" },
+  { id: "city", label: "城市", description: "中国城市边界与已访问城市点" },
 ];
 
 export const tripTypes = ["旅行", "居住", "转机", "学习", "工作"];
