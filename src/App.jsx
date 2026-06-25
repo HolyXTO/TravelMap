@@ -33,8 +33,8 @@ const CHINA_BOUNDS = [
   [54, 135],
 ];
 const WORLD_BOUNDS = [
-  [-56, -170],
-  [82, 180],
+  [-56, -168],
+  [82, 178],
 ];
 const CHINA_SPECIAL_REGION_PARENT_IDS = {
   CN081: "CN-HK",
@@ -95,6 +95,7 @@ const MAP_THEMES = [
     background: "#dbeafe",
     selectedStroke: "#1d4ed8",
     visitedFill: "#f59e0b",
+    countryBaseFill: "#f8d894",
     visitedStroke: "#b45309",
     bothFill: "#ec4899",
     emptyFill: "#eef6e4",
@@ -110,6 +111,7 @@ const MAP_THEMES = [
     background: "#f8efe3",
     selectedStroke: "#7c4a2d",
     visitedFill: "#e8ad7d",
+    countryBaseFill: "#f4d4b5",
     visitedStroke: "#a1623c",
     bothFill: "#b97845",
     emptyFill: "#fff8ec",
@@ -125,6 +127,7 @@ const MAP_THEMES = [
     background: "#eef2f7",
     selectedStroke: "#f8fafc",
     visitedFill: "#172033",
+    countryBaseFill: "#607089",
     visitedStroke: "#f2e8f0",
     bothFill: "#0f172a",
     emptyFill: "#9fb1c8",
@@ -140,6 +143,7 @@ const MAP_THEMES = [
     background: "#e8f5fb",
     selectedStroke: "#e76f51",
     visitedFill: "#e98c70",
+    countryBaseFill: "#f3c6b8",
     visitedStroke: "#bc6c45",
     bothFill: "#8ab17d",
     emptyFill: "#fff5e6",
@@ -155,6 +159,7 @@ const MAP_THEMES = [
     background: "#e7f6ef",
     selectedStroke: "#16a34a",
     visitedFill: "#76c893",
+    countryBaseFill: "#cce8cc",
     visitedStroke: "#40916c",
     bothFill: "#facc15",
     emptyFill: "#eef4d8",
@@ -234,7 +239,107 @@ const SUPPLEMENTAL_PLACES = [
     center: [14.1136, 46.3683],
     aliases: ["Lake Bled", "布莱德湖"],
   },
+  {
+    id: "EXTRA-BUDVA",
+    level: "city",
+    parentId: "MNE",
+    countryCode: "MNE",
+    countryName: "黑山",
+    isoA2: "ME",
+    name: "Budva",
+    localName: "布德瓦",
+    province: "布德瓦",
+    center: [18.84, 42.286],
+    aliases: ["Budva Municipality"],
+  },
+  {
+    id: "EXTRA-AYIA-NAPA",
+    level: "city",
+    parentId: "CYP",
+    countryCode: "CYP",
+    countryName: "塞浦路斯",
+    isoA2: "CY",
+    name: "Ayia Napa",
+    localName: "圣纳帕",
+    province: "法马古斯塔区",
+    center: [34.0018, 34.9823],
+    aliases: ["Agia Napa", "Ayia Napa Municipality"],
+  },
+  {
+    id: "EXTRA-VIK",
+    level: "city",
+    parentId: "ISL",
+    countryCode: "ISL",
+    countryName: "冰岛",
+    isoA2: "IS",
+    name: "Vik",
+    localName: "维克",
+    province: "南部区",
+    center: [-19.006, 63.419],
+    aliases: ["Vík", "Vik i Myrdal", "Vík í Mýrdal"],
+  },
+  {
+    id: "EXTRA-JURMALA",
+    level: "city",
+    parentId: "LVA",
+    countryCode: "LVA",
+    countryName: "拉脱维亚",
+    isoA2: "LV",
+    name: "Jurmala",
+    localName: "尤尔马拉",
+    province: "尤尔马拉",
+    center: [23.779, 56.968],
+    aliases: ["Jūrmala"],
+  },
+  {
+    id: "EXTRA-MENTON",
+    level: "city",
+    parentId: "FRA",
+    countryCode: "FRA",
+    countryName: "法国",
+    isoA2: "FR",
+    name: "Menton",
+    localName: "芒通",
+    province: "普罗旺斯-阿尔卑斯-蓝色海岸",
+    center: [7.504, 43.775],
+    aliases: ["Menton, France"],
+  },
+  {
+    id: "EXTRA-CANNES",
+    level: "city",
+    parentId: "FRA",
+    countryCode: "FRA",
+    countryName: "法国",
+    isoA2: "FR",
+    name: "Cannes",
+    localName: "戛纳",
+    province: "普罗旺斯-阿尔卑斯-蓝色海岸",
+    center: [7.017, 43.552],
+    aliases: ["Cannes, France"],
+  },
+  {
+    id: "EXTRA-RIMINI",
+    level: "city",
+    parentId: "ITA",
+    countryCode: "ITA",
+    countryName: "意大利",
+    isoA2: "IT",
+    name: "Rimini",
+    localName: "里米尼",
+    province: "艾米利亚-罗马涅",
+    center: [12.568, 44.067],
+    aliases: ["Rimini, Italy"],
+  },
 ];
+
+const LEGACY_PLACE_ID_ALIASES = {
+  it: "ITA",
+  "city-rome": "W-3169070",
+};
+
+function canonicalPlaceId(placeId) {
+  return LEGACY_PLACE_ID_ALIASES[placeId] || placeId;
+}
 
 const regionNamesZh =
   typeof Intl !== "undefined" && Intl.DisplayNames
@@ -285,6 +390,7 @@ function flagEmoji(isoA2) {
 }
 
 function isoA2ForPlace(place) {
+  if (place?.id === "cn" || place?.mapId === "CHN") return "cn";
   if (place?.isoA2?.length === 2) return place.isoA2.toLowerCase();
   if (place?.countryCode === "CHN" || place?.id === "CHN" || place?.flag === "CN") return "cn";
   return "";
@@ -378,7 +484,12 @@ function placeToFeature(place) {
 }
 
 function findPlace(placeId, placeLookup) {
-  return placeLookup?.get(placeId) || places.find((place) => place.id === placeId);
+  const canonicalId = canonicalPlaceId(placeId);
+  return (
+    placeLookup?.get(canonicalId) ||
+    placeLookup?.get(placeId) ||
+    places.find((place) => place.id === canonicalId || place.id === placeId)
+  );
 }
 
 function placeChain(placeId, placeLookup) {
@@ -407,7 +518,7 @@ function resolvePlaceForLevel(placeId, level, placeLookup) {
 
 function resolveMapIdForLevel(placeId, level, placeLookup) {
   const place = resolvePlaceForLevel(placeId, level, placeLookup);
-  return place?.mapId || place?.id;
+  return place?.mapId || canonicalPlaceId(place?.id);
 }
 
 function formatPath(placeId, placeLookup) {
@@ -467,6 +578,7 @@ function displayCountryName(place) {
 function buildContinentSummary(visits, placeLookup, countryPlaces = []) {
   const buckets = new Map();
   for (const country of countryPlaces) {
+    if (country.id === "ATA") continue;
     const continent = continentLabelForCountry(country);
     if (!buckets.has(continent)) {
       buckets.set(continent, {
@@ -481,7 +593,8 @@ function buildContinentSummary(visits, placeLookup, countryPlaces = []) {
     buckets.get(continent).countryTotal += 1;
   }
   for (const visit of visits) {
-    const chain = placeChain(visit.placeId, placeLookup);
+    const canonicalVisitPlaceId = canonicalPlaceId(visit.placeId);
+    const chain = placeChain(canonicalVisitPlaceId, placeLookup);
     const country = chain.find((place) => place.level === "country");
     const region = chain.find((place) => place.level === "region");
     const city = chain.find((place) => place.level === "city");
@@ -499,7 +612,7 @@ function buildContinentSummary(visits, placeLookup, countryPlaces = []) {
     const bucket = buckets.get(continent);
     bucket.count += 1;
     if (country?.id) bucket.visitedCountryIds.add(country.id);
-    bucket.cityIds.add(city?.id || visit.placeId);
+    bucket.cityIds.add(city?.id || canonicalVisitPlaceId);
     const countryId = country?.id || "unknown";
     if (!bucket.countries.has(countryId)) {
       bucket.countries.set(countryId, {
@@ -524,7 +637,7 @@ function buildContinentSummary(visits, placeLookup, countryPlaces = []) {
       item.cities.add(city.id);
       item.cityNames.add(displayPlaceName(city));
     }
-    const visitedPlace = findPlace(visit.placeId, placeLookup);
+    const visitedPlace = findPlace(canonicalVisitPlaceId, placeLookup);
     const detailId = region?.id || country?.id || "other";
     const detailName = region ? displayPlaceName(region) : country ? "已标记地点" : "其他地点";
     const tagPlace = city || (visitedPlace?.level !== "country" ? visitedPlace : null);
@@ -540,7 +653,7 @@ function buildContinentSummary(visits, placeLookup, countryPlaces = []) {
     }
   }
 
-  const order = ["亚洲", "北美洲", "欧洲", "非洲", "大洋洲", "南美洲", "南极洲"];
+  const order = ["亚洲", "欧洲", "北美洲", "南美洲", "非洲", "大洋洲", "南极洲"];
   return Array.from(buckets.values())
     .map((bucket) => ({
       ...bucket,
@@ -559,6 +672,9 @@ function buildContinentSummary(visits, placeLookup, countryPlaces = []) {
         .sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name, "zh-CN")),
     }))
     .sort((a, b) => {
+      const aHasVisits = a.cityCount > 0 || a.countryCount > 0;
+      const bHasVisits = b.cityCount > 0 || b.countryCount > 0;
+      if (aHasVisits !== bHasVisits) return aHasVisits ? -1 : 1;
       const ai = order.indexOf(a.label);
       const bi = order.indexOf(b.label);
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
@@ -859,7 +975,7 @@ function App() {
   }, [activeLevel, mapPlaces]);
 
   const selectedVisits = useMemo(() => {
-    const selected = placeLookup.get(selectedPlaceId);
+    const selected = findPlace(selectedPlaceId, placeLookup);
     if (!selected) return [];
     return filteredVisits.filter((visit) => {
       if (selected.level === "city") {
@@ -900,17 +1016,28 @@ function App() {
   );
 
   const visitedPlaceIds = useMemo(
-    () => new Set(visits.map((visit) => visit.placeId)),
+    () => new Set(visits.map((visit) => canonicalPlaceId(visit.placeId))),
     [visits],
   );
+
+  const visitedCountries = useMemo(() => {
+    const byId = new Map();
+    for (const visit of filteredVisits) {
+      const country = resolvePlaceForLevel(visit.placeId, "country", placeLookup);
+      if (country?.id && country.id !== "ATA") byId.set(country.id, country);
+    }
+    return Array.from(byId.values()).sort((a, b) =>
+      displayCountryName(a).localeCompare(displayCountryName(b), "zh-CN"),
+    );
+  }, [filteredVisits, placeLookup]);
 
   const selectedCountryId = useMemo(
     () => resolveMapIdForLevel(selectedPlaceId, "country", placeLookup) || "CHN",
     [placeLookup, selectedPlaceId],
   );
 
-  const selectedCountry = placeLookup.get(selectedCountryId);
-  const modalCountry = countryModalId ? placeLookup.get(countryModalId) : null;
+  const selectedCountry = findPlace(selectedCountryId, placeLookup);
+  const modalCountry = countryModalId ? findPlace(countryModalId, placeLookup) : null;
   const activeMapTheme =
     MAP_THEMES.find((theme) => theme.id === activeMapThemeId) ?? MAP_THEMES[0];
 
@@ -1071,19 +1198,6 @@ function App() {
 
   return (
     <main className="app-shell">
-      <QuickAddDock
-        activeProfile={activeProfile}
-        addPlace={addPlace}
-        authMessage={authMessage}
-        isEditor={isEditor}
-        isSaving={isSaving}
-        profiles={appProfiles}
-        searchPlaces={searchPlaces}
-        session={session}
-        visitedPlaceIds={visitedPlaceIds}
-        visits={visits}
-        onDeleteVisit={deleteVisit}
-      />
       <header className="topbar">
         <div>
           <p className="eyebrow">TravelMap Prototype</p>
@@ -1130,7 +1244,22 @@ function App() {
       </section>
 
       <section className="metric-grid" aria-label="统计数据">
-        <Metric icon={<Globe2 />} label="去过国家" value={stats.countries} />
+        <Metric
+          icon={<Globe2 />}
+          label="去过国家"
+          popover={
+            visitedCountries.length > 0 && (
+              <div className="metric-flag-popover">
+                {visitedCountries.map((country) => (
+                  <span key={country.id} title={displayCountryName(country)}>
+                    <FlagIcon place={country} />
+                  </span>
+                ))}
+              </div>
+            )
+          }
+          value={stats.countries}
+        />
         <Metric icon={<Layers3 />} label="去过省州" value={stats.regions} />
         <Metric icon={<MapPinned />} label="去过城市" value={stats.cities} />
         <Metric
@@ -1142,6 +1271,19 @@ function App() {
       </section>
 
       <section className="workspace">
+        <QuickAddDock
+          activeProfile={activeProfile}
+          addPlace={addPlace}
+          authMessage={authMessage}
+          isEditor={isEditor}
+          isSaving={isSaving}
+          profiles={appProfiles}
+          searchPlaces={searchPlaces}
+          session={session}
+          visitedPlaceIds={visitedPlaceIds}
+          visits={visits}
+          onDeleteVisit={deleteVisit}
+        />
         <MapView
           activeLevel={activeLevel}
           cityPlaces={cityPlaces}
@@ -1157,7 +1299,7 @@ function App() {
           onCountryOpen={setCountryModalId}
           visitedByLevel={visitedByLevel}
           visitedByCountry={visitedByCountry}
-          visitedPlaces={searchPlaces.filter((place) => visitedPlaceIds.has(place.id))}
+          visitedPlaces={searchPlaces.filter((place) => visitedPlaceIds.has(canonicalPlaceId(place.id)))}
         />
       </section>
 
@@ -1195,7 +1337,7 @@ function App() {
   );
 }
 
-function Metric({ detail, icon, label, value }) {
+function Metric({ detail, icon, label, popover, value }) {
   return (
     <article className="metric">
       <span>{icon}</span>
@@ -1204,6 +1346,7 @@ function Metric({ detail, icon, label, value }) {
         <strong>{value}</strong>
         {detail && <small>{detail}</small>}
       </div>
+      {popover && popover}
     </article>
   );
 }
@@ -1285,6 +1428,7 @@ function MapView({
         const id = feature.properties.id;
         const visitInfo = visitedByCountry.get(id);
         const isSelected = selectedPlaceId === id;
+        const isSubLevelCountryBase = activeLevel !== "country" && id === "CHN" && visitInfo;
         return {
           color: isSelected
             ? mapTheme.selectedStroke
@@ -1293,8 +1437,12 @@ function MapView({
               : mapTheme.emptyStroke,
           weight: isSelected ? 1.5 : 0.65,
           opacity: 0.95,
-          fillColor: visitInfo ? mapTheme.visitedFill : mapTheme.emptyFill,
-          fillOpacity: visitInfo ? 0.72 : activeLevel === "country" ? 0.46 : 0.26,
+          fillColor: visitInfo
+            ? isSubLevelCountryBase
+              ? mapTheme.countryBaseFill || mapTheme.visitedFill
+              : mapTheme.visitedFill
+            : mapTheme.emptyFill,
+          fillOpacity: visitInfo ? (isSubLevelCountryBase ? 0.34 : 0.72) : activeLevel === "country" ? 0.46 : 0.26,
         };
       },
       onEachFeature: (feature, leafletLayer) => {
@@ -1374,7 +1522,10 @@ function MapView({
         ? L.latLngBounds(WORLD_BOUNDS)
         : L.latLngBounds(CHINA_BOUNDS);
     if (bounds.isValid() && lastLevelRef.current !== activeLevel) {
-      map.fitBounds(bounds, { padding: [10, 10], animate: false });
+      map.fitBounds(bounds, { padding: activeLevel === "country" ? [0, 0] : [10, 10], animate: false });
+      if (activeLevel === "country") {
+        map.setZoom(map.getZoom() + 0.25, { animate: false });
+      }
       lastLevelRef.current = activeLevel;
     }
   }, [
@@ -1473,13 +1624,6 @@ function QuickAddDock({
 
 function FlagIcon({ place }) {
   const iso = isoA2ForPlace(place);
-  if (iso === "cn") {
-    return (
-      <span className="flag china-flag" aria-label="中国">
-        <span />
-      </span>
-    );
-  }
   if (!iso || iso.length !== 2) {
     return <span className="flag fallback-flag">{place?.flag || "◇"}</span>;
   }
@@ -1490,7 +1634,7 @@ function FlagIcon({ place }) {
         loading="lazy"
         onError={(event) => {
           event.currentTarget.parentElement?.classList.add("fallback-flag");
-          event.currentTarget.replaceWith(document.createTextNode(iso.toUpperCase()));
+          event.currentTarget.replaceWith(document.createTextNode(flagEmoji(iso)));
         }}
         src={`https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/${iso}.svg`}
       />
@@ -1535,7 +1679,7 @@ function CountryModal({
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const modalVisitedPlaceIds = useMemo(
-    () => new Set(visits.map((visit) => visit.placeId)),
+    () => new Set(visits.map((visit) => canonicalPlaceId(visit.placeId))),
     [visits],
   );
   const modalVisitedByLevel = useMemo(() => {
@@ -1558,8 +1702,11 @@ function CountryModal({
 
   useEffect(() => {
     setModalMapLevel(country.id === "CHN" ? "region" : "city");
+  }, [country.id]);
+
+  useEffect(() => {
     setExpandedGroups(new Set(grouped.map((group) => group.id)));
-  }, [country.id, grouped]);
+  }, [grouped]);
 
   function toggleGroup(groupId) {
     setExpandedGroups((current) => {
@@ -1647,7 +1794,7 @@ function CountryModal({
               regionPlaces={regionPlaces}
               showLabels={showMapLabels}
               visitedByLevel={modalVisitedByLevel}
-              visitedPlaces={countryPlaces.filter((place) => modalVisitedPlaceIds.has(place.id))}
+              visitedPlaces={countryPlaces.filter((place) => modalVisitedPlaceIds.has(canonicalPlaceId(place.id)))}
             />
           </div>
           <aside className="modal-summary">
@@ -1711,7 +1858,7 @@ function CountryModal({
 function buildCountryGroups(visits, placeLookup, country) {
   const groups = new Map();
   for (const visit of visits) {
-    const place = placeLookup.get(visit.placeId);
+    const place = findPlace(visit.placeId, placeLookup);
     const region = resolvePlaceForLevel(visit.placeId, "region", placeLookup);
     const key = region?.id || place?.province || country?.id || "other";
     const city = resolvePlaceForLevel(visit.placeId, "city", placeLookup);
@@ -1796,12 +1943,21 @@ function MiniCountryMap({
           onEachFeature: (feature, leafletLayer) => {
             const id = feature.properties.id;
             const shouldLabel = visitedByLevel.get(id) || (country.id !== "CHN" && id === country.id);
-            if (!showLabels || !shouldLabel) return;
-            leafletLayer.bindTooltip(feature.properties.localName || feature.properties.name, {
-              className: "mini-map-label",
-              direction: "center",
-              permanent: true,
-            });
+            const label = feature.properties.localName || feature.properties.name;
+            if (showLabels && shouldLabel) {
+              leafletLayer.bindTooltip(label, {
+                className: "mini-map-label",
+                direction: "center",
+                permanent: true,
+              });
+              return;
+            }
+            if (country.id === "CHN" && detailLevel === "city" && !visitedByLevel.get(id)) {
+              leafletLayer.bindTooltip(label, {
+                className: "mini-map-hover-label",
+                sticky: true,
+              });
+            }
           },
           style: (feature) => {
             const id = feature.properties.id;
@@ -1972,7 +2128,8 @@ function PlaceSearchPanel({
   const addedPlaces = useMemo(() => {
     return visits
       .map((visit) => {
-        const place = places.find((item) => item.id === visit.placeId);
+        const canonicalId = canonicalPlaceId(visit.placeId);
+        const place = places.find((item) => item.id === canonicalId || item.id === visit.placeId);
         return place ? { place, visit } : null;
       })
       .filter(Boolean)
@@ -2050,7 +2207,7 @@ function PlaceSearchPanel({
                 {place.province ? ` · ${place.province}` : ""}
               </small>
             </span>
-            <em>{visitedPlaceIds.has(place.id) ? "已去过" : "+"}</em>
+            <em>{visitedPlaceIds.has(canonicalPlaceId(place.id)) ? "已去过" : "+"}</em>
           </button>
         ))}
       </div>
