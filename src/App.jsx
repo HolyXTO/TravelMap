@@ -33,8 +33,8 @@ const CHINA_BOUNDS = [
   [54, 135],
 ];
 const WORLD_BOUNDS = [
-  [-85, -180],
-  [84, 180],
+  [-58, -170],
+  [74, 180],
 ];
 const CONTINENT_LABELS = {
   Asia: "亚洲",
@@ -206,6 +206,12 @@ function flagEmoji(isoA2) {
     .split("")
     .map((char) => String.fromCodePoint(0x1f1e6 + char.charCodeAt(0) - 65))
     .join("");
+}
+
+function isoA2ForPlace(place) {
+  if (place?.isoA2?.length === 2) return place.isoA2.toLowerCase();
+  if (place?.countryCode === "CHN" || place?.id === "CHN" || place?.flag === "CN") return "cn";
+  return "";
 }
 
 function countryNameZh(code, isoA2, fallback) {
@@ -466,7 +472,6 @@ function safeStorageName(name) {
 function App() {
   const [activeProfile, setActiveProfile] = useState("all");
   const [activeLevel, setActiveLevel] = useState("country");
-  const [viewMode, setViewMode] = useState("map");
   const [yearFilter, setYearFilter] = useState("all");
   const [regionFilter, setRegionFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -970,32 +975,6 @@ function App() {
             </button>
           ))}
         </div>
-        <div className="segmented">
-          <button
-            className={viewMode === "map" ? "active" : ""}
-            onClick={() => setViewMode("map")}
-            type="button"
-          >
-            <MapPinned size={16} />
-            地图
-          </button>
-          <button
-            className={viewMode === "list" ? "active" : ""}
-            onClick={() => setViewMode("list")}
-            type="button"
-          >
-            <ListFilter size={16} />
-            列表
-          </button>
-          <button
-            className={viewMode === "admin" ? "active" : ""}
-            onClick={() => setViewMode("admin")}
-            type="button"
-          >
-            <Plus size={16} />
-            编辑
-          </button>
-        </div>
       </section>
 
       <section className="metric-grid" aria-label="统计数据">
@@ -1010,86 +989,23 @@ function App() {
         />
       </section>
 
-      <section className="filters" aria-label="筛选">
-        <label>
-          <Search size={16} />
-          <input
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索地点"
-            value={query}
-          />
-        </label>
-        <label>
-          <SlidersHorizontal size={16} />
-          <select onChange={(event) => setYearFilter(event.target.value)} value={yearFilter}>
-            <option value="all">全部年份</option>
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <Globe2 size={16} />
-          <select
-            onChange={(event) => setRegionFilter(event.target.value)}
-            value={regionFilter}
-          >
-            <option value="all">全部地区</option>
-            <option value="Asia">亚洲</option>
-            <option value="Europe">欧洲</option>
-            <option value="North America">北美洲</option>
-          </select>
-        </label>
-        <label>
-          <ListFilter size={16} />
-          <select onChange={(event) => setTypeFilter(event.target.value)} value={typeFilter}>
-            <option value="all">全部类型</option>
-            {tripTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </label>
+      <section className="workspace">
+        <MapView
+          activeLevel={activeLevel}
+          cityPlaces={cityPlaces}
+          displayPlaces={displayPlaces}
+          mapStatus={mapStatus}
+          mapTheme={activeMapTheme}
+          mapThemes={MAP_THEMES}
+          placeLookup={placeLookup}
+          selectedPlaceId={selectedPlaceId}
+          setSelectedPlaceId={setSelectedPlaceId}
+          setMapThemeId={setActiveMapThemeId}
+          onCountryOpen={setCountryModalId}
+          visitedByLevel={visitedByLevel}
+          visitedPlaces={searchPlaces.filter((place) => visitedPlaceIds.has(place.id))}
+        />
       </section>
-
-      {viewMode === "map" && (
-        <section className="workspace">
-          <MapView
-            activeLevel={activeLevel}
-            cityPlaces={cityPlaces}
-            displayPlaces={displayPlaces}
-            mapStatus={mapStatus}
-            mapTheme={activeMapTheme}
-            mapThemes={MAP_THEMES}
-            placeLookup={placeLookup}
-            selectedPlaceId={selectedPlaceId}
-            setSelectedPlaceId={setSelectedPlaceId}
-            setMapThemeId={setActiveMapThemeId}
-            onCountryOpen={setCountryModalId}
-            visitedByLevel={visitedByLevel}
-            visitedPlaces={searchPlaces.filter((place) => visitedPlaceIds.has(place.id))}
-          />
-          {selectedCountry && (
-            <CountryPanel
-              addPlace={addPlace}
-              authMessage={authMessage}
-              country={selectedCountry}
-              countryPlaces={selectedCountryPlaces}
-              isEditor={isEditor}
-              isSaving={isSaving}
-              profiles={appProfiles}
-              selectedPlaceId={selectedPlaceId}
-              selectedVisits={selectedVisits}
-              session={session}
-              visits={selectedCountryVisits}
-              visitedPlaceIds={visitedPlaceIds}
-            />
-          )}
-        </section>
-      )}
 
       {modalCountry && (
         <CountryModal
@@ -1114,28 +1030,6 @@ function App() {
           )}
           visitedPlaceIds={visitedPlaceIds}
           visitedByLevel={visitedByLevel}
-        />
-      )}
-
-      {viewMode === "list" && (
-        <VisitList
-          placeLookup={placeLookup}
-          profiles={appProfiles}
-          visits={filteredVisits}
-        />
-      )}
-
-      {viewMode === "admin" && (
-        <AdminForm
-          addVisit={addVisit}
-          authMessage={authMessage}
-          isEditor={isEditor}
-          isSaving={isSaving}
-          onSignIn={signIn}
-          onSignOut={signOut}
-          placeLookup={placeLookup}
-          profiles={appProfiles}
-          session={session}
         />
       )}
 
@@ -1387,7 +1281,7 @@ function QuickAddDock({
 }
 
 function FlagIcon({ place }) {
-  const iso = place?.isoA2?.toLowerCase();
+  const iso = isoA2ForPlace(place);
   if (iso === "cn") {
     return (
       <span className="flag china-flag" aria-label="中国">
@@ -1431,6 +1325,8 @@ function CountryModal({
   visitedByLevel,
   visitedPlaceIds,
 }) {
+  const [modalMapLevel, setModalMapLevel] = useState(country.id === "CHN" ? "region" : "city");
+  const [showMapLabels, setShowMapLabels] = useState(true);
   const visitedRegions = new Set();
   const visitedCities = new Set();
   for (const visit of visits) {
@@ -1442,7 +1338,53 @@ function CountryModal({
   const regionTotal = country.id === "CHN"
     ? countryPlaces.filter((place) => place.level === "region").length
     : 0;
-  const grouped = buildCountryGroups(visits, placeLookup);
+  const grouped = useMemo(
+    () => buildCountryGroups(visits, placeLookup, country),
+    [country, placeLookup, visits],
+  );
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const modalVisitedPlaceIds = useMemo(
+    () => new Set(visits.map((visit) => visit.placeId)),
+    [visits],
+  );
+  const modalVisitedByLevel = useMemo(() => {
+    const result = new Map();
+    const add = (id) => {
+      if (!id) return;
+      result.set(id, {
+        count: (result.get(id)?.count || 0) + 1,
+      });
+    };
+    for (const visit of visits) {
+      add(country.id);
+      const regionId = resolveMapIdForLevel(visit.placeId, "region", placeLookup);
+      const cityId = resolveMapIdForLevel(visit.placeId, "city", placeLookup);
+      if (regionId && regionId !== country.id) add(regionId);
+      if (cityId) add(cityId);
+    }
+    return result;
+  }, [country.id, placeLookup, visits]);
+
+  useEffect(() => {
+    setModalMapLevel(country.id === "CHN" ? "region" : "city");
+    setExpandedGroups(new Set(grouped.map((group) => group.id)));
+  }, [country.id, grouped]);
+
+  function toggleGroup(groupId) {
+    setExpandedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }
+
+  const regionProgress = regionTotal ? Math.min(100, (visitedRegions.size / regionTotal) * 100) : 0;
+  const coveredRegionText = regionTotal
+    ? `覆盖 ${visitedRegions.size} 省 / 自治区`
+    : country.id === "CHN"
+      ? "尚未覆盖省 / 自治区"
+      : `覆盖 ${grouped.length || 0} 个分组`;
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -1473,38 +1415,86 @@ function CountryModal({
             profiles={profiles}
             session={session}
             title={`添加 ${country.localName || country.name} 的地点`}
-            visitedPlaceIds={visitedPlaceIds}
+            visitedPlaceIds={modalVisitedPlaceIds}
             visits={visits}
           />
           <div className="modal-map-wrap">
+            <div className="modal-map-toolbar">
+              <button
+                className={modalMapLevel === "region" ? "active" : ""}
+                disabled={country.id !== "CHN"}
+                onClick={() => setModalMapLevel("region")}
+                type="button"
+              >
+                省级
+              </button>
+              <button
+                className={modalMapLevel === "city" ? "active" : ""}
+                onClick={() => setModalMapLevel("city")}
+                type="button"
+              >
+                市级
+              </button>
+              <button
+                className={showMapLabels ? "active" : ""}
+                onClick={() => setShowMapLabels((value) => !value)}
+                type="button"
+              >
+                注记
+              </button>
+            </div>
             <MiniCountryMap
               cityPlaces={cityPlaces}
               country={country}
+              detailLevel={modalMapLevel}
               regionPlaces={regionPlaces}
-              visitedByLevel={visitedByLevel}
-              visitedPlaces={countryPlaces.filter((place) => visitedPlaceIds.has(place.id))}
+              showLabels={showMapLabels}
+              visitedByLevel={modalVisitedByLevel}
+              visitedPlaces={countryPlaces.filter((place) => modalVisitedPlaceIds.has(place.id))}
             />
           </div>
           <aside className="modal-summary">
-            <div className="country-metrics">
-              <span>
-                <strong>{regionTotal ? visitedRegions.size : "-"}</strong>
-                {regionTotal ? ` / ${regionTotal} 省 / 自治区` : "省级统计暂未启用"}
-              </span>
-              <span>
+            <div className="modal-stat-cards">
+              <article className="modal-stat-card">
+                <p>州 / 省 / 行政区</p>
+                <strong>
+                  {regionTotal ? visitedRegions.size : grouped.length || "-"}
+                  {regionTotal && <span> / {regionTotal}</span>}
+                </strong>
+                <div className="modal-progress">
+                  <span style={{ width: `${regionProgress}%` }} />
+                </div>
+                <small>
+                  {regionTotal
+                    ? `地图上已点亮 ${visitedRegions.size} / ${regionTotal} 省 / 自治区`
+                    : "当前国家暂无省级边界数据"}
+                </small>
+              </article>
+              <article className="modal-stat-card">
+                <p>打卡城市</p>
                 <strong>{visitedCities.size}</strong>
-                城市 / 地点
-              </span>
+                <small>
+                  共 {visitedCities.size} 座城市 · {coveredRegionText}
+                </small>
+              </article>
             </div>
-            <p className="modal-note">
-              地图上已点亮 {visitedRegions.size} 个行政区，打卡 {visitedCities.size} 个城市 / 地点。
-            </p>
             <h3>按行政区展开</h3>
             {grouped.length === 0 && <p className="empty">尚未标记地点。</p>}
             {grouped.map((group) => (
-              <div className="admin-group" key={group.id}>
-                <strong>{group.name}</strong>
-                <span>{group.count} 城市 / 地点</span>
+              <div className="admin-group modal-group" key={group.id}>
+                <button onClick={() => toggleGroup(group.id)} type="button">
+                  <strong>{group.name}</strong>
+                  <span>
+                    {group.count} 城市 / 地点 {expandedGroups.has(group.id) ? "-" : "+"}
+                  </span>
+                </button>
+                {expandedGroups.has(group.id) && (
+                  <div className="modal-city-list">
+                    {group.cities.map((city) => (
+                      <span key={city}>{city}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </aside>
@@ -1514,30 +1504,42 @@ function CountryModal({
   );
 }
 
-function buildCountryGroups(visits, placeLookup) {
+function buildCountryGroups(visits, placeLookup, country) {
   const groups = new Map();
   for (const visit of visits) {
     const place = placeLookup.get(visit.placeId);
     const region = resolvePlaceForLevel(visit.placeId, "region", placeLookup);
-    const key = region?.id || place?.province || "other";
+    const key = region?.id || place?.province || country?.id || "other";
+    const city = resolvePlaceForLevel(visit.placeId, "city", placeLookup);
+    const cityName = displayPlaceName(city || place);
     if (!groups.has(key)) {
       groups.set(key, {
         id: key,
-        name: region?.localName || place?.province || "其他地点",
+        name: region?.id === country?.id
+          ? displayCountryName(country)
+          : region?.localName || place?.province || displayCountryName(country) || "其他地点",
         count: 0,
+        cities: new Set(),
       });
     }
-    groups.get(key).count += 1;
+    const group = groups.get(key);
+    group.count += 1;
+    if (cityName) group.cities.add(cityName);
   }
-  return Array.from(groups.values()).sort((a, b) =>
-    b.count - a.count || a.name.localeCompare(b.name),
-  );
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      cities: Array.from(group.cities).sort((a, b) => a.localeCompare(b, "zh-CN")),
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"));
 }
 
 function MiniCountryMap({
   cityPlaces,
   country,
+  detailLevel,
   regionPlaces,
+  showLabels,
   visitedByLevel,
   visitedPlaces,
 }) {
@@ -1572,7 +1574,13 @@ function MiniCountryMap({
 
     const layer = L.featureGroup().addTo(map);
     const boundaryPlaces =
-      country.id === "CHN" ? regionPlaces : country.geometry ? [country] : [];
+      country.id === "CHN"
+        ? detailLevel === "city"
+          ? cityPlaces
+          : regionPlaces
+        : country.geometry
+          ? [country]
+          : [];
     if (boundaryPlaces.length > 0) {
       const boundaryLayer = L.geoJSON(
         {
@@ -1580,14 +1588,25 @@ function MiniCountryMap({
           features: boundaryPlaces.map(placeToFeature),
         },
         {
+          onEachFeature: (feature, leafletLayer) => {
+            const id = feature.properties.id;
+            const shouldLabel = visitedByLevel.get(id) || (country.id !== "CHN" && id === country.id);
+            if (!showLabels || !shouldLabel) return;
+            leafletLayer.bindTooltip(feature.properties.localName || feature.properties.name, {
+              className: "mini-map-label",
+              direction: "center",
+              permanent: true,
+            });
+          },
           style: (feature) => {
             const id = feature.properties.id;
             const visitInfo = visitedByLevel.get(id);
+            const countryVisited = country.id !== "CHN" && visitedByLevel.get(country.id);
             return {
-              color: visitInfo ? "#8a5518" : "#748177",
-              weight: visitInfo ? 1.2 : 0.55,
-              fillColor: visitInfo ? "#f4b35e" : "#f7f3ea",
-              fillOpacity: visitInfo ? 0.72 : 0.42,
+              color: visitInfo || countryVisited ? "#19a35b" : "#9aacbd",
+              weight: visitInfo || countryVisited ? 1.2 : 0.55,
+              fillColor: visitInfo || countryVisited ? "#76d69a" : "#edf2f7",
+              fillOpacity: visitInfo || countryVisited ? 0.72 : 0.46,
             };
           },
         },
@@ -1605,7 +1624,11 @@ function MiniCountryMap({
         fillColor: "#16361f",
         fillOpacity: 0.92,
       })
-        .bindTooltip(place.localName || place.name, { sticky: true })
+        .bindTooltip(place.localName || place.name, {
+          className: "mini-map-label",
+          permanent: showLabels,
+          sticky: !showLabels,
+        })
         .addTo(layer);
     }
 
@@ -1619,7 +1642,7 @@ function MiniCountryMap({
         map.setView([country.center[1], country.center[0]], country.id === "CHN" ? 4 : 5);
       }
     }, 60);
-  }, [cityPlaces, country, regionPlaces, visitedByLevel, visitedPlaces]);
+  }, [cityPlaces, country, detailLevel, regionPlaces, showLabels, visitedByLevel, visitedPlaces]);
 
   return <div className="mini-country-map" ref={miniRef} />;
 }
@@ -1727,7 +1750,7 @@ function PlaceSearchPanel({
         return place ? { place, visit } : null;
       })
       .filter(Boolean)
-      .slice(0, compact ? 5 : 10);
+      .sort((a, b) => b.visit.visitedAt.localeCompare(a.visit.visitedAt));
   }, [compact, places, visits]);
 
   async function handleAdd(place) {
@@ -1741,7 +1764,7 @@ function PlaceSearchPanel({
         <h3>{title}</h3>
         <span>已添加 {addedPlaces.length}</span>
       </div>
-      {!session && <p className="empty">请先到“编辑”页登录，登录后这里可以直接添加。</p>}
+      {!session && <p className="empty">当前未登录编辑账号，登录状态恢复后可直接添加或删除。</p>}
       {session && !isEditor && <p className="empty">当前账号没有编辑权限。</p>}
       <div className="mini-form">
         <select
@@ -1823,7 +1846,7 @@ function PlaceSearchPanel({
                 onClick={() => onDeleteVisit(visit.id)}
                 type="button"
               >
-                ×
+                删除
               </button>
             )}
           </div>
