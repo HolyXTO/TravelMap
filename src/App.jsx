@@ -269,6 +269,7 @@ function App() {
   const [appProfiles, setAppProfiles] = useState(profiles);
   const [visits, setVisits] = useState([]);
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
+  const [countryModalId, setCountryModalId] = useState(null);
   const [mapPlaces, setMapPlaces] = useState({ country: [], region: [], city: [] });
   const [searchPlaces, setSearchPlaces] = useState([]);
   const [mapStatus, setMapStatus] = useState("正在加载真实边界");
@@ -285,6 +286,15 @@ function App() {
     ],
     [appProfiles],
   );
+
+  useEffect(() => {
+    if (
+      activeProfile !== "all" &&
+      !appProfiles.some((profile) => profile.id === activeProfile)
+    ) {
+      setActiveProfile("all");
+    }
+  }, [activeProfile, appProfiles]);
 
   const loadTravelData = async () => {
     try {
@@ -418,9 +428,16 @@ function App() {
   const placeLookup = useMemo(() => {
     const lookup = new Map();
     for (const place of places) lookup.set(place.id, place);
-    for (const place of searchPlaces) lookup.set(place.id, place);
     for (const level of ["country", "region", "city"]) {
       for (const place of mapPlaces[level]) lookup.set(place.id, place);
+    }
+    for (const place of searchPlaces) {
+      const existing = lookup.get(place.id);
+      lookup.set(place.id, {
+        ...existing,
+        ...place,
+        geometry: existing?.geometry || place.geometry,
+      });
     }
     return lookup;
   }, [mapPlaces, searchPlaces]);
@@ -530,6 +547,7 @@ function App() {
   );
 
   const selectedCountry = placeLookup.get(selectedCountryId);
+  const modalCountry = countryModalId ? placeLookup.get(countryModalId) : null;
 
   const selectedCountryPlaces = useMemo(
     () =>
@@ -647,6 +665,29 @@ function App() {
     });
   }
 
+  async function deleteVisit(visitId) {
+    if (!session || !isEditor) {
+      setAuthMessage("请先用已授权账号登录。");
+      return false;
+    }
+    const ok = window.confirm("确认删除这条足迹记录吗？");
+    if (!ok) return false;
+    try {
+      setIsSaving(true);
+      const { error } = await supabase.from("visits").delete().eq("id", visitId);
+      if (error) throw error;
+      await loadTravelData();
+      setAuthMessage("已删除。");
+      return true;
+    } catch (error) {
+      console.error(error);
+      setAuthMessage(`删除失败：${error.message}`);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function signIn(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -676,6 +717,7 @@ function App() {
         session={session}
         visitedPlaceIds={visitedPlaceIds}
         visits={visits}
+        onDeleteVisit={deleteVisit}
       />
       <header className="topbar">
         <div>
@@ -815,6 +857,7 @@ function App() {
             placeLookup={placeLookup}
             selectedPlaceId={selectedPlaceId}
             setSelectedPlaceId={setSelectedPlaceId}
+            onCountryOpen={setCountryModalId}
             visitedByLevel={visitedByLevel}
             visitedPlaces={searchPlaces.filter((place) => visitedPlaceIds.has(place.id))}
           />
@@ -835,6 +878,32 @@ function App() {
             />
           )}
         </section>
+      )}
+
+      {modalCountry && (
+        <CountryModal
+          addPlace={addPlace}
+          authMessage={authMessage}
+          cityPlaces={mapPlaces.city}
+          country={modalCountry}
+          countryPlaces={searchPlaces.filter(
+            (place) => place.countryCode === modalCountry.id && place.level !== "country",
+          )}
+          isEditor={isEditor}
+          isSaving={isSaving}
+          onClose={() => setCountryModalId(null)}
+          onDeleteVisit={deleteVisit}
+          profiles={appProfiles}
+          regionPlaces={mapPlaces.region}
+          placeLookup={placeLookup}
+          session={session}
+          visits={filteredVisits.filter(
+            (visit) =>
+              resolveMapIdForLevel(visit.placeId, "country", placeLookup) === modalCountry.id,
+          )}
+          visitedPlaceIds={visitedPlaceIds}
+          visitedByLevel={visitedByLevel}
+        />
       )}
 
       {viewMode === "list" && (
@@ -888,6 +957,7 @@ function MapView({
   placeLookup,
   selectedPlaceId,
   setSelectedPlaceId,
+  onCountryOpen,
   visitedByLevel,
   visitedPlaces,
 }) {
@@ -954,14 +1024,20 @@ function MapView({
         leafletLayer.bindTooltip(feature.properties.localName || feature.properties.name, {
           sticky: true,
         });
-        leafletLayer.on("click", () => setSelectedPlaceId(feature.properties.id));
+        leafletLayer.on("click", () => {
+          setSelectedPlaceId(feature.properties.id);
+          if (activeLevel === "country") onCountryOpen(feature.properties.id);
+        });
         leafletLayer.on("mouseover", () => {
           if (activeLevel === "country") setSelectedPlaceId(feature.properties.id);
         });
       },
     }).addTo(map);
 
-    const markerPlaces = activeLevel === "city" ? cityPlaces : visitedPlaces;
+    const markerPlaces =
+      activeLevel === "city"
+        ? visitedPlaces.filter((place) => place.level === "city")
+        : visitedPlaces.filter((place) => place.level === "city");
     for (const city of markerPlaces) {
       const id = city.mapId || city.id;
       const visitInfo =
@@ -998,6 +1074,7 @@ function MapView({
     placeLookup,
     selectedPlaceId,
     setSelectedPlaceId,
+    onCountryOpen,
     visitedByLevel,
     visitedPlaces,
   ]);
@@ -1027,6 +1104,7 @@ function QuickAddDock({
   session,
   visitedPlaceIds,
   visits,
+  onDeleteVisit,
 }) {
   return (
     <aside className="quick-add-dock" aria-label="快速添加足迹">
@@ -1045,9 +1123,230 @@ function QuickAddDock({
         title="添加足迹"
         visitedPlaceIds={visitedPlaceIds}
         visits={visits}
+        onDeleteVisit={onDeleteVisit}
       />
     </aside>
   );
+}
+
+function FlagIcon({ place }) {
+  const iso = place?.isoA2?.toLowerCase();
+  if (!iso || iso.length !== 2) {
+    return <span className="flag fallback-flag">{place?.flag || "◇"}</span>;
+  }
+  return (
+    <span className="flag">
+      <img
+        alt=""
+        loading="lazy"
+        src={`https://flagcdn.com/w40/${iso}.png`}
+      />
+    </span>
+  );
+}
+
+function CountryModal({
+  addPlace,
+  authMessage,
+  cityPlaces,
+  country,
+  countryPlaces,
+  isEditor,
+  isSaving,
+  onClose,
+  onDeleteVisit,
+  placeLookup,
+  profiles,
+  regionPlaces,
+  session,
+  visits,
+  visitedByLevel,
+  visitedPlaceIds,
+}) {
+  const visitedRegions = new Set();
+  const visitedCities = new Set();
+  for (const visit of visits) {
+    const regionId = resolveMapIdForLevel(visit.placeId, "region", placeLookup);
+    const cityId = resolveMapIdForLevel(visit.placeId, "city", placeLookup);
+    if (regionId && regionId !== country.id) visitedRegions.add(regionId);
+    if (cityId) visitedCities.add(cityId);
+  }
+  const regionTotal = country.id === "CHN"
+    ? countryPlaces.filter((place) => place.level === "region").length
+    : 0;
+  const grouped = buildCountryGroups(visits, placeLookup);
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="country-modal" role="dialog" aria-modal="true">
+        <header className="modal-head">
+          <div>
+            <p className="eyebrow">Country</p>
+            <h2>
+              <FlagIcon place={country} />
+              {country.name}
+            </h2>
+            <span>{country.localName || country.countryName}</span>
+          </div>
+          <button aria-label="关闭" className="icon-button" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="modal-grid">
+          <PlaceSearchPanel
+            addPlace={addPlace}
+            authMessage={authMessage}
+            compact
+            isEditor={isEditor}
+            isSaving={isSaving}
+            onDeleteVisit={onDeleteVisit}
+            places={countryPlaces}
+            profiles={profiles}
+            session={session}
+            title={`添加 ${country.localName || country.name} 的地点`}
+            visitedPlaceIds={visitedPlaceIds}
+            visits={visits}
+          />
+          <div className="modal-map-wrap">
+            <MiniCountryMap
+              cityPlaces={cityPlaces}
+              country={country}
+              regionPlaces={regionPlaces}
+              visitedByLevel={visitedByLevel}
+              visitedPlaces={countryPlaces.filter((place) => visitedPlaceIds.has(place.id))}
+            />
+          </div>
+          <aside className="modal-summary">
+            <div className="country-metrics">
+              <span>
+                <strong>{regionTotal ? visitedRegions.size : "-"}</strong>
+                {regionTotal ? ` / ${regionTotal} 省 / 自治区` : "省级统计暂未启用"}
+              </span>
+              <span>
+                <strong>{visitedCities.size}</strong>
+                城市 / 地点
+              </span>
+            </div>
+            <p className="modal-note">
+              地图上已点亮 {visitedRegions.size} 个行政区，打卡 {visitedCities.size} 个城市 / 地点。
+            </p>
+            <h3>按行政区展开</h3>
+            {grouped.length === 0 && <p className="empty">尚未标记地点。</p>}
+            {grouped.map((group) => (
+              <div className="admin-group" key={group.id}>
+                <strong>{group.name}</strong>
+                <span>{group.count} 城市 / 地点</span>
+              </div>
+            ))}
+          </aside>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function buildCountryGroups(visits, placeLookup) {
+  const groups = new Map();
+  for (const visit of visits) {
+    const place = placeLookup.get(visit.placeId);
+    const region = resolvePlaceForLevel(visit.placeId, "region", placeLookup);
+    const key = region?.id || place?.province || "other";
+    if (!groups.has(key)) {
+      groups.set(key, {
+        id: key,
+        name: region?.localName || place?.province || "其他地点",
+        count: 0,
+      });
+    }
+    groups.get(key).count += 1;
+  }
+  return Array.from(groups.values()).sort((a, b) =>
+    b.count - a.count || a.name.localeCompare(b.name),
+  );
+}
+
+function MiniCountryMap({
+  cityPlaces,
+  country,
+  regionPlaces,
+  visitedByLevel,
+  visitedPlaces,
+}) {
+  const miniRef = useRef(null);
+  const mapRef = useRef(null);
+  const layerRef = useRef(null);
+
+  useEffect(() => {
+    if (!miniRef.current || mapRef.current) return;
+    const map = L.map(miniRef.current, {
+      attributionControl: false,
+      dragging: true,
+      scrollWheelZoom: false,
+      zoomControl: true,
+    });
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      maxZoom: 20,
+      subdomains: "abcd",
+    }).addTo(map);
+    mapRef.current = map;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !country) return;
+    if (layerRef.current) layerRef.current.remove();
+
+    const layer = L.layerGroup().addTo(map);
+    const boundaryPlaces =
+      country.id === "CHN" ? regionPlaces : country.geometry ? [country] : [];
+    if (boundaryPlaces.length > 0) {
+      L.geoJSON(
+        {
+          type: "FeatureCollection",
+          features: boundaryPlaces.map(placeToFeature),
+        },
+        {
+          style: (feature) => {
+            const id = feature.properties.id;
+            const visitInfo = visitedByLevel.get(id);
+            return {
+              color: visitInfo ? "#8a5518" : "#748177",
+              weight: visitInfo ? 1.2 : 0.55,
+              fillColor: visitInfo ? "#f4b35e" : "#f7f3ea",
+              fillOpacity: visitInfo ? 0.72 : 0.42,
+            };
+          },
+        },
+      ).addTo(layer);
+    }
+
+    for (const place of visitedPlaces.filter((item) => item.level === "city")) {
+      const [lon, lat] = place.center || [];
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+      L.circleMarker([lat, lon], {
+        radius: 4,
+        color: "#fff",
+        weight: 1.2,
+        fillColor: "#16361f",
+        fillOpacity: 0.92,
+      })
+        .bindTooltip(place.localName || place.name, { sticky: true })
+        .addTo(layer);
+    }
+
+    layerRef.current = layer;
+    const bounds = layer.getBounds?.();
+    if (bounds?.isValid()) {
+      map.fitBounds(bounds, { padding: [16, 16], animate: false });
+    }
+  }, [cityPlaces, country, regionPlaces, visitedByLevel, visitedPlaces]);
+
+  return <div className="mini-country-map" ref={miniRef} />;
 }
 
 function CountryPanel({
@@ -1097,22 +1396,9 @@ function CountryPanel({
         </span>
       </div>
 
-      <PlaceSearchPanel
-        addPlace={addPlace}
-        authMessage={authMessage}
-        compact
-        isEditor={isEditor}
-        isSaving={isSaving}
-        places={countryPlaces}
-        profiles={profiles}
-        session={session}
-        title={`添加 ${country.localName || country.name} 的地点`}
-        visitedPlaceIds={visitedPlaceIds}
-        visits={visits}
-      />
-
       <div className="country-records">
         <h3>当前选区记录</h3>
+        <p className="empty">点击地图上的国家会打开完整添加弹窗。</p>
         {selectedVisits.length === 0 && <p className="empty">还没有符合当前筛选的足迹。</p>}
         {selectedVisits.slice(0, 6).map((visit) => (
           <p key={visit.id}>
@@ -1138,6 +1424,7 @@ function PlaceSearchPanel({
   title,
   visitedPlaceIds,
   visits,
+  onDeleteVisit,
 }) {
   const [query, setQuery] = useState("");
   const [profileId, setProfileId] = useState(profiles[0]?.id || "");
@@ -1145,32 +1432,30 @@ function PlaceSearchPanel({
   const [type, setType] = useState("旅行");
 
   useEffect(() => {
-    if (activeProfile && activeProfile !== "all") {
+    const validIds = new Set(profiles.map((profile) => profile.id));
+    if (activeProfile && activeProfile !== "all" && validIds.has(activeProfile)) {
       setProfileId(activeProfile);
-    } else if (!profileId && profiles[0]) {
+    } else if ((!profileId || !validIds.has(profileId)) && profiles[0]) {
       setProfileId(profiles[0].id);
     }
   }, [activeProfile, profileId, profiles]);
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return places.slice(0, compact ? 6 : 8);
+    if (!needle) return [];
     return places
       .filter((place) => placeSearchText(place).includes(needle))
       .slice(0, compact ? 8 : 12);
   }, [compact, places, query]);
 
   const addedPlaces = useMemo(() => {
-    const seen = new Set();
     return visits
-      .map((visit) => places.find((place) => place.id === visit.placeId))
-      .filter(Boolean)
-      .filter((place) => {
-        if (seen.has(place.id)) return false;
-        seen.add(place.id);
-        return true;
+      .map((visit) => {
+        const place = places.find((item) => item.id === visit.placeId);
+        return place ? { place, visit } : null;
       })
-      .slice(0, compact ? 4 : 8);
+      .filter(Boolean)
+      .slice(0, compact ? 5 : 10);
   }, [compact, places, visits]);
 
   async function handleAdd(place) {
@@ -1226,6 +1511,9 @@ function PlaceSearchPanel({
         />
       </label>
       <div className="search-results">
+        {query.trim() && results.length === 0 && (
+          <p className="empty">没有找到匹配地点。</p>
+        )}
         {results.map((place) => (
           <button
             disabled={!session || !isEditor || isSaving}
@@ -1233,7 +1521,7 @@ function PlaceSearchPanel({
             onClick={() => handleAdd(place)}
             type="button"
           >
-            <span className="flag">{place.flag || "◇"}</span>
+            <FlagIcon place={place} />
             <span>
               <strong>{place.localName || place.name}</strong>
               <small>
@@ -1249,11 +1537,23 @@ function PlaceSearchPanel({
       <div className="added-list">
         <p>你去过的地方</p>
         {addedPlaces.length === 0 && <small>尚未标记地点。</small>}
-        {addedPlaces.map((place) => (
-          <div key={place.id}>
-            <span className="flag">{place.flag || "◇"}</span>
-            <strong>{place.localName || place.name}</strong>
-            <small>{place.countryName}</small>
+        {addedPlaces.map(({ place, visit }) => (
+          <div key={visit.id}>
+            <FlagIcon place={place} />
+            <span>
+              <strong>{place.localName || place.name}</strong>
+              <small>{place.countryName}</small>
+            </span>
+            {onDeleteVisit && (
+              <button
+                aria-label={`删除 ${place.localName || place.name}`}
+                disabled={isSaving}
+                onClick={() => onDeleteVisit(visit.id)}
+                type="button"
+              >
+                ×
+              </button>
+            )}
           </div>
         ))}
       </div>

@@ -80,9 +80,9 @@ Current generated counts:
 
 ```text
 countries.geojson: 196 features, including 195 countries plus Antarctica
-states.geojson: 31 China province-level features
+states.geojson: 34 China province-level features
 china-cities.geojson: 361 features
-place-index.json: 7023 searchable places
+place-index.json: 7026 searchable places
 ```
 
 ## OSM / CARTO

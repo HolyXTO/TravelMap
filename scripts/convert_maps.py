@@ -70,6 +70,90 @@ STATUS_OWNER_PREFIX = {
     "NO": "NOR",
 }
 
+TRADITIONAL_TO_SIMPLIFIED = str.maketrans(
+    {
+        "臺": "台",
+        "灣": "湾",
+        "縣": "县",
+        "區": "区",
+        "聖": "圣",
+        "馬": "马",
+        "諾": "诺",
+        "羅": "罗",
+        "義": "义",
+        "蘭": "兰",
+        "華": "华",
+        "爾": "尔",
+        "維": "维",
+        "納": "纳",
+        "薩": "萨",
+        "亞": "亚",
+        "達": "达",
+        "魯": "鲁",
+        "賓": "宾",
+        "圖": "图",
+        "倫": "伦",
+        "頓": "顿",
+        "漢": "汉",
+        "麗": "丽",
+        "廣": "广",
+        "東": "东",
+        "門": "门",
+        "開": "开",
+        "關": "关",
+        "陽": "阳",
+        "陰": "阴",
+        "長": "长",
+        "島": "岛",
+        "國": "国",
+        "聯": "联",
+        "堅": "坚",
+        "祿": "禄",
+        "樂": "乐",
+        "愛": "爱",
+        "爭": "争",
+        "書": "书",
+        "萬": "万",
+        "與": "与",
+        "廣": "广",
+        "慶": "庆",
+        "瀋": "沈",
+        "濟": "济",
+        "寧": "宁",
+        "鄭": "郑",
+        "鄧": "邓",
+        "貝": "贝",
+        "奧": "奥",
+        "凱": "凯",
+        "萊": "莱",
+        "內": "内",
+        "紐": "纽",
+        "約": "约",
+        "聶": "聂",
+        "茲": "兹",
+        "費": "费",
+        "賽": "赛",
+        "盧": "卢",
+        "蘇": "苏",
+        "俄": "俄",
+        "舊": "旧",
+        "廳": "厅",
+        "廈": "厦",
+        "廟": "庙",
+        "鄉": "乡",
+        "鎮": "镇",
+        "烏": "乌",
+        "鴻": "鸿",
+        "鷹": "鹰",
+        "龍": "龙",
+        "雙": "双",
+        "鳳": "凤",
+        "黃": "黄",
+        "鹽": "盐",
+        "臺": "台",
+    }
+)
+
 
 def mercator_to_lonlat(x, y):
     lon = math.degrees(x / WGS84_A)
@@ -184,7 +268,7 @@ def clean_code(value):
 
 
 def clean_text(value):
-    return str(value or "").replace("[1]", "").strip()
+    return str(value or "").replace("[1]", "").strip().translate(TRADITIONAL_TO_SIMPLIFIED)
 
 
 def merge_geometry(base, extra):
@@ -339,6 +423,62 @@ def build_country_features(source: Path, antarctica_source: Path, tolerance: flo
     return [grouped[key] for key in sorted(grouped)]
 
 
+def build_special_china_region_features(source: Path):
+    special = {
+        "TWN": {
+            "id": "CN-TW",
+            "name": "Taiwan",
+            "localName": "台湾",
+            "iso3166_2": "CN-TW",
+            "type": "Province",
+        },
+        "HKG": {
+            "id": "CN-HK",
+            "name": "Hong Kong",
+            "localName": "香港",
+            "iso3166_2": "CN-HK",
+            "type": "Special Administrative Region",
+        },
+        "MAC": {
+            "id": "CN-MO",
+            "name": "Macao",
+            "localName": "澳门",
+            "iso3166_2": "CN-MO",
+            "type": "Special Administrative Region",
+        },
+    }
+    reader = shapefile.Reader(str(source), encoding="utf-8", encodingErrors="replace")
+    fields = [field[0] for field in reader.fields[1:]]
+    features = []
+    for shape_record in reader.iterShapeRecords():
+        record = dict(zip(fields, shape_record.record))
+        terr = clean_code(record.get("ISO_3_terr"))
+        if terr not in special:
+            continue
+        geometry = simplify_geometry(shape_record.shape.__geo_interface__, 0.01, 0)
+        if not geometry:
+            continue
+        item = special[terr]
+        props = {
+            "id": item["id"],
+            "level": "region",
+            "parentId": "CHN",
+            "name": item["name"],
+            "localName": item["localName"],
+            "code": item["id"],
+            "iso3166_2": item["iso3166_2"],
+            "country": "China",
+            "countryCode": "CHN",
+            "type": item["type"],
+            "latitude": geometryCenter_latlon(geometry)[1],
+            "longitude": geometryCenter_latlon(geometry)[0],
+        }
+        features.append(
+            {"type": "Feature", "id": item["id"], "properties": props, "geometry": geometry}
+        )
+    return features
+
+
 def build_antarctica_feature(source: Path, tolerance: float, min_area: float):
     reader = shapefile.Reader(str(source), encoding="utf-8", encodingErrors="replace")
     fields = [field[0] for field in reader.fields[1:]]
@@ -367,6 +507,26 @@ def build_antarctica_feature(source: Path, tolerance: float, min_area: float):
             "geometry": geometry,
         }
     return None
+
+
+def geometryCenter_latlon(geometry):
+    points = []
+
+    def collect(item):
+        if not isinstance(item, list):
+            return
+        if item and isinstance(item[0], (int, float)):
+            points.append(item)
+            return
+        for child in item:
+            collect(child)
+
+    collect(geometry.get("coordinates"))
+    if not points:
+        return [0, 0]
+    lons = [point[0] for point in points]
+    lats = [point[1] for point in points]
+    return [round((min(lons) + max(lons)) / 2, 5), round((min(lats) + max(lats)) / 2, 5)]
 
 
 def convert(source: Path, target: Path, kind: str, tolerance: float, min_area: float):
@@ -432,7 +592,7 @@ def convert_countries(source: Path, antarctica_source: Path, target: Path):
     return collection
 
 
-def convert_china_regions(source: Path, target: Path):
+def convert_china_regions(source: Path, countries_source: Path, target: Path):
     reader = shapefile.Reader(str(source), encoding="utf-8", encodingErrors="replace")
     fields = [field[0] for field in reader.fields[1:]]
     features = []
@@ -448,6 +608,7 @@ def convert_china_regions(source: Path, target: Path):
         feature = build_feature(record, geometry, "region")
         if feature:
             features.append(feature)
+    features.extend(build_special_china_region_features(countries_source))
     collection = {
         "type": "FeatureCollection",
         "metadata": {
@@ -456,7 +617,7 @@ def convert_china_regions(source: Path, target: Path):
             "scope": "China only",
             "tolerance": 0.02,
             "minArea": 0,
-            "featureCount": len(features),
+        "featureCount": len(features),
         },
         "features": features,
     }
@@ -476,6 +637,17 @@ def flag_emoji(iso_a2: str | None):
     if not iso_a2.isalpha():
         return "◇"
     return "".join(chr(0x1F1E6 + ord(char) - ord("A")) for char in iso_a2)
+
+
+def iso2_for_country(country_id, props=None):
+    if props and props.get("isoA2"):
+        return props.get("isoA2")
+    return {
+        "CHN": "CN",
+        "HKG": "HK",
+        "MAC": "MO",
+        "TWN": "TW",
+    }.get(country_id)
 
 
 def center_from_geometry(geometry):
@@ -506,6 +678,7 @@ def place_from_feature(feature):
     ]
     if center == [0.0, 0.0]:
         center = center_from_geometry(feature["geometry"])
+    iso2 = iso2_for_country(props.get("code") or props.get("countryCode"), props)
     return {
         "id": props["id"],
         "level": props["level"],
@@ -518,7 +691,8 @@ def place_from_feature(feature):
         "province": props.get("province") or "",
         "provinceCode": props.get("provinceCode") or "",
         "center": center,
-        "flag": flag_emoji(props.get("isoA2") or ("CN" if props.get("countryCode") == "CN" else None)),
+        "isoA2": iso2,
+        "flag": flag_emoji(iso2),
     }
 
 
@@ -583,7 +757,8 @@ def build_place_index(countries, regions, cities, world_points: Path, target: Pa
                 "province": clean_text(record.get("ADM1NAME")),
                 "region": country.get("region") or country.get("continent") or "",
                 "center": [round(lon, 5), round(lat, 5)],
-                "flag": flag_emoji(country.get("isoA2")),
+                "isoA2": iso2_for_country(country_id, country),
+                "flag": flag_emoji(iso2_for_country(country_id, country)),
                 "population": int(record.get("POP_MAX") or 0),
             }
         )
@@ -610,6 +785,7 @@ def main():
     )
     regions = convert_china_regions(
         source_dir / "WorldStates.shp",
+        source_dir / "world-administrative-boundaries_256.shp",
         output_dir / "states.geojson",
     )
     cities = convert(
