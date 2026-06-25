@@ -33,9 +33,13 @@ const CHINA_BOUNDS = [
   [54, 135],
 ];
 const WORLD_BOUNDS = [
-  [-58, -170],
-  [74, 180],
+  [-56, -170],
+  [82, 180],
 ];
+const CHINA_SPECIAL_REGION_PARENT_IDS = {
+  CN081: "CN-HK",
+  CN082: "CN-MO",
+};
 const CONTINENT_LABELS = {
   Asia: "亚洲",
   Europe: "欧洲",
@@ -160,6 +164,78 @@ const MAP_THEMES = [
   },
 ];
 
+const PLACE_NAME_OVERRIDES = {
+  "W-3191281": { localName: "萨拉热窝", aliases: ["Sarajevo", "塞拉耶佛"] },
+};
+
+const SUPPLEMENTAL_PLACES = [
+  {
+    id: "EXTRA-LONGYEARBYEN",
+    level: "city",
+    parentId: "NOR",
+    countryCode: "NOR",
+    countryName: "挪威",
+    isoA2: "NO",
+    name: "Longyearbyen",
+    localName: "朗伊尔城",
+    province: "斯瓦尔巴群岛",
+    center: [15.6469, 78.2232],
+    aliases: ["Svalbard", "斯瓦尔巴", "斯瓦尔巴群岛"],
+  },
+  {
+    id: "EXTRA-SVALBARD",
+    level: "city",
+    parentId: "NOR",
+    countryCode: "NOR",
+    countryName: "挪威",
+    isoA2: "NO",
+    name: "Svalbard",
+    localName: "斯瓦尔巴群岛",
+    province: "斯瓦尔巴群岛",
+    center: [16.0, 78.0],
+    aliases: ["Longyearbyen", "朗伊尔城"],
+  },
+  {
+    id: "EXTRA-SANTORINI",
+    level: "city",
+    parentId: "GRC",
+    countryCode: "GRC",
+    countryName: "希腊",
+    isoA2: "GR",
+    name: "Santorini",
+    localName: "圣托里尼",
+    province: "南爱琴",
+    center: [25.4615, 36.3932],
+    aliases: ["Thira", "锡拉"],
+  },
+  {
+    id: "EXTRA-LOFOTEN",
+    level: "city",
+    parentId: "NOR",
+    countryCode: "NOR",
+    countryName: "挪威",
+    isoA2: "NO",
+    name: "Lofoten Islands",
+    localName: "罗弗敦群岛",
+    province: "诺尔兰",
+    center: [13.8, 68.25],
+    aliases: ["Lofoten", "罗弗敦"],
+  },
+  {
+    id: "EXTRA-BLED",
+    level: "city",
+    parentId: "SVN",
+    countryCode: "SVN",
+    countryName: "斯洛文尼亚",
+    isoA2: "SI",
+    name: "Bled",
+    localName: "布莱德",
+    province: "上卡尼奥拉",
+    center: [14.1136, 46.3683],
+    aliases: ["Lake Bled", "布莱德湖"],
+  },
+];
+
 const regionNamesZh =
   typeof Intl !== "undefined" && Intl.DisplayNames
     ? new Intl.DisplayNames(["zh-CN"], { type: "region" })
@@ -253,6 +329,38 @@ function featureToPlace(feature) {
   };
 }
 
+function normalizePlace(place) {
+  const override = PLACE_NAME_OVERRIDES[place.id] || {};
+  const next = {
+    ...place,
+    ...override,
+    aliases: [...(place.aliases || []), ...(override.aliases || [])],
+  };
+  if (next.countryCode === "CN") {
+    next.countryCode = "CHN";
+    next.countryName = "中国";
+  }
+  if (next.parentId && CHINA_SPECIAL_REGION_PARENT_IDS[next.parentId]) {
+    next.parentId = CHINA_SPECIAL_REGION_PARENT_IDS[next.parentId];
+  }
+  if (next.provinceCode && CHINA_SPECIAL_REGION_PARENT_IDS[next.provinceCode]) {
+    next.parentId = CHINA_SPECIAL_REGION_PARENT_IDS[next.provinceCode];
+  }
+  if (next.id === "CN081010") {
+    next.parentId = "CN-HK";
+    next.countryCode = "CHN";
+    next.countryName = "中国";
+    next.province = "香港";
+  }
+  if (next.id === "CN082010") {
+    next.parentId = "CN-MO";
+    next.countryCode = "CHN";
+    next.countryName = "中国";
+    next.province = "澳门";
+  }
+  return next;
+}
+
 function placeToFeature(place) {
   return {
     type: "Feature",
@@ -332,6 +440,7 @@ function placeSearchText(place) {
     place.countryName,
     place.province,
     place.region,
+    ...(place.aliases || []),
   ]
     .filter(Boolean)
     .join(" ")
@@ -355,8 +464,22 @@ function displayCountryName(place) {
   );
 }
 
-function buildContinentSummary(visits, placeLookup) {
+function buildContinentSummary(visits, placeLookup, countryPlaces = []) {
   const buckets = new Map();
+  for (const country of countryPlaces) {
+    const continent = continentLabelForCountry(country);
+    if (!buckets.has(continent)) {
+      buckets.set(continent, {
+        label: continent,
+        count: 0,
+        cityIds: new Set(),
+        visitedCountryIds: new Set(),
+        countryTotal: 0,
+        countries: new Map(),
+      });
+    }
+    buckets.get(continent).countryTotal += 1;
+  }
   for (const visit of visits) {
     const chain = placeChain(visit.placeId, placeLookup);
     const country = chain.find((place) => place.level === "country");
@@ -367,11 +490,16 @@ function buildContinentSummary(visits, placeLookup) {
       buckets.set(continent, {
         label: continent,
         count: 0,
+        cityIds: new Set(),
+        visitedCountryIds: new Set(),
+        countryTotal: 0,
         countries: new Map(),
       });
     }
     const bucket = buckets.get(continent);
     bucket.count += 1;
+    if (country?.id) bucket.visitedCountryIds.add(country.id);
+    bucket.cityIds.add(city?.id || visit.placeId);
     const countryId = country?.id || "unknown";
     if (!bucket.countries.has(countryId)) {
       bucket.countries.set(countryId, {
@@ -416,6 +544,8 @@ function buildContinentSummary(visits, placeLookup) {
   return Array.from(buckets.values())
     .map((bucket) => ({
       ...bucket,
+      cityCount: bucket.cityIds.size,
+      countryCount: bucket.visitedCountryIds.size,
       countries: Array.from(bucket.countries.values())
         .map((country) => ({
           ...country,
@@ -569,12 +699,16 @@ function App() {
           indexResponse.json(),
         ]);
         if (!cancelled) {
+          const countryPlaces = countries.features.map((feature) => normalizePlace(featureToPlace(feature)));
+          const regionPlaces = states.features.map((feature) => normalizePlace(featureToPlace(feature)));
+          const cityPlaces = cities.features.map((feature) => normalizePlace(featureToPlace(feature)));
+          const searchIndex = [...placeIndex.map(normalizePlace), ...SUPPLEMENTAL_PLACES.map(normalizePlace)];
           setMapPlaces({
-            country: countries.features.map(featureToPlace),
-            region: states.features.map(featureToPlace),
-            city: cities.features.map(featureToPlace),
+            country: countryPlaces,
+            region: regionPlaces,
+            city: cityPlaces,
           });
-          setSearchPlaces(placeIndex);
+          setSearchPlaces(searchIndex);
           setMapStatus(
             `${countries.metadata?.countryCount || countries.features.length} 个国家，${states.features.length} 个中国省级单位，${cities.features.length} 个中国城市`,
           );
@@ -699,6 +833,24 @@ function App() {
     return result;
   }, [activeLevel, filteredVisits, placeLookup]);
 
+  const visitedByCountry = useMemo(() => {
+    const result = new Map();
+    for (const visit of filteredVisits) {
+      const countryId = resolveMapIdForLevel(visit.placeId, "country", placeLookup);
+      if (!countryId) continue;
+      const current = result.get(countryId) ?? {
+        count: 0,
+        profileIds: new Set(),
+        visits: [],
+      };
+      current.count += 1;
+      current.profileIds.add(visit.profileId);
+      current.visits.push(visit);
+      result.set(countryId, current);
+    }
+    return result;
+  }, [filteredVisits, placeLookup]);
+
   const displayPlaces = useMemo(() => {
     const loaded = mapPlaces[activeLevel];
     return loaded.length > 0
@@ -782,8 +934,8 @@ function App() {
   );
 
   const continentSummary = useMemo(
-    () => buildContinentSummary(filteredVisits, placeLookup),
-    [filteredVisits, placeLookup],
+    () => buildContinentSummary(filteredVisits, placeLookup, mapPlaces.country),
+    [filteredVisits, placeLookup, mapPlaces.country],
   );
 
   function changeLevel(levelId) {
@@ -993,6 +1145,7 @@ function App() {
         <MapView
           activeLevel={activeLevel}
           cityPlaces={cityPlaces}
+          countryPlaces={mapPlaces.country}
           displayPlaces={displayPlaces}
           mapStatus={mapStatus}
           mapTheme={activeMapTheme}
@@ -1003,6 +1156,7 @@ function App() {
           setMapThemeId={setActiveMapThemeId}
           onCountryOpen={setCountryModalId}
           visitedByLevel={visitedByLevel}
+          visitedByCountry={visitedByCountry}
           visitedPlaces={searchPlaces.filter((place) => visitedPlaceIds.has(place.id))}
         />
       </section>
@@ -1057,6 +1211,7 @@ function Metric({ detail, icon, label, value }) {
 function MapView({
   activeLevel,
   cityPlaces,
+  countryPlaces,
   displayPlaces,
   mapStatus,
   mapTheme,
@@ -1067,6 +1222,7 @@ function MapView({
   setSelectedPlaceId,
   onCountryOpen,
   visitedByLevel,
+  visitedByCountry,
   visitedPlaces,
 }) {
   const containerRef = useRef(null);
@@ -1112,33 +1268,33 @@ function MapView({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || displayPlaces.length === 0) return;
+    if (!map || countryPlaces.length === 0) return;
 
     if (layerRef.current) {
       layerRef.current.remove();
     }
 
-    const featureCollection = {
-      type: "FeatureCollection",
-      features: displayPlaces.map(placeToFeature),
-    };
-
-    const layer = L.geoJSON(featureCollection, {
+    const layer = L.featureGroup().addTo(map);
+    const countryLayer = L.geoJSON(
+      {
+        type: "FeatureCollection",
+        features: countryPlaces.map(placeToFeature),
+      },
+      {
       style: (feature) => {
         const id = feature.properties.id;
-        const visitInfo = visitedByLevel.get(id);
+        const visitInfo = visitedByCountry.get(id);
         const isSelected = selectedPlaceId === id;
-        const hasBoth = visitInfo?.profileIds.size > 1;
         return {
           color: isSelected
             ? mapTheme.selectedStroke
             : visitInfo
               ? mapTheme.visitedStroke
               : mapTheme.emptyStroke,
-          weight: isSelected ? 1.6 : activeLevel === "country" ? 0.75 : 0.65,
+          weight: isSelected ? 1.5 : 0.65,
           opacity: 0.95,
-          fillColor: visitInfo ? (hasBoth ? mapTheme.bothFill : mapTheme.visitedFill) : mapTheme.emptyFill,
-          fillOpacity: visitInfo ? 0.76 : 0.46,
+          fillColor: visitInfo ? mapTheme.visitedFill : mapTheme.emptyFill,
+          fillOpacity: visitInfo ? 0.72 : activeLevel === "country" ? 0.46 : 0.26,
         };
       },
       onEachFeature: (feature, leafletLayer) => {
@@ -1147,13 +1303,46 @@ function MapView({
         });
         leafletLayer.on("click", () => {
           setSelectedPlaceId(feature.properties.id);
-          if (activeLevel === "country") onCountryOpen(feature.properties.id);
+          onCountryOpen(feature.properties.id);
         });
         leafletLayer.on("mouseover", () => {
-          if (activeLevel === "country") setSelectedPlaceId(feature.properties.id);
+          setSelectedPlaceId(feature.properties.id);
         });
       },
-    }).addTo(map);
+    }).addTo(layer);
+
+    if (activeLevel !== "country" && displayPlaces.length > 0) {
+      L.geoJSON(
+        {
+          type: "FeatureCollection",
+          features: displayPlaces.map(placeToFeature),
+        },
+        {
+          style: (feature) => {
+            const id = feature.properties.id;
+            const visitInfo = visitedByLevel.get(id);
+            const isSelected = selectedPlaceId === id;
+            return {
+              color: isSelected
+                ? mapTheme.selectedStroke
+                : visitInfo
+                  ? mapTheme.visitedStroke
+                  : "#9aacbd",
+              weight: isSelected ? 1.4 : activeLevel === "city" ? 0.5 : 0.7,
+              opacity: 0.9,
+              fillColor: visitInfo ? mapTheme.visitedFill : "#ffffff",
+              fillOpacity: visitInfo ? 0.7 : 0.08,
+            };
+          },
+          onEachFeature: (feature, leafletLayer) => {
+            leafletLayer.bindTooltip(feature.properties.localName || feature.properties.name, {
+              sticky: true,
+            });
+            leafletLayer.on("click", () => setSelectedPlaceId(feature.properties.id));
+          },
+        },
+      ).addTo(layer);
+    }
 
     const markerPlaces =
       activeLevel === "city"
@@ -1193,11 +1382,13 @@ function MapView({
     cityPlaces,
     displayPlaces,
     placeLookup,
+    countryPlaces,
     selectedPlaceId,
     setSelectedPlaceId,
     onCountryOpen,
     mapTheme,
     visitedByLevel,
+    visitedByCountry,
     visitedPlaces,
   ]);
 
@@ -1379,6 +1570,12 @@ function CountryModal({
     });
   }
 
+  function toggleAllGroups() {
+    setExpandedGroups((current) =>
+      current.size === grouped.length ? new Set() : new Set(grouped.map((group) => group.id)),
+    );
+  }
+
   const regionProgress = regionTotal ? Math.min(100, (visitedRegions.size / regionTotal) * 100) : 0;
   const coveredRegionText = regionTotal
     ? `覆盖 ${visitedRegions.size} 省 / 自治区`
@@ -1478,7 +1675,14 @@ function CountryModal({
                 </small>
               </article>
             </div>
-            <h3>按行政区展开</h3>
+            <div className="modal-summary-title">
+              <h3>按行政区展开</h3>
+              {grouped.length > 0 && (
+                <button onClick={toggleAllGroups} type="button">
+                  {expandedGroups.size === grouped.length ? "全部收起 -" : "全部展开 +"}
+                </button>
+              )}
+            </div>
             {grouped.length === 0 && <p className="empty">尚未标记地点。</p>}
             {grouped.map((group) => (
               <div className="admin-group modal-group" key={group.id}>
@@ -1546,6 +1750,7 @@ function MiniCountryMap({
   const miniRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
+  const lastFitCountryRef = useRef(null);
 
   useEffect(() => {
     if (!miniRef.current || mapRef.current) return;
@@ -1555,7 +1760,7 @@ function MiniCountryMap({
       scrollWheelZoom: true,
       zoomControl: false,
     });
-    L.control.zoom({ position: "topright" }).addTo(map);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 20,
       subdomains: "abcd",
@@ -1614,6 +1819,24 @@ function MiniCountryMap({
       boundaryLayer.addTo(layer);
     }
 
+    if (country.id === "CHN" && detailLevel === "city" && regionPlaces.length > 0) {
+      L.geoJSON(
+        {
+          type: "FeatureCollection",
+          features: regionPlaces.map(placeToFeature),
+        },
+        {
+          interactive: false,
+          style: {
+            color: "#64748b",
+            weight: 1,
+            opacity: 0.75,
+            fillOpacity: 0,
+          },
+        },
+      ).addTo(layer);
+    }
+
     for (const place of visitedPlaces.filter((item) => item.level === "city")) {
       const [lon, lat] = place.center || [];
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
@@ -1626,8 +1849,8 @@ function MiniCountryMap({
       })
         .bindTooltip(place.localName || place.name, {
           className: "mini-map-label",
-          permanent: showLabels,
-          sticky: !showLabels,
+          permanent: false,
+          sticky: true,
         })
         .addTo(layer);
     }
@@ -1635,11 +1858,14 @@ function MiniCountryMap({
     layerRef.current = layer;
     window.setTimeout(() => {
       map.invalidateSize();
+      if (lastFitCountryRef.current === country.id) return;
       const bounds = layer.getBounds();
       if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [16, 16], animate: false });
+        lastFitCountryRef.current = country.id;
       } else if (country.center) {
         map.setView([country.center[1], country.center[0]], country.id === "CHN" ? 4 : 5);
+        lastFitCountryRef.current = country.id;
       }
     }, 60);
   }, [cityPlaces, country, detailLevel, regionPlaces, showLabels, visitedByLevel, visitedPlaces]);
@@ -1926,7 +2152,7 @@ function TravelOverview({ continentSummary }) {
     ...continentSummary,
     ...defaultContinents
       .filter((label) => !existing.has(label))
-      .map((label) => ({ label, count: 0, countries: [] })),
+      .map((label) => ({ label, count: 0, cityCount: 0, countryCount: 0, countryTotal: 0, countries: [] })),
   ];
 
   function toggleCountry(countryId) {
@@ -1953,7 +2179,12 @@ function TravelOverview({ continentSummary }) {
           >
             <header>
               <h3>{continent.label}</h3>
-              <strong>{continent.count}</strong>
+              <div className="continent-stat">
+                <strong>
+                  {continent.countryCount || 0}/{continent.countryTotal || 0} 国家
+                </strong>
+                <span>{continent.cityCount || continent.count || 0} 城市</span>
+              </div>
             </header>
             <div className="continent-body">
               {continent.countries.length === 0 && <p className="empty">尚未标记地点。</p>}
