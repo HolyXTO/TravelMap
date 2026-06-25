@@ -1,6 +1,6 @@
 :root {
-  color: #132018;
-  background: #eef2f3;
+  color: #111827;
+  background: #f5f7fb;
   font-family:
     Inter, "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
   font-synthesis: none;
@@ -16,6 +16,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background:
+    linear-gradient(180deg, #fbfcff 0%, #f4f7fb 42%, #edf2f6 100%);
 }
 
 button,
@@ -32,9 +34,9 @@ button {
 .app-shell {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   min-height: 100vh;
-  padding: 24px;
+  padding: 28px;
 }
 
 .topbar,
@@ -53,11 +55,16 @@ button {
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px 20px;
+  box-shadow: 0 12px 34px #0f172a0f;
 }
 
 .eyebrow {
   margin: 0 0 4px;
-  color: #607064;
+  color: #64748b;
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -74,9 +81,9 @@ h1 {
   margin-bottom: 0;
   font-family:
     "Microsoft YaHei UI", "Microsoft YaHei", Inter, "Segoe UI", system-ui, sans-serif;
-  font-size: clamp(1.75rem, 3vw, 3.1rem);
-  font-weight: 850;
-  line-height: 1.06;
+  font-size: clamp(1.58rem, 2.4vw, 2.45rem);
+  font-weight: 820;
+  line-height: 1.12;
 }
 
 h2 {
@@ -104,11 +111,11 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #cdd8d0;
+  border: 1px solid #e2e8f0;
   border-radius: 999px;
   background: #ffffffb8;
   padding: 7px 10px;
-  color: #405245;
+  color: #475569;
   font-size: 0.82rem;
   font-weight: 700;
 }
@@ -122,10 +129,11 @@ h2 {
 .segmented {
   min-width: 0;
   gap: 6px;
-  border: 1px solid #ccd8d0;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: #f8faf7;
+  background: #ffffff;
   padding: 6px;
+  box-shadow: 0 8px 24px #0f172a0a;
 }
 
 .segmented button {
@@ -146,9 +154,9 @@ h2 {
 }
 
 .segmented button.active {
-  background: #16361f;
+  background: #123c30;
   color: white;
-  box-shadow: 0 8px 18px #16361f22;
+  box-shadow: 0 8px 18px #123c3029;
 }
 
 .metric-grid {
@@ -162,10 +170,11 @@ h2 {
 .metric {
   min-height: 112px;
   gap: 16px;
-  border: 1px solid #cad6ce;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
   padding: 18px;
+  box-shadow: 0 10px 30px #0f172a0c;
 }
 
 .metric > span {
@@ -174,8 +183,8 @@ h2 {
   width: 42px;
   height: 42px;
   border-radius: 8px;
-  background: #eef6f0;
-  color: #255934;
+  background: #eaf5ef;
+  color: #246046;
 }
 
 .metric svg {
@@ -185,7 +194,7 @@ h2 {
 
 .metric p {
   margin-bottom: 2px;
-  color: #657165;
+  color: #64748b;
   font-size: 0.86rem;
   font-weight: 800;
 }
@@ -197,7 +206,7 @@ h2 {
 }
 
 .metric small {
-  color: #6d756f;
+  color: #64748b;
   font-weight: 700;
 }
 
@@ -209,15 +218,16 @@ h2 {
 
 .filters label {
   gap: 8px;
-  border: 1px solid #cad6ce;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
   padding: 0 12px;
+  box-shadow: 0 8px 24px #0f172a0a;
 }
 
 .filters svg {
   flex: 0 0 auto;
-  color: #667267;
+  color: #64748b;
 }
 
 .filters input,
@@ -241,9 +251,10 @@ h2 {
 .detail-panel,
 .list-view,
 .admin-view {
-  border: 1px solid #cad6ce;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
+  box-shadow: 0 14px 38px #0f172a10;
 }
 
 .map-surface {
@@ -261,7 +272,7 @@ h2 {
 
 .map-head p:last-child {
   margin-bottom: 0;
-  color: #647067;
+  color: #64748b;
   font-weight: 800;
 }
 
@@ -273,13 +284,13 @@ h2 {
 }
 
 .leaflet-container {
-  background: #dfe9eb;
+  background: #dbe7eb;
   font-family:
     Inter, "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
 }
 
 .leaflet-control-attribution {
-  color: #4e5c52;
+  color: #475569;
   font-size: 11px;
 }
 
@@ -289,9 +300,9 @@ h2 {
 }
 
 .leaflet-tooltip {
-  border: 1px solid #cbd7d0;
+  border: 1px solid #d8e1e7;
   border-radius: 6px;
-  color: #1e2c22;
+  color: #0f172a;
   font-weight: 800;
   box-shadow: 0 6px 18px #18332024;
 }
@@ -878,10 +889,11 @@ h2 {
 
 .continent-block {
   min-height: 104px;
-  border: 1px solid #cad6ce;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
   padding: 18px;
+  box-shadow: 0 12px 34px #0f172a0d;
 }
 
 .continent-block header {
@@ -897,28 +909,9 @@ h2 {
   font-size: 1.25rem;
 }
 
-.continent-block header > div {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .continent-block header strong {
-  color: #16361f;
-  font-size: 2rem;
-}
-
-.continent-block header button {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid #c7d4cc;
-  border-radius: 8px;
-  background: #f8faf7;
-  color: #17361f;
-  font-size: 1.05rem;
-  font-weight: 950;
+  color: #123c30;
+  font-size: 1.85rem;
 }
 
 .continent-body {
@@ -928,18 +921,83 @@ h2 {
 }
 
 .country-summary {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  border-top: 1px solid #edf2ef;
-  padding: 10px 0;
+  border-top: 1px solid #eef2f7;
+  padding: 9px 0;
 }
 
-.country-summary span {
-  color: #637269;
+.country-summary-main {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto 32px;
+  align-items: center;
+  gap: 10px;
+}
+
+.country-summary-main .flag {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e2e8f0;
+}
+
+.country-summary-main strong {
+  overflow: hidden;
+  color: #172033;
+  font-size: 0.95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-summary-main span {
+  color: #64748b;
+  font-size: 0.82rem;
   font-weight: 800;
   text-align: right;
+  white-space: nowrap;
+}
+
+.country-summary-main button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #123c30;
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.country-summary-main button:hover {
+  border-color: #b9c8d5;
+  background: #eef6f1;
+}
+
+.country-summary-detail {
+  display: grid;
+  gap: 8px;
+  max-height: 170px;
+  overflow: auto;
+  margin: 10px 0 2px 38px;
+  border: 1px solid #e4ebf1;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.country-summary-detail p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 750;
+  line-height: 1.65;
+}
+
+.country-summary-detail p strong {
+  display: block;
+  margin-bottom: 2px;
+  color: #14231b;
+  font-size: 0.78rem;
+  letter-spacing: 0;
 }
 
 .primary-action:disabled {
@@ -1064,6 +1122,24 @@ h2 {
 
   .continent-grid {
     grid-template-columns: 1fr;
+  }
+
+  .country-summary-main {
+    grid-template-columns: 30px minmax(0, 1fr) 32px;
+  }
+
+  .country-summary-main span {
+    grid-column: 2 / 4;
+    text-align: left;
+  }
+
+  .country-summary-main button {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .country-summary-detail {
+    margin-left: 0;
   }
 
   .country-metrics,

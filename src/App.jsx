@@ -247,15 +247,24 @@ function buildContinentSummary(visits, placeLookup) {
       bucket.countries.set(countryId, {
         id: countryId,
         name: displayCountryName(country),
+        place: country,
         regions: new Set(),
         cities: new Set(),
+        cityNames: new Set(),
+        regionNames: new Set(),
         visits: 0,
       });
     }
     const item = bucket.countries.get(countryId);
     item.visits += 1;
-    if (region) item.regions.add(region.id);
-    if (city) item.cities.add(city.id);
+    if (region) {
+      item.regions.add(region.id);
+      item.regionNames.add(displayPlaceName(region));
+    }
+    if (city) {
+      item.cities.add(city.id);
+      item.cityNames.add(displayPlaceName(city));
+    }
   }
 
   const order = ["亚洲", "北美洲", "欧洲", "非洲", "大洋洲", "南美洲", "南极洲", "美洲"];
@@ -1692,16 +1701,7 @@ function VisitList({ placeLookup, profiles, visits }) {
 function TravelOverview({ continentSummary }) {
   const defaultContinents = ["亚洲", "北美洲", "欧洲", "非洲", "大洋洲", "南美洲", "南极洲"];
   const existing = new Set(continentSummary.map((item) => item.label));
-  const [expanded, setExpanded] = useState(new Set(continentSummary.map((item) => item.label)));
-  useEffect(() => {
-    setExpanded((current) => {
-      const next = new Set(current);
-      for (const item of continentSummary) {
-        if (item.count > 0) next.add(item.label);
-      }
-      return next;
-    });
-  }, [continentSummary]);
+  const [expandedCountries, setExpandedCountries] = useState(new Set());
   const items = [
     ...continentSummary,
     ...defaultContinents
@@ -1709,11 +1709,11 @@ function TravelOverview({ continentSummary }) {
       .map((label) => ({ label, count: 0, countries: [] })),
   ];
 
-  function toggle(label) {
-    setExpanded((current) => {
+  function toggleCountry(countryId) {
+    setExpandedCountries((current) => {
       const next = new Set(current);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
+      if (next.has(countryId)) next.delete(countryId);
+      else next.add(countryId);
       return next;
     });
   }
@@ -1729,31 +1729,55 @@ function TravelOverview({ continentSummary }) {
           <article className="continent-block" key={continent.label}>
             <header>
               <h3>{continent.label}</h3>
-              <div>
-                <strong>{continent.count}</strong>
-                <button
-                  aria-label={`${expanded.has(continent.label) ? "收起" : "展开"}${continent.label}`}
-                  onClick={() => toggle(continent.label)}
-                  type="button"
-                >
-                  {expanded.has(continent.label) ? "-" : "+"}
-                </button>
-              </div>
+              <strong>{continent.count}</strong>
             </header>
-            {expanded.has(continent.label) && (
-              <div className="continent-body">
-                {continent.countries.length === 0 && <p className="empty">尚未标记地点。</p>}
-                {continent.countries.map((country) => (
+            <div className="continent-body">
+              {continent.countries.length === 0 && <p className="empty">尚未标记地点。</p>}
+              {continent.countries.map((country) => {
+                const expanded = expandedCountries.has(country.id);
+                const cityNames = Array.from(country.cityNames).sort((a, b) =>
+                  a.localeCompare(b, "zh-CN"),
+                );
+                const regionNames = Array.from(country.regionNames).sort((a, b) =>
+                  a.localeCompare(b, "zh-CN"),
+                );
+                return (
                   <div className="country-summary" key={country.id}>
-                    <strong>{country.name}</strong>
-                    <span>
-                      {country.regions.size ? `${country.regions.size} 省州，` : ""}
-                      {country.cities.size || country.visits} 城市 / 地点
-                    </span>
+                    <div className="country-summary-main">
+                      <FlagIcon place={country.place} />
+                      <strong>{country.name}</strong>
+                      <span>
+                        {country.regions.size ? `${country.regions.size} 省州，` : ""}
+                        {country.cities.size || country.visits} 城市 / 地点
+                      </span>
+                      <button
+                        aria-label={`${expanded ? "收起" : "展开"}${country.name}`}
+                        onClick={() => toggleCountry(country.id)}
+                        type="button"
+                      >
+                        {expanded ? "-" : "+"}
+                      </button>
+                    </div>
+                    {expanded && (
+                      <div className="country-summary-detail">
+                        {regionNames.length > 0 && (
+                          <p>
+                            <strong>省州</strong>
+                            {regionNames.join("、")}
+                          </p>
+                        )}
+                        {cityNames.length > 0 && (
+                          <p>
+                            <strong>城市 / 地点</strong>
+                            {cityNames.join("、")}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
           </article>
         ))}
       </div>
