@@ -40,10 +40,10 @@ button {
 .topbar,
 .control-band,
 .filters,
-  .workspace,
-  .list-view,
-  .admin-view,
-  .overview-section {
+.workspace,
+.list-view,
+.admin-view,
+.overview-section {
   width: min(1480px, 100%);
   margin: 0 auto;
 }
@@ -72,8 +72,11 @@ p {
 
 h1 {
   margin-bottom: 0;
-  font-size: clamp(2rem, 5vw, 4.6rem);
-  line-height: 0.98;
+  font-family:
+    "Microsoft YaHei UI", "Microsoft YaHei", Inter, "Segoe UI", system-ui, sans-serif;
+  font-size: clamp(1.75rem, 3vw, 3.1rem);
+  font-weight: 850;
+  line-height: 1.06;
 }
 
 h2 {
@@ -652,6 +655,34 @@ h2 {
   object-fit: cover;
 }
 
+.china-flag {
+  position: relative;
+  background: #de2910;
+}
+
+.china-flag::before {
+  content: "★";
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  color: #ffde00;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.china-flag::after {
+  content: "★ ★ ★ ★";
+  position: absolute;
+  top: 4px;
+  left: 17px;
+  width: 10px;
+  color: #ffde00;
+  font-size: 4px;
+  line-height: 1.45;
+  transform: rotate(12deg);
+  word-spacing: 4px;
+}
+
 .fallback-flag {
   color: #304338;
   font-size: 0.78rem;
@@ -846,7 +877,7 @@ h2 {
 }
 
 .continent-block {
-  min-height: 210px;
+  min-height: 104px;
   border: 1px solid #cad6ce;
   border-radius: 8px;
   background: #fff;
@@ -866,9 +897,34 @@ h2 {
   font-size: 1.25rem;
 }
 
+.continent-block header > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .continent-block header strong {
   color: #16361f;
   font-size: 2rem;
+}
+
+.continent-block header button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #c7d4cc;
+  border-radius: 8px;
+  background: #f8faf7;
+  color: #17361f;
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.continent-body {
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .country-summary {

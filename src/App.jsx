@@ -44,6 +44,18 @@ const CONTINENT_LABELS = {
   Antarctica: "南极洲",
 };
 
+const regionNamesZh =
+  typeof Intl !== "undefined" && Intl.DisplayNames
+    ? new Intl.DisplayNames(["zh-CN"], { type: "region" })
+    : null;
+
+const COUNTRY_NAME_ZH_OVERRIDES = {
+  CHN: "中国",
+  VAT: "梵蒂冈",
+  PSE: "巴勒斯坦",
+  ATA: "南极洲",
+};
+
 function geometryCenter(geometry) {
   const points = [];
   const collect = (item) => {
@@ -80,17 +92,35 @@ function flagEmoji(isoA2) {
     .join("");
 }
 
+function countryNameZh(code, isoA2, fallback) {
+  if (COUNTRY_NAME_ZH_OVERRIDES[code]) return COUNTRY_NAME_ZH_OVERRIDES[code];
+  if (isoA2 && regionNamesZh) {
+    try {
+      const name = regionNamesZh.of(isoA2.toUpperCase());
+      if (name && !/^[A-Z]{2}$/i.test(name)) return name;
+    } catch {
+      // Keep the source name when the browser cannot localize a code.
+    }
+  }
+  return fallback;
+}
+
 function featureToPlace(feature) {
   const props = feature.properties;
+  const localName = countryNameZh(
+    props.code || props.countryCode || props.id,
+    props.isoA2,
+    props.localName || props.name,
+  );
   return {
     ...props,
     id: props.id,
     level: props.level,
     name: props.name,
-    localName: props.localName || props.name,
+    localName,
     parentId: props.parentId,
     countryCode: props.countryCode || props.code || props.id,
-    countryName: props.country || props.localName || props.name,
+    countryName: props.country || localName || props.name,
     flag: flagEmoji(props.isoA2),
     region: props.region || props.continent,
     geometry: feature.geometry,
@@ -153,9 +183,9 @@ function resolveMapIdForLevel(placeId, level, placeLookup) {
 function formatPath(placeId, placeLookup) {
   const chain = placeChain(placeId, placeLookup);
   if (chain.length > 0) {
-    return chain.map((place) => place.localName).join(" / ");
+    return chain.map((place) => displayPlaceName(place)).join(" / ");
   }
-  return placeLookup.get(placeId)?.localName ?? placeId;
+  return displayPlaceName(placeLookup.get(placeId)) ?? placeId;
 }
 
 function regionLabel(region) {
@@ -165,6 +195,8 @@ function regionLabel(region) {
 function placeSearchText(place) {
   return [
     place.flag,
+    displayPlaceName(place),
+    displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName }),
     place.localName,
     place.name,
     place.countryName,
@@ -174,6 +206,23 @@ function placeSearchText(place) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function displayPlaceName(place) {
+  if (!place) return "未知地点";
+  if (place.level === "country") {
+    return countryNameZh(place.id || place.countryCode, place.isoA2, place.localName || place.name);
+  }
+  return place.localName || place.name || "未知地点";
+}
+
+function displayCountryName(place) {
+  if (!place) return "未知地区";
+  return countryNameZh(
+    place.id || place.countryCode,
+    place.isoA2,
+    place.localName || place.countryName || place.name,
+  );
 }
 
 function buildContinentSummary(visits, placeLookup) {
@@ -197,7 +246,7 @@ function buildContinentSummary(visits, placeLookup) {
     if (!bucket.countries.has(countryId)) {
       bucket.countries.set(countryId, {
         id: countryId,
-        name: country?.localName || country?.name || "未知地区",
+        name: displayCountryName(country),
         regions: new Set(),
         cities: new Set(),
         visits: 0,
@@ -722,7 +771,7 @@ function App() {
       <header className="topbar">
         <div>
           <p className="eyebrow">TravelMap Prototype</p>
-          <h1>两个人的足迹地图</h1>
+          <h1>足迹地图</h1>
         </div>
         <div className="status-strip" aria-label="项目状态">
           <span>
@@ -976,7 +1025,9 @@ function MapView({
       maxZoom: 12,
       scrollWheelZoom: true,
       worldCopyJump: true,
+      zoomControl: false,
     });
+    L.control.zoom({ position: "topright" }).addTo(map);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
       attribution:
@@ -1131,6 +1182,13 @@ function QuickAddDock({
 
 function FlagIcon({ place }) {
   const iso = place?.isoA2?.toLowerCase();
+  if (iso === "cn") {
+    return (
+      <span className="flag china-flag" aria-label="中国">
+        <span />
+      </span>
+    );
+  }
   if (!iso || iso.length !== 2) {
     return <span className="flag fallback-flag">{place?.flag || "◇"}</span>;
   }
@@ -1139,7 +1197,11 @@ function FlagIcon({ place }) {
       <img
         alt=""
         loading="lazy"
-        src={`https://flagcdn.com/w40/${iso}.png`}
+        onError={(event) => {
+          event.currentTarget.parentElement?.classList.add("fallback-flag");
+          event.currentTarget.replaceWith(document.createTextNode(iso.toUpperCase()));
+        }}
+        src={`https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/${iso}.svg`}
       />
     </span>
   );
@@ -1184,9 +1246,9 @@ function CountryModal({
             <p className="eyebrow">Country</p>
             <h2>
               <FlagIcon place={country} />
-              {country.name}
+              {displayPlaceName(country)}
             </h2>
-            <span>{country.localName || country.countryName}</span>
+            <span>{country.name}</span>
           </div>
           <button aria-label="关闭" className="icon-button" onClick={onClose} type="button">
             <X size={18} />
@@ -1283,8 +1345,9 @@ function MiniCountryMap({
       attributionControl: false,
       dragging: true,
       scrollWheelZoom: false,
-      zoomControl: true,
+      zoomControl: false,
     });
+    L.control.zoom({ position: "topright" }).addTo(map);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 20,
       subdomains: "abcd",
@@ -1301,11 +1364,11 @@ function MiniCountryMap({
     if (!map || !country) return;
     if (layerRef.current) layerRef.current.remove();
 
-    const layer = L.layerGroup().addTo(map);
+    const layer = L.featureGroup().addTo(map);
     const boundaryPlaces =
       country.id === "CHN" ? regionPlaces : country.geometry ? [country] : [];
     if (boundaryPlaces.length > 0) {
-      L.geoJSON(
+      const boundaryLayer = L.geoJSON(
         {
           type: "FeatureCollection",
           features: boundaryPlaces.map(placeToFeature),
@@ -1322,7 +1385,8 @@ function MiniCountryMap({
             };
           },
         },
-      ).addTo(layer);
+      );
+      boundaryLayer.addTo(layer);
     }
 
     for (const place of visitedPlaces.filter((item) => item.level === "city")) {
@@ -1340,10 +1404,15 @@ function MiniCountryMap({
     }
 
     layerRef.current = layer;
-    const bounds = layer.getBounds?.();
-    if (bounds?.isValid()) {
-      map.fitBounds(bounds, { padding: [16, 16], animate: false });
-    }
+    window.setTimeout(() => {
+      map.invalidateSize();
+      const bounds = layer.getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [16, 16], animate: false });
+      } else if (country.center) {
+        map.setView([country.center[1], country.center[0]], country.id === "CHN" ? 4 : 5);
+      }
+    }, 60);
   }, [cityPlaces, country, regionPlaces, visitedByLevel, visitedPlaces]);
 
   return <div className="mini-country-map" ref={miniRef} />;
@@ -1377,10 +1446,7 @@ function CountryPanel({
       <div className="country-panel-head">
         <div>
           <p className="eyebrow">Selected Country</p>
-          <h2>
-            <span>{country.flag || "◇"}</span>
-            {country.localName || country.name}
-          </h2>
+          <h2>{displayPlaceName(country)}</h2>
         </div>
         <X size={18} aria-hidden="true" />
       </div>
@@ -1523,9 +1589,9 @@ function PlaceSearchPanel({
           >
             <FlagIcon place={place} />
             <span>
-              <strong>{place.localName || place.name}</strong>
+              <strong>{displayPlaceName(place)}</strong>
               <small>
-                {place.countryName}
+                {displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName })}
                 {place.province ? ` · ${place.province}` : ""}
               </small>
             </span>
@@ -1541,12 +1607,12 @@ function PlaceSearchPanel({
           <div key={visit.id}>
             <FlagIcon place={place} />
             <span>
-              <strong>{place.localName || place.name}</strong>
-              <small>{place.countryName}</small>
+              <strong>{displayPlaceName(place)}</strong>
+              <small>{displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName })}</small>
             </span>
             {onDeleteVisit && (
               <button
-                aria-label={`删除 ${place.localName || place.name}`}
+                aria-label={`删除 ${displayPlaceName(place)}`}
                 disabled={isSaving}
                 onClick={() => onDeleteVisit(visit.id)}
                 type="button"
@@ -1626,12 +1692,31 @@ function VisitList({ placeLookup, profiles, visits }) {
 function TravelOverview({ continentSummary }) {
   const defaultContinents = ["亚洲", "北美洲", "欧洲", "非洲", "大洋洲", "南美洲", "南极洲"];
   const existing = new Set(continentSummary.map((item) => item.label));
+  const [expanded, setExpanded] = useState(new Set(continentSummary.map((item) => item.label)));
+  useEffect(() => {
+    setExpanded((current) => {
+      const next = new Set(current);
+      for (const item of continentSummary) {
+        if (item.count > 0) next.add(item.label);
+      }
+      return next;
+    });
+  }, [continentSummary]);
   const items = [
     ...continentSummary,
     ...defaultContinents
       .filter((label) => !existing.has(label))
       .map((label) => ({ label, count: 0, countries: [] })),
   ];
+
+  function toggle(label) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }
 
   return (
     <section className="overview-section" aria-label="足迹总览">
@@ -1644,18 +1729,31 @@ function TravelOverview({ continentSummary }) {
           <article className="continent-block" key={continent.label}>
             <header>
               <h3>{continent.label}</h3>
-              <strong>{continent.count}</strong>
-            </header>
-            {continent.countries.length === 0 && <p className="empty">尚未标记地点。</p>}
-            {continent.countries.map((country) => (
-              <div className="country-summary" key={country.id}>
-                <strong>{country.name}</strong>
-                <span>
-                  {country.regions.size ? `${country.regions.size} 省州，` : ""}
-                  {country.cities.size || country.visits} 城市 / 地点
-                </span>
+              <div>
+                <strong>{continent.count}</strong>
+                <button
+                  aria-label={`${expanded.has(continent.label) ? "收起" : "展开"}${continent.label}`}
+                  onClick={() => toggle(continent.label)}
+                  type="button"
+                >
+                  {expanded.has(continent.label) ? "-" : "+"}
+                </button>
               </div>
-            ))}
+            </header>
+            {expanded.has(continent.label) && (
+              <div className="continent-body">
+                {continent.countries.length === 0 && <p className="empty">尚未标记地点。</p>}
+                {continent.countries.map((country) => (
+                  <div className="country-summary" key={country.id}>
+                    <strong>{country.name}</strong>
+                    <span>
+                      {country.regions.size ? `${country.regions.size} 省州，` : ""}
+                      {country.cities.size || country.visits} 城市 / 地点
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </article>
         ))}
       </div>
