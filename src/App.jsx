@@ -79,6 +79,87 @@ function countryDotColor(id) {
   return COUNTRY_DOT_COLORS[hash % COUNTRY_DOT_COLORS.length];
 }
 
+const MAP_TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+const MAP_THEMES = [
+  {
+    id: "ocean",
+    label: "蓝色经典",
+    tile: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    swatches: ["#c8e9ff", "#1d4ed8"],
+    background: "#dbeafe",
+    selectedStroke: "#1d4ed8",
+    visitedFill: "#f59e0b",
+    visitedStroke: "#b45309",
+    bothFill: "#ec4899",
+    emptyFill: "#eef6e4",
+    emptyStroke: "#b8c7bf",
+    markerFill: "#be185d",
+    markerStroke: "#fff7ed",
+  },
+  {
+    id: "copper",
+    label: "暖棕",
+    tile: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    swatches: ["#f4dfc1", "#7c4a2d"],
+    background: "#f8efe3",
+    selectedStroke: "#7c4a2d",
+    visitedFill: "#e8ad7d",
+    visitedStroke: "#a1623c",
+    bothFill: "#b97845",
+    emptyFill: "#fff8ec",
+    emptyStroke: "#dac8ad",
+    markerFill: "#6b3f21",
+    markerStroke: "#fff7ed",
+  },
+  {
+    id: "ink",
+    label: "深墨",
+    tile: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
+    swatches: ["#172033", "#d6a800"],
+    background: "#eef2f7",
+    selectedStroke: "#f8fafc",
+    visitedFill: "#172033",
+    visitedStroke: "#f2e8f0",
+    bothFill: "#0f172a",
+    emptyFill: "#9fb1c8",
+    emptyStroke: "#cbd5e1",
+    markerFill: "#d6a800",
+    markerStroke: "#fff7d6",
+  },
+  {
+    id: "coral",
+    label: "柔和珊瑚",
+    tile: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    swatches: ["#f7d6a5", "#e87f63"],
+    background: "#e8f5fb",
+    selectedStroke: "#e76f51",
+    visitedFill: "#e98c70",
+    visitedStroke: "#bc6c45",
+    bothFill: "#8ab17d",
+    emptyFill: "#fff5e6",
+    emptyStroke: "#cfbda7",
+    markerFill: "#27364b",
+    markerStroke: "#ffffff",
+  },
+  {
+    id: "mint",
+    label: "清新绿",
+    tile: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png",
+    swatches: ["#facc15", "#22c55e"],
+    background: "#e7f6ef",
+    selectedStroke: "#16a34a",
+    visitedFill: "#76c893",
+    visitedStroke: "#40916c",
+    bothFill: "#facc15",
+    emptyFill: "#eef4d8",
+    emptyStroke: "#b7c9a0",
+    markerFill: "#1f3a5f",
+    markerStroke: "#f8fafc",
+  },
+];
+
 const regionNamesZh =
   typeof Intl !== "undefined" && Intl.DisplayNames
     ? new Intl.DisplayNames(["zh-CN"], { type: "region" })
@@ -390,6 +471,7 @@ function App() {
   const [regionFilter, setRegionFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [activeMapThemeId, setActiveMapThemeId] = useState("ocean");
   const [appProfiles, setAppProfiles] = useState(profiles);
   const [visits, setVisits] = useState([]);
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
@@ -672,6 +754,8 @@ function App() {
 
   const selectedCountry = placeLookup.get(selectedCountryId);
   const modalCountry = countryModalId ? placeLookup.get(countryModalId) : null;
+  const activeMapTheme =
+    MAP_THEMES.find((theme) => theme.id === activeMapThemeId) ?? MAP_THEMES[0];
 
   const selectedCountryPlaces = useMemo(
     () =>
@@ -978,9 +1062,12 @@ function App() {
             cityPlaces={cityPlaces}
             displayPlaces={displayPlaces}
             mapStatus={mapStatus}
+            mapTheme={activeMapTheme}
+            mapThemes={MAP_THEMES}
             placeLookup={placeLookup}
             selectedPlaceId={selectedPlaceId}
             setSelectedPlaceId={setSelectedPlaceId}
+            setMapThemeId={setActiveMapThemeId}
             onCountryOpen={setCountryModalId}
             visitedByLevel={visitedByLevel}
             visitedPlaces={searchPlaces.filter((place) => visitedPlaceIds.has(place.id))}
@@ -1078,8 +1165,11 @@ function MapView({
   cityPlaces,
   displayPlaces,
   mapStatus,
+  mapTheme,
+  mapThemes,
   placeLookup,
   selectedPlaceId,
+  setMapThemeId,
   setSelectedPlaceId,
   onCountryOpen,
   visitedByLevel,
@@ -1088,6 +1178,7 @@ function MapView({
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
+  const tileLayerRef = useRef(null);
   const lastLevelRef = useRef(null);
 
   useEffect(() => {
@@ -1104,13 +1195,6 @@ function MapView({
     });
     L.control.zoom({ position: "topright" }).addTo(map);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      maxZoom: 20,
-      subdomains: "abcd",
-    }).addTo(map);
-
     mapRef.current = map;
 
     return () => {
@@ -1118,6 +1202,19 @@ function MapView({
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapTheme) return;
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+    tileLayerRef.current = L.tileLayer(mapTheme.tile, {
+      attribution: MAP_TILE_ATTRIBUTION,
+      maxZoom: 20,
+      subdomains: "abcd",
+    }).addTo(map);
+  }, [mapTheme]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1139,11 +1236,15 @@ function MapView({
         const isSelected = selectedPlaceId === id;
         const hasBoth = visitInfo?.profileIds.size > 1;
         return {
-          color: isSelected ? "#245a38" : visitInfo ? "#9a5a16" : "#6f7d72",
-          weight: isSelected ? 1.4 : activeLevel === "country" ? 0.7 : 0.6,
+          color: isSelected
+            ? mapTheme.selectedStroke
+            : visitInfo
+              ? mapTheme.visitedStroke
+              : mapTheme.emptyStroke,
+          weight: isSelected ? 1.6 : activeLevel === "country" ? 0.75 : 0.65,
           opacity: 0.95,
-          fillColor: visitInfo ? (hasBoth ? "#6dbb9a" : "#f4b35e") : "#f7f3ea",
-          fillOpacity: visitInfo ? 0.72 : 0.45,
+          fillColor: visitInfo ? (hasBoth ? mapTheme.bothFill : mapTheme.visitedFill) : mapTheme.emptyFill,
+          fillOpacity: visitInfo ? 0.76 : 0.46,
         };
       },
       onEachFeature: (feature, leafletLayer) => {
@@ -1173,9 +1274,9 @@ function MapView({
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
       L.circleMarker([lat, lon], {
         radius: activeLevel === "city" ? 5 : 3.5,
-        color: "#ffffff",
+        color: mapTheme.markerStroke,
         weight: 1.5,
-        fillColor: visitInfo || activeLevel !== "city" ? "#18241b" : "#7d8a80",
+        fillColor: visitInfo || activeLevel !== "city" ? mapTheme.markerFill : mapTheme.emptyStroke,
         fillOpacity: visitInfo || activeLevel !== "city" ? 0.9 : 0.45,
       })
         .bindTooltip(city.localName, { sticky: true })
@@ -1201,12 +1302,13 @@ function MapView({
     selectedPlaceId,
     setSelectedPlaceId,
     onCountryOpen,
+    mapTheme,
     visitedByLevel,
     visitedPlaces,
   ]);
 
   return (
-    <div className="map-surface">
+    <div className="map-surface" style={{ "--map-bg": mapTheme.background }}>
       <div className="map-head">
         <div>
           <p className="eyebrow">Layer</p>
@@ -1214,7 +1316,36 @@ function MapView({
         </div>
         <p>{mapStatus}</p>
       </div>
+      <MapThemePicker
+        activeThemeId={mapTheme.id}
+        onChange={setMapThemeId}
+        themes={mapThemes}
+      />
       <div className="leaflet-map" ref={containerRef} />
+    </div>
+  );
+}
+
+function MapThemePicker({ activeThemeId, onChange, themes }) {
+  return (
+    <div className="map-theme-picker" aria-label="地图配色方案">
+      {themes.map((theme) => (
+        <button
+          aria-label={`切换到${theme.label}配色`}
+          className={activeThemeId === theme.id ? "active" : ""}
+          key={theme.id}
+          onClick={() => onChange(theme.id)}
+          title={theme.label}
+          type="button"
+        >
+          <span
+            style={{
+              "--swatch-a": theme.swatches[0],
+              "--swatch-b": theme.swatches[1],
+            }}
+          />
+        </button>
+      ))}
     </div>
   );
 }

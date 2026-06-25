@@ -258,6 +258,7 @@ h2 {
 }
 
 .map-surface {
+  position: relative;
   min-height: 760px;
   overflow: hidden;
 }
@@ -284,9 +285,48 @@ h2 {
 }
 
 .leaflet-container {
-  background: #dbe7eb;
+  background: var(--map-bg, #dbe7eb);
   font-family:
     Inter, "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+}
+
+.map-theme-picker {
+  position: absolute;
+  z-index: 900;
+  top: 76px;
+  right: 14px;
+  display: grid;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #ffffffdb;
+  padding: 10px 8px;
+  box-shadow: 0 14px 34px #0f172a24;
+  backdrop-filter: blur(8px);
+}
+
+.map-theme-picker button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 3px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 3px;
+}
+
+.map-theme-picker button.active {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 4px #22c55e24;
+}
+
+.map-theme-picker span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--swatch-a) 0 50%, var(--swatch-b) 50% 100%);
 }
 
 .leaflet-control-attribution {
@@ -430,6 +470,20 @@ h2 {
 .empty {
   color: #6a756d;
   font-weight: 700;
+}
+
+.continent-block .empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  border: 1px dashed color-mix(in srgb, var(--continent-accent, #2563eb) 24%, #dbe5ef);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--continent-accent, #2563eb) 8%, #ffffff),
+      #ffffff 72%
+    );
+  padding: 18px 20px;
+  color: #64748b;
 }
 
 .list-view,
@@ -880,12 +934,13 @@ h2 {
 }
 
 .overview-section {
-  padding: 18px 0 56px;
+  width: min(1120px, 100%);
+  padding: 14px 0 48px;
 }
 
 .continent-stack {
   display: grid;
-  gap: 34px;
+  gap: 26px;
 }
 
 .continent-block {
@@ -898,29 +953,29 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid #dce5ee;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 9px;
 }
 
 .continent-block h3 {
   margin: 0;
   color: #0f172a;
-  font-size: clamp(1.6rem, 2.4vw, 2.25rem);
+  font-size: clamp(1.25rem, 1.8vw, 1.72rem);
   font-weight: 950;
   line-height: 1.05;
 }
 
 .continent-block header strong {
   color: #64748b;
-  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-size: clamp(1rem, 1.5vw, 1.28rem);
   font-weight: 700;
 }
 
 .continent-body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
-  max-height: 760px;
+  gap: 14px 16px;
+  max-height: 560px;
   overflow: auto;
   padding: 0 2px 4px;
 }
@@ -940,26 +995,26 @@ h2 {
   top: 0;
   right: 0;
   left: 0;
-  height: 5px;
+  height: 3px;
   background: var(--continent-accent, #2563eb);
 }
 
 .country-summary-main {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto 28px;
+  grid-template-columns: 11px minmax(0, 1fr) auto 22px;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
-  min-height: 92px;
+  min-height: 58px;
   border: 0;
   background: transparent;
-  padding: 22px 24px 18px;
+  padding: 14px 16px 12px;
   text-align: left;
 }
 
 .country-dot {
-  width: 16px;
-  height: 16px;
+  width: 11px;
+  height: 11px;
   border-radius: 999px;
   background: var(--country-dot, var(--continent-accent, #2563eb));
 }
@@ -968,12 +1023,12 @@ h2 {
   display: inline-flex;
   align-items: center;
   min-width: 0;
-  gap: 10px;
+  gap: 8px;
 }
 
 .country-name-wrap .flag {
-  width: 30px;
-  height: 22px;
+  width: 24px;
+  height: 17px;
   border: 1px solid #e2e8f0;
   border-radius: 4px;
 }
@@ -981,7 +1036,7 @@ h2 {
 .country-name-wrap strong {
   overflow: hidden;
   color: #0f172a;
-  font-size: clamp(1.2rem, 2vw, 1.65rem);
+  font-size: clamp(1rem, 1.35vw, 1.18rem);
   font-weight: 950;
   line-height: 1.1;
   text-overflow: ellipsis;
@@ -990,7 +1045,7 @@ h2 {
 
 .country-count {
   color: #64748b;
-  font-size: clamp(0.98rem, 1.5vw, 1.35rem);
+  font-size: clamp(0.84rem, 1.1vw, 1rem);
   font-weight: 650;
   text-align: right;
   white-space: nowrap;
@@ -1008,11 +1063,11 @@ h2 {
 
 .country-summary-detail {
   display: grid;
-  gap: 18px;
-  max-height: 440px;
+  gap: 12px;
+  max-height: 320px;
   overflow: auto;
   border-top: 1px solid #e4ebf1;
-  padding: 18px 24px 22px;
+  padding: 13px 16px 16px;
 }
 
 .country-detail-group {
@@ -1031,13 +1086,13 @@ h2 {
 
 .country-detail-head strong {
   color: #64748b;
-  font-size: 1rem;
+  font-size: 0.86rem;
   font-weight: 950;
 }
 
 .country-detail-head span {
   color: #94a3b8;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1045,19 +1100,19 @@ h2 {
 .city-chip-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 12px;
+  gap: 8px 9px;
 }
 
 .city-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border: 1px solid #d8e2ee;
   border-radius: 4px;
   background: #f8fafc;
-  padding: 8px 14px;
+  padding: 6px 10px;
   color: #0f172a;
-  font-size: 1rem;
+  font-size: 0.86rem;
   font-weight: 900;
   line-height: 1.15;
 }
@@ -1182,16 +1237,29 @@ h2 {
     min-height: 460px;
   }
 
+  .map-theme-picker {
+    top: 68px;
+    right: 10px;
+    gap: 8px;
+    padding: 8px 6px;
+  }
+
+  .map-theme-picker button {
+    width: 34px;
+    height: 34px;
+    border-width: 2px;
+  }
+
   .quick-add-dock {
     top: 82px;
     width: min(340px, calc(100vw - 28px));
   }
 
   .country-summary-main {
-    grid-template-columns: 16px minmax(0, 1fr) 28px;
+    grid-template-columns: 11px minmax(0, 1fr) 22px;
     gap: 10px;
-    min-height: 82px;
-    padding: 18px 16px 16px;
+    min-height: 60px;
+    padding: 14px 14px 12px;
   }
 
   .country-count {
@@ -1200,17 +1268,17 @@ h2 {
   }
 
   .country-summary-detail {
-    max-height: 360px;
-    padding: 14px 16px 18px;
+    max-height: 300px;
+    padding: 12px 14px 15px;
   }
 
   .country-name-wrap strong {
-    font-size: 1.22rem;
+    font-size: 1rem;
   }
 
   .city-chip {
-    font-size: 0.92rem;
-    padding: 7px 11px;
+    font-size: 0.84rem;
+    padding: 6px 10px;
   }
 
   .country-metrics,
