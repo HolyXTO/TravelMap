@@ -129,8 +129,8 @@ create policy "Only editor can delete photos"
 
 insert into public.travel_profiles (display_name, color)
 values
-  ('Person A', '#2563eb'),
-  ('Person B', '#dc2626')
+  ('Bobo', '#2563eb'),
+  ('Yier', '#dc2626')
 on conflict do nothing;
 
 -- After creating your own auth user, add yourself as the only editor:

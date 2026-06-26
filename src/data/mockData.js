@@ -1,6 +1,6 @@
 export const profiles = [
-  { id: "person-a", name: "Person A", color: "#2563eb" },
-  { id: "person-b", name: "Person B", color: "#dc2626" },
+  { id: "person-a", name: "Bobo", color: "#2563eb" },
+  { id: "person-b", name: "Yier", color: "#dc2626" },
 ];
 
 export const placeLevels = [

@@ -163,7 +163,7 @@ h2 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  width: min(1480px, 100%);
+  width: min(1240px, 100%);
   margin: 0 auto;
 }
 
@@ -664,9 +664,15 @@ h2 {
   gap: 7px;
 }
 
+.search-results {
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
 .search-results button {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
   border: 1px solid #d7e1dc;
@@ -684,10 +690,10 @@ h2 {
 .flag {
   display: inline-grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #eef4f0;
+  width: 36px;
+  height: 25px;
+  border-radius: 4px;
+  background: transparent;
   overflow: hidden;
   font-size: 1.2rem;
 }
@@ -695,35 +701,7 @@ h2 {
 .flag img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-}
-
-.china-flag {
-  position: relative;
-  background: #de2910;
-}
-
-.china-flag::before {
-  content: "★";
-  position: absolute;
-  top: 3px;
-  left: 5px;
-  color: #ffde00;
-  font-size: 12px;
-  line-height: 1;
-}
-
-.china-flag::after {
-  content: "★ ★ ★ ★";
-  position: absolute;
-  top: 4px;
-  left: 17px;
-  width: 10px;
-  color: #ffde00;
-  font-size: 4px;
-  line-height: 1.45;
-  transform: rotate(12deg);
-  word-spacing: 4px;
+  object-fit: contain;
 }
 
 .fallback-flag {
@@ -814,9 +792,15 @@ h2 {
 
 .added-list div {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 48px;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
+}
+
+.visit-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .added-list button,
@@ -831,10 +815,72 @@ h2 {
 }
 
 .added-list button {
-  width: 48px;
+  width: 30px;
   height: 30px;
   color: #b42318;
   font-size: 0.78rem;
+}
+
+.visit-actions button:first-child {
+  color: #245a38;
+}
+
+.auth-mini {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #d7e1dc;
+  border-radius: 8px;
+  background: #f8faf7;
+  padding: 10px;
+}
+
+.auth-mini input {
+  width: 100%;
+  border: 1px solid #cad6ce;
+  border-radius: 7px;
+  background: #fff;
+  padding: 8px 9px;
+  outline: 0;
+}
+
+.auth-mini button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  gap: 6px;
+  border: 0;
+  border-radius: 7px;
+  background: #123c30;
+  color: white;
+  font-weight: 900;
+}
+
+.auth-mini small {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.auth-mini.signed-in {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.auth-mini.signed-in span,
+.auth-mini.signed-in small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-mini.signed-in small {
+  grid-column: 1;
+}
+
+.auth-mini.signed-in button {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  padding: 0 12px;
 }
 
 .icon-button {
@@ -1324,6 +1370,94 @@ h2 {
   color: #0f172a;
   box-shadow: 0 8px 18px #0f172a1f;
   font-weight: 850;
+}
+
+.edit-dialog-backdrop {
+  position: fixed;
+  z-index: 1600;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #0f172a66;
+  padding: 20px;
+}
+
+.visit-edit-dialog {
+  display: grid;
+  gap: 12px;
+  width: min(460px, 100%);
+  border: 1px solid #d7e1dc;
+  border-radius: 8px;
+  background: #fff;
+  padding: 18px;
+  box-shadow: 0 28px 70px #0f172a4d;
+}
+
+.visit-edit-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.visit-edit-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.35rem;
+}
+
+.visit-edit-head span {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.visit-edit-dialog label {
+  display: grid;
+  gap: 6px;
+  color: #475569;
+  font-weight: 900;
+}
+
+.visit-edit-dialog input,
+.visit-edit-dialog select {
+  min-height: 42px;
+  border: 1px solid #cad6ce;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 10px;
+  outline: 0;
+}
+
+.rating-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rating-row button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.rating-row button.active {
+  background: #fff7d6;
+  color: #f59e0b;
+}
+
+.rating-row svg {
+  fill: currentColor;
+}
+
+.visit-edit-actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
 }
 
 .primary-action:disabled {

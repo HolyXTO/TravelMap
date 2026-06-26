@@ -9,12 +9,16 @@ import {
   Globe2,
   Layers3,
   ListFilter,
+  LogIn,
   MapPin,
   MapPinned,
+  Pencil,
   Plus,
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Star,
+  Trash2,
   X,
   Users,
 } from "lucide-react";
@@ -171,6 +175,9 @@ const MAP_THEMES = [
 
 const PLACE_NAME_OVERRIDES = {
   "W-3191281": { localName: "萨拉热窝", aliases: ["Sarajevo", "塞拉耶佛"] },
+  "W-2193733": { localName: "奥克兰", aliases: ["奥克兰都會区", "Auckland"] },
+  "W-3042030": { localName: "瓦杜兹", aliases: ["瓦都兹", "Vaduz"] },
+  "W-727011": { localName: "索非亚", aliases: ["索菲亚", "Sofia"] },
 };
 
 const SUPPLEMENTAL_PLACES = [
@@ -575,6 +582,34 @@ function displayCountryName(place) {
   );
 }
 
+function displayProfileName(name) {
+  if (name === "Person A") return "Bobo";
+  if (name === "Person B" || name === "Person") return "Yier";
+  return name;
+}
+
+function parseVisitMeta(note) {
+  if (!note) return { rating: 0, text: "" };
+  try {
+    const parsed = JSON.parse(note);
+    if (parsed && typeof parsed === "object") {
+      return {
+        rating: Number(parsed.rating) || 0,
+        text: parsed.text || "",
+      };
+    }
+  } catch {
+    // Existing plain-text notes are preserved as text.
+  }
+  return { rating: 0, text: note };
+}
+
+function buildVisitNote({ rating = 0, text = "" } = {}) {
+  const normalizedRating = Math.max(0, Math.min(10, Number(rating) || 0));
+  if (!normalizedRating && !text) return "";
+  return JSON.stringify({ rating: normalizedRating, text });
+}
+
 function buildContinentSummary(visits, placeLookup, countryPlaces = []) {
   const buckets = new Map();
   for (const country of countryPlaces) {
@@ -692,19 +727,21 @@ function photoFromPath(path) {
 function mapProfile(row) {
   return {
     id: row.id,
-    name: row.display_name,
+    name: displayProfileName(row.display_name),
     color: row.color,
   };
 }
 
 function mapVisit(row) {
+  const meta = parseVisitMeta(row.note || "");
   return {
     id: row.id,
     profileId: row.profile_id,
     placeId: row.place_id,
     visitedAt: row.visited_at,
     type: row.trip_type,
-    note: row.note || "",
+    note: meta.text,
+    rating: meta.rating,
     photos: (row.visit_photos || []).map((photo) =>
       photoFromPath(photo.storage_path),
     ),
@@ -735,6 +772,7 @@ function App() {
   const [isEditor, setIsEditor] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [editingVisit, setEditingVisit] = useState(null);
 
   const profileFilters = useMemo(
     () => [
@@ -1020,6 +1058,11 @@ function App() {
     [visits],
   );
 
+  const visibleVisitedPlaceIds = useMemo(
+    () => new Set(filteredVisits.map((visit) => canonicalPlaceId(visit.placeId))),
+    [filteredVisits],
+  );
+
   const visitedCountries = useMemo(() => {
     const byId = new Map();
     for (const visit of filteredVisits) {
@@ -1087,7 +1130,7 @@ function App() {
           place_id: placeId,
           visited_at: visitedAt || new Date().toISOString().slice(0, 10),
           trip_type: type || "旅行",
-          note: "",
+          note: buildVisitNote(),
           created_by: session.user.id,
         })
         .select("id")
@@ -1180,6 +1223,56 @@ function App() {
     }
   }
 
+  async function updateVisit(visitId, { file, rating, type, visitedAt }) {
+    if (!session || !isEditor) {
+      setAuthMessage("请先用已授权账号登录。");
+      return false;
+    }
+    try {
+      setIsSaving(true);
+      setAuthMessage("");
+      const { error: updateError } = await supabase
+        .from("visits")
+        .update({
+          visited_at: visitedAt || new Date().toISOString().slice(0, 10),
+          trip_type: type || "旅行",
+          note: buildVisitNote({ rating }),
+        })
+        .eq("id", visitId);
+
+      if (updateError) throw updateError;
+
+      if (file && file.size) {
+        const storagePath = `${session.user.id}/${visitId}/${Date.now()}-${safeStorageName(file.name)}`;
+        const { error: uploadError } = await supabase.storage
+          .from(PHOTO_BUCKET)
+          .upload(storagePath, file, {
+            contentType: file.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (uploadError) throw uploadError;
+
+        const { error: photoError } = await supabase.from("visit_photos").insert({
+          visit_id: visitId,
+          storage_path: storagePath,
+          created_by: session.user.id,
+        });
+        if (photoError) throw photoError;
+      }
+
+      await loadTravelData();
+      setEditingVisit(null);
+      setAuthMessage("已更新足迹。");
+      return true;
+    } catch (error) {
+      console.error(error);
+      setAuthMessage(`更新失败：${error.message}`);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function signIn(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -1200,7 +1293,7 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">TravelMap Prototype</p>
+          <p className="eyebrow">TravelMapX</p>
           <h1>足迹地图</h1>
         </div>
         <div className="status-strip" aria-label="项目状态">
@@ -1277,6 +1370,9 @@ function App() {
           authMessage={authMessage}
           isEditor={isEditor}
           isSaving={isSaving}
+          onEditVisit={setEditingVisit}
+          onSignIn={signIn}
+          onSignOut={signOut}
           profiles={appProfiles}
           searchPlaces={searchPlaces}
           session={session}
@@ -1299,7 +1395,7 @@ function App() {
           onCountryOpen={setCountryModalId}
           visitedByLevel={visitedByLevel}
           visitedByCountry={visitedByCountry}
-          visitedPlaces={searchPlaces.filter((place) => visitedPlaceIds.has(canonicalPlaceId(place.id)))}
+          visitedPlaces={searchPlaces.filter((place) => visibleVisitedPlaceIds.has(canonicalPlaceId(place.id)))}
         />
       </section>
 
@@ -1314,6 +1410,7 @@ function App() {
           )}
           isEditor={isEditor}
           isSaving={isSaving}
+          onEditVisit={setEditingVisit}
           onClose={() => setCountryModalId(null)}
           onDeleteVisit={deleteVisit}
           profiles={appProfiles}
@@ -1333,6 +1430,17 @@ function App() {
         continentSummary={continentSummary}
         placeLookup={placeLookup}
       />
+      {editingVisit && (
+        <VisitEditDialog
+          authMessage={authMessage}
+          isSaving={isSaving}
+          onClose={() => setEditingVisit(null)}
+          onDeleteVisit={deleteVisit}
+          onUpdateVisit={updateVisit}
+          place={findPlace(editingVisit.placeId, placeLookup)}
+          visit={editingVisit}
+        />
+      )}
     </main>
   );
 }
@@ -1378,15 +1486,19 @@ function MapView({
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-      center: [15, 18],
+      center: [18, 20],
       zoom: 2,
       minZoom: 1,
       maxZoom: 12,
       scrollWheelZoom: true,
-      worldCopyJump: true,
+      worldCopyJump: false,
       zoomControl: false,
     });
-    L.control.zoom({ position: "topright" }).addTo(map);
+    map.setMaxBounds([
+      [-64, -180],
+      [84, 180],
+    ]);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
 
     mapRef.current = map;
 
@@ -1405,6 +1517,8 @@ function MapView({
     tileLayerRef.current = L.tileLayer(mapTheme.tile, {
       attribution: MAP_TILE_ATTRIBUTION,
       maxZoom: 20,
+      noWrap: true,
+      keepBuffer: 4,
       subdomains: "abcd",
     }).addTo(map);
   }, [mapTheme]);
@@ -1522,9 +1636,10 @@ function MapView({
         ? L.latLngBounds(WORLD_BOUNDS)
         : L.latLngBounds(CHINA_BOUNDS);
     if (bounds.isValid() && lastLevelRef.current !== activeLevel) {
-      map.fitBounds(bounds, { padding: activeLevel === "country" ? [0, 0] : [10, 10], animate: false });
       if (activeLevel === "country") {
-        map.setZoom(map.getZoom() + 0.25, { animate: false });
+        map.setView([18, 18], 2, { animate: false });
+      } else {
+        map.fitBounds(bounds, { padding: [10, 10], animate: false });
       }
       lastLevelRef.current = activeLevel;
     }
@@ -1592,6 +1707,9 @@ function QuickAddDock({
   authMessage,
   isEditor,
   isSaving,
+  onEditVisit,
+  onSignIn,
+  onSignOut,
   profiles,
   searchPlaces,
   session,
@@ -1610,6 +1728,9 @@ function QuickAddDock({
         authMessage={authMessage}
         isEditor={isEditor}
         isSaving={isSaving}
+        onEditVisit={onEditVisit}
+        onSignIn={onSignIn}
+        onSignOut={onSignOut}
         places={searchPlaces}
         profiles={profiles}
         session={session}
@@ -1652,6 +1773,7 @@ function CountryModal({
   isSaving,
   onClose,
   onDeleteVisit,
+  onEditVisit,
   placeLookup,
   profiles,
   regionPlaces,
@@ -1673,6 +1795,7 @@ function CountryModal({
   const regionTotal = country.id === "CHN"
     ? countryPlaces.filter((place) => place.level === "region").length
     : 0;
+  const cityTotal = country.id === "CHN" ? cityPlaces.length : null;
   const grouped = useMemo(
     () => buildCountryGroups(visits, placeLookup, country),
     [country, placeLookup, visits],
@@ -1724,6 +1847,7 @@ function CountryModal({
   }
 
   const regionProgress = regionTotal ? Math.min(100, (visitedRegions.size / regionTotal) * 100) : 0;
+  const cityProgress = cityTotal ? Math.min(100, (visitedCities.size / cityTotal) * 100) : 0;
   const coveredRegionText = regionTotal
     ? `覆盖 ${visitedRegions.size} 省 / 自治区`
     : country.id === "CHN"
@@ -1754,6 +1878,7 @@ function CountryModal({
             compact
             isEditor={isEditor}
             isSaving={isSaving}
+            onEditVisit={onEditVisit}
             onDeleteVisit={onDeleteVisit}
             places={countryPlaces}
             profiles={profiles}
@@ -1810,15 +1935,24 @@ function CountryModal({
                 </div>
                 <small>
                   {regionTotal
-                    ? `地图上已点亮 ${visitedRegions.size} / ${regionTotal} 省 / 自治区`
+                    ? `地图上已点亮 ${visitedRegions.size} / ${regionTotal} 省 / 自治区 · ${regionProgress.toFixed(1)}%`
                     : "当前国家暂无省级边界数据"}
                 </small>
               </article>
               <article className="modal-stat-card">
                 <p>打卡城市</p>
-                <strong>{visitedCities.size}</strong>
+                <strong>
+                  {cityTotal ? visitedCities.size : visitedCities.size}
+                  {cityTotal && <span> / {cityTotal}</span>}
+                </strong>
+                {cityTotal && (
+                  <div className="modal-progress">
+                    <span style={{ width: `${cityProgress}%` }} />
+                  </div>
+                )}
                 <small>
                   共 {visitedCities.size} 座城市 · {coveredRegionText}
+                  {cityTotal ? ` · ${cityProgress.toFixed(1)}%` : ""}
                 </small>
               </article>
             </div>
@@ -2095,6 +2229,7 @@ function PlaceSearchPanel({
   compact = false,
   isEditor,
   isSaving,
+  onEditVisit,
   places,
   profiles,
   session,
@@ -2102,6 +2237,8 @@ function PlaceSearchPanel({
   visitedPlaceIds,
   visits,
   onDeleteVisit,
+  onSignIn,
+  onSignOut,
 }) {
   const [query, setQuery] = useState("");
   const [profileId, setProfileId] = useState(profiles[0]?.id || "");
@@ -2122,7 +2259,18 @@ function PlaceSearchPanel({
     if (!needle) return [];
     return places
       .filter((place) => placeSearchText(place).includes(needle))
-      .slice(0, compact ? 8 : 12);
+      .sort((a, b) => {
+        const aName = displayPlaceName(a).toLowerCase();
+        const bName = displayPlaceName(b).toLowerCase();
+        const aExact = aName === needle || (a.name || "").toLowerCase() === needle;
+        const bExact = bName === needle || (b.name || "").toLowerCase() === needle;
+        if (aExact !== bExact) return aExact ? -1 : 1;
+        const aStarts = aName.startsWith(needle) || (a.name || "").toLowerCase().startsWith(needle);
+        const bStarts = bName.startsWith(needle) || (b.name || "").toLowerCase().startsWith(needle);
+        if (aStarts !== bStarts) return aStarts ? -1 : 1;
+        return displayPlaceName(a).localeCompare(displayPlaceName(b), "zh-CN");
+      })
+      .slice(0, 80);
   }, [compact, places, query]);
 
   const addedPlaces = useMemo(() => {
@@ -2137,6 +2285,13 @@ function PlaceSearchPanel({
   }, [compact, places, visits]);
 
   async function handleAdd(place) {
+    const existing = addedPlaces.find(
+      (item) => canonicalPlaceId(item.place.id) === canonicalPlaceId(place.id),
+    );
+    if (existing) {
+      onEditVisit?.(existing.visit);
+      return;
+    }
     const ok = await addPlace(place, { profileId, type, visitedAt });
     if (ok) setQuery("");
   }
@@ -2147,6 +2302,13 @@ function PlaceSearchPanel({
         <h3>{title}</h3>
         <span>已添加 {addedPlaces.length}</span>
       </div>
+      <AuthMiniPanel
+        authMessage={authMessage}
+        isEditor={isEditor}
+        onSignIn={onSignIn}
+        onSignOut={onSignOut}
+        session={session}
+      />
       {!session && <p className="empty">当前未登录编辑账号，登录状态恢复后可直接添加或删除。</p>}
       {session && !isEditor && <p className="empty">当前账号没有编辑权限。</p>}
       <div className="mini-form">
@@ -2211,7 +2373,7 @@ function PlaceSearchPanel({
           </button>
         ))}
       </div>
-      {authMessage && <p className="dock-message">{authMessage}</p>}
+      {authMessage && session && <p className="dock-message">{authMessage}</p>}
       <div className="added-list">
         <p>你去过的地方</p>
         {addedPlaces.length === 0 && <small>尚未标记地点。</small>}
@@ -2222,19 +2384,143 @@ function PlaceSearchPanel({
               <strong>{displayPlaceName(place)}</strong>
               <small>{displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName })}</small>
             </span>
-            {onDeleteVisit && (
-              <button
-                aria-label={`删除 ${displayPlaceName(place)}`}
-                disabled={isSaving}
-                onClick={() => onDeleteVisit(visit.id)}
-                type="button"
-              >
-                删除
-              </button>
-            )}
+            <span className="visit-actions">
+              {onEditVisit && (
+                <button
+                  aria-label={`编辑 ${displayPlaceName(place)}`}
+                  disabled={isSaving}
+                  onClick={() => onEditVisit(visit)}
+                  title="编辑"
+                  type="button"
+                >
+                  <Pencil size={14} />
+                </button>
+              )}
+              {onDeleteVisit && (
+                <button
+                  aria-label={`删除 ${displayPlaceName(place)}`}
+                  disabled={isSaving}
+                  onClick={() => onDeleteVisit(visit.id)}
+                  title="删除"
+                  type="button"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </span>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function AuthMiniPanel({ authMessage, isEditor, onSignIn, onSignOut, session }) {
+  if (!onSignIn) return null;
+  if (session) {
+    return (
+      <div className="auth-mini signed-in">
+        <span>{isEditor ? "编辑账号已连接" : "账号无编辑权限"}</span>
+        <small>{session.user.email}</small>
+        <button onClick={onSignOut} type="button">退出</button>
+      </div>
+    );
+  }
+  return (
+    <form className="auth-mini" onSubmit={onSignIn}>
+      <input name="email" placeholder="Supabase 邮箱" required type="email" />
+      <input name="password" placeholder="密码" required type="password" />
+      <button type="submit">
+        <LogIn size={15} />
+        登录
+      </button>
+      {authMessage && <small>{authMessage}</small>}
+    </form>
+  );
+}
+
+function VisitEditDialog({
+  authMessage,
+  isSaving,
+  onClose,
+  onDeleteVisit,
+  onUpdateVisit,
+  place,
+  visit,
+}) {
+  const [visitedAt, setVisitedAt] = useState(visit.visitedAt || "");
+  const [type, setType] = useState(visit.type || "旅行");
+  const [rating, setRating] = useState(visit.rating || 0);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    await onUpdateVisit(visit.id, {
+      file: form.get("photo"),
+      rating,
+      type,
+      visitedAt,
+    });
+  }
+
+  async function handleDelete() {
+    const ok = await onDeleteVisit(visit.id);
+    if (ok) onClose();
+  }
+
+  return (
+    <div className="edit-dialog-backdrop" role="presentation">
+      <form className="visit-edit-dialog" onSubmit={handleSubmit}>
+        <div className="visit-edit-head">
+          <div>
+            <p className="eyebrow">Edit Visit</p>
+            <h3>{displayPlaceName(place)}</h3>
+            <span>{displayCountryName({ id: place?.countryCode, isoA2: place?.isoA2, localName: place?.countryName })}</span>
+          </div>
+          <button aria-label="关闭" className="icon-button" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <label>
+          日期
+          <input onChange={(event) => setVisitedAt(event.target.value)} type="date" value={visitedAt || ""} />
+        </label>
+        <label>
+          类型
+          <select onChange={(event) => setType(event.target.value)} value={type}>
+            {tripTypes.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+        <div className="rating-row" aria-label="评分">
+          {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
+            <button
+              aria-label={`${value} 星`}
+              className={rating >= value ? "active" : ""}
+              key={value}
+              onClick={() => setRating(value)}
+              type="button"
+            >
+              <Star size={18} />
+            </button>
+          ))}
+        </div>
+        <label>
+          上传照片
+          <input name="photo" type="file" />
+        </label>
+        {authMessage && <p className="dock-message">{authMessage}</p>}
+        <div className="visit-edit-actions">
+          <button className="secondary-action" disabled={isSaving} onClick={handleDelete} type="button">
+            <Trash2 size={16} />
+            删除
+          </button>
+          <button className="primary-action" disabled={isSaving} type="submit">
+            保存修改
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
