@@ -347,6 +347,137 @@ h2 {
   box-shadow: 0 6px 18px #18332024;
 }
 
+.leaflet-control-zoom {
+  margin-right: 12px !important;
+  margin-bottom: 22px !important;
+}
+
+.visit-popup .leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 18px 44px #0f172a33;
+}
+
+.visit-popup .leaflet-popup-content {
+  width: 320px !important;
+  margin: 0;
+}
+
+.visit-popup-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  color: #0f172a;
+}
+
+.visit-popup-card header {
+  display: grid;
+  gap: 2px;
+}
+
+.visit-popup-card header strong {
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.visit-popup-card header span {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.visit-popup-card ul {
+  display: grid;
+  gap: 6px;
+  max-height: 120px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.visit-popup-card li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 7px 8px;
+}
+
+.visit-popup-card li strong,
+.visit-popup-card li span,
+.visit-popup-card li em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visit-popup-card li em {
+  color: #b45309;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.popup-photo-strip {
+  display: grid;
+  grid-auto-columns: 100%;
+  grid-auto-flow: column;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  border-radius: 8px;
+}
+
+.popup-photo-strip figure {
+  position: relative;
+  scroll-snap-align: start;
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #e2e8f0;
+}
+
+.popup-photo-strip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.popup-photo-strip figcaption {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  border-radius: 999px;
+  background: #0f172acc;
+  padding: 3px 8px;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.popup-empty-photo {
+  display: grid;
+  place-items: center;
+  min-height: 130px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 16px;
+  text-align: center;
+}
+
+.popup-empty-photo strong {
+  color: #334155;
+  font-weight: 950;
+}
+
+.popup-empty-photo span {
+  color: #64748b;
+  font-weight: 750;
+}
+
 .leaflet-interactive:focus {
   outline: none;
 }

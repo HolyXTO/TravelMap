@@ -774,6 +774,11 @@ function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [editingVisit, setEditingVisit] = useState(null);
 
+  function openVisitEditor(visit) {
+    setAuthMessage("");
+    setEditingVisit(visit);
+  }
+
   const profileFilters = useMemo(
     () => [
       { id: "all", label: "两个人" },
@@ -1062,6 +1067,31 @@ function App() {
     () => new Set(filteredVisits.map((visit) => canonicalPlaceId(visit.placeId))),
     [filteredVisits],
   );
+
+  const profileScopedVisits = useMemo(
+    () =>
+      activeProfile === "all"
+        ? visits
+        : visits.filter((visit) => visit.profileId === activeProfile),
+    [activeProfile, visits],
+  );
+
+  const profileScopedVisitedPlaceIds = useMemo(
+    () => new Set(profileScopedVisits.map((visit) => canonicalPlaceId(visit.placeId))),
+    [profileScopedVisits],
+  );
+
+  const visitedCityVisits = useMemo(() => {
+    const result = new Map();
+    for (const visit of filteredVisits) {
+      const cityId = resolveMapIdForLevel(visit.placeId, "city", placeLookup);
+      if (!cityId) continue;
+      const current = result.get(cityId) ?? [];
+      current.push(visit);
+      result.set(cityId, current);
+    }
+    return result;
+  }, [filteredVisits, placeLookup]);
 
   const visitedCountries = useMemo(() => {
     const byId = new Map();
@@ -1370,14 +1400,14 @@ function App() {
           authMessage={authMessage}
           isEditor={isEditor}
           isSaving={isSaving}
-          onEditVisit={setEditingVisit}
+          onEditVisit={openVisitEditor}
           onSignIn={signIn}
           onSignOut={signOut}
           profiles={appProfiles}
           searchPlaces={searchPlaces}
           session={session}
-          visitedPlaceIds={visitedPlaceIds}
-          visits={visits}
+          visitedPlaceIds={profileScopedVisitedPlaceIds}
+          visits={profileScopedVisits}
           onDeleteVisit={deleteVisit}
         />
         <MapView
@@ -1395,6 +1425,7 @@ function App() {
           onCountryOpen={setCountryModalId}
           visitedByLevel={visitedByLevel}
           visitedByCountry={visitedByCountry}
+          visitedCityVisits={visitedCityVisits}
           visitedPlaces={searchPlaces.filter((place) => visibleVisitedPlaceIds.has(canonicalPlaceId(place.id)))}
         />
       </section>
@@ -1410,7 +1441,7 @@ function App() {
           )}
           isEditor={isEditor}
           isSaving={isSaving}
-          onEditVisit={setEditingVisit}
+          onEditVisit={openVisitEditor}
           onClose={() => setCountryModalId(null)}
           onDeleteVisit={deleteVisit}
           profiles={appProfiles}
@@ -1474,6 +1505,7 @@ function MapView({
   onCountryOpen,
   visitedByLevel,
   visitedByCountry,
+  visitedCityVisits,
   visitedPlaces,
 }) {
   const containerRef = useRef(null);
@@ -1612,20 +1644,25 @@ function MapView({
         : visitedPlaces.filter((place) => place.level === "city");
     for (const city of markerPlaces) {
       const id = city.mapId || city.id;
+      const cityMapId = resolveMapIdForLevel(id, "city", placeLookup);
       const visitInfo =
-        visitedByLevel.get(id) ||
-        visitedByLevel.get(resolveMapIdForLevel(id, activeLevel, placeLookup));
+        visitedCityVisits.get(cityMapId) ||
+        visitedCityVisits.get(canonicalPlaceId(city.id)) ||
+        [];
       const [lon, lat] = city.center;
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
       L.circleMarker([lat, lon], {
         radius: activeLevel === "city" ? 5 : 3.5,
         color: mapTheme.markerStroke,
         weight: 1.5,
-        fillColor: visitInfo || activeLevel !== "city" ? mapTheme.markerFill : mapTheme.emptyStroke,
-        fillOpacity: visitInfo || activeLevel !== "city" ? 0.9 : 0.45,
+        fillColor: visitInfo.length > 0 ? mapTheme.markerFill : mapTheme.emptyStroke,
+        fillOpacity: visitInfo.length > 0 ? 0.9 : 0.45,
       })
         .bindTooltip(city.localName, { sticky: true })
-        .on("click", () => setSelectedPlaceId(id))
+        .bindPopup(renderVisitPopup(city, visitInfo), {
+          className: "visit-popup",
+          maxWidth: 360,
+        })
         .addTo(layer);
     }
 
@@ -1637,7 +1674,7 @@ function MapView({
         : L.latLngBounds(CHINA_BOUNDS);
     if (bounds.isValid() && lastLevelRef.current !== activeLevel) {
       if (activeLevel === "country") {
-        map.setView([18, 18], 2, { animate: false });
+        map.fitBounds(bounds, { padding: [0, 0], animate: false });
       } else {
         map.fitBounds(bounds, { padding: [10, 10], animate: false });
       }
@@ -1655,6 +1692,7 @@ function MapView({
     mapTheme,
     visitedByLevel,
     visitedByCountry,
+    visitedCityVisits,
     visitedPlaces,
   ]);
 
@@ -1699,6 +1737,50 @@ function MapThemePicker({ activeThemeId, onChange, themes }) {
       ))}
     </div>
   );
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderVisitPopup(place, visits = []) {
+  const photos = visits.flatMap((visit) =>
+    (visit.photos || []).map((photo) => ({
+      ...photo,
+      visitedAt: visit.visitedAt,
+    })),
+  );
+  const visitRows = visits.length
+    ? visits
+        .map((visit) => {
+          const rating = Number(visit.rating) || 0;
+          return `<li><strong>${escapeHtml(visit.visitedAt || "未填写日期")}</strong><span>${escapeHtml(visit.type || "旅行")}</span><em>${rating ? `${rating}/10 ★` : "未评分"}</em></li>`;
+        })
+        .join("")
+    : "<li><strong>暂无记录</strong><span>这个点位还没有足迹详情</span></li>";
+  const photoBlock = photos.length
+    ? `<div class="popup-photo-strip">${photos
+        .map(
+          (photo, index) =>
+            `<figure><img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.name || displayPlaceName(place))}" loading="lazy" /><figcaption>${index + 1}/${photos.length}</figcaption></figure>`,
+        )
+        .join("")}</div>`
+    : `<div class="popup-empty-photo"><strong>暂无照片</strong><span>可以在足迹编辑里上传这座城市的照片。</span></div>`;
+
+  return `
+    <article class="visit-popup-card">
+      <header>
+        <strong>${escapeHtml(displayPlaceName(place))}</strong>
+        <span>${escapeHtml(displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName }))}</span>
+      </header>
+      <ul>${visitRows}</ul>
+      ${photoBlock}
+    </article>
+  `;
 }
 
 function QuickAddDock({
