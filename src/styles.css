@@ -167,6 +167,10 @@ h2 {
   margin: 0 auto;
 }
 
+.metric-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .metric {
   min-height: 112px;
   gap: 16px;
@@ -208,6 +212,41 @@ h2 {
 .metric small {
   color: #64748b;
   font-weight: 700;
+}
+
+.comparison-metric {
+  align-items: stretch;
+}
+
+.metric-comparison-rows {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.metric-comparison-rows strong {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 1.05rem;
+}
+
+.metric-comparison-rows strong span {
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.metric-comparison-rows strong em {
+  color: #0f172a;
+  font-style: normal;
+}
+
+.metric-comparison-rows strong small {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 850;
 }
 
 .filters {
@@ -358,7 +397,7 @@ h2 {
 }
 
 .visit-popup .leaflet-popup-content {
-  width: 320px !important;
+  width: min(520px, calc(100vw - 48px)) !important;
   margin: 0;
 }
 
@@ -712,6 +751,7 @@ h2 {
   position: static;
   z-index: 1;
   width: 100%;
+  height: 100%;
   min-width: 0;
 }
 
@@ -722,7 +762,8 @@ h2 {
 .place-search {
   display: grid;
   gap: 10px;
-  max-height: min(70vh, 680px);
+  height: 100%;
+  max-height: none;
   overflow: auto;
   border: 1px solid #c7d4cc;
   border-radius: 8px;
@@ -1245,6 +1286,12 @@ h2 {
   font-weight: 850;
 }
 
+.modal-city-list span.locked {
+  border-style: dashed;
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
 .mini-map-label {
   border: 0;
   background: transparent;
@@ -1302,6 +1349,80 @@ h2 {
 .continent-stack {
   display: grid;
   gap: 26px;
+}
+
+.comparison-overview {
+  width: min(1240px, 100%);
+}
+
+.comparison-head,
+.comparison-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.comparison-head {
+  margin-bottom: 12px;
+}
+
+.comparison-head strong {
+  border-left: 4px solid #123c30;
+  background: #fff;
+  padding: 10px 14px;
+  color: #0f172a;
+  font-size: 1rem;
+  box-shadow: 0 3px 10px #0f172a0a;
+}
+
+.comparison-continent-stack {
+  display: grid;
+  gap: 28px;
+}
+
+.comparison-continent-row {
+  display: grid;
+  gap: 10px;
+}
+
+.comparison-continent-row > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid #dce5ee;
+  padding-bottom: 8px;
+}
+
+.comparison-continent-row h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.28rem;
+  font-weight: 950;
+}
+
+.comparison-column {
+  min-width: 0;
+  border-top: 3px solid var(--continent-accent, #2563eb);
+}
+
+.comparison-column .continent-body {
+  grid-template-columns: 1fr;
+  max-height: 520px;
+  padding-top: 10px;
+}
+
+.continent-mini-stat {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 8px 2px 0;
+  color: #64748b;
+  font-weight: 850;
+}
+
+.continent-mini-stat strong,
+.continent-mini-stat span {
+  font-size: 0.86rem;
 }
 
 .continent-block {
