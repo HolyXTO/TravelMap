@@ -522,10 +522,98 @@ function mergePlaceGeometriesAsMultiPolygon(places = []) {
     : null;
 }
 
+function edgePointKey(point) {
+  const [lon, lat] = point;
+  return `${Number(lon).toFixed(5)},${Number(lat).toFixed(5)}`;
+}
+
+function pointFromEdgeKey(key) {
+  return key.split(",").map(Number);
+}
+
+function edgeKey(a, b) {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+function addBoundarySegment(edges, a, b) {
+  if (a === b) return;
+  const key = edgeKey(a, b);
+  if (edges.has(key)) {
+    edges.delete(key);
+  } else {
+    edges.set(key, [a, b]);
+  }
+}
+
+function extractOuterBoundaryGeometry(places = []) {
+  const edges = new Map();
+  const addRing = (ring = []) => {
+    for (let index = 0; index < ring.length - 1; index += 1) {
+      addBoundarySegment(edges, edgePointKey(ring[index]), edgePointKey(ring[index + 1]));
+    }
+  };
+
+  for (const place of places) {
+    const geometry = place.geometry;
+    if (!geometry) continue;
+    if (geometry.type === "Polygon") {
+      geometry.coordinates.forEach(addRing);
+    } else if (geometry.type === "MultiPolygon") {
+      geometry.coordinates.forEach((polygon) => polygon.forEach(addRing));
+    }
+  }
+
+  const adjacency = new Map();
+  const connect = (a, b) => {
+    if (!adjacency.has(a)) adjacency.set(a, new Set());
+    adjacency.get(a).add(b);
+  };
+  edges.forEach(([a, b]) => {
+    connect(a, b);
+    connect(b, a);
+  });
+
+  const remaining = new Set(edges.keys());
+  const takeEdge = (a, b) => {
+    const key = edgeKey(a, b);
+    remaining.delete(key);
+    adjacency.get(a)?.delete(b);
+    adjacency.get(b)?.delete(a);
+  };
+  const polygons = [];
+
+  for (const [startA, startB] of edges.values()) {
+    if (!remaining.has(edgeKey(startA, startB))) continue;
+    const ringKeys = [startA, startB];
+    takeEdge(startA, startB);
+    let previous = startA;
+    let current = startB;
+
+    for (let guard = 0; guard < edges.size + 8 && current !== startA; guard += 1) {
+      const candidates = [...(adjacency.get(current) || [])];
+      if (candidates.length === 0) break;
+      const next = candidates.find((candidate) => candidate !== previous) || candidates[0];
+      ringKeys.push(next);
+      takeEdge(current, next);
+      previous = current;
+      current = next;
+    }
+
+    if (ringKeys.length > 3 && ringKeys[ringKeys.length - 1] === startA) {
+      polygons.push([ringKeys.map(pointFromEdgeKey)]);
+    }
+  }
+
+  return polygons.length > 0
+    ? { type: "MultiPolygon", coordinates: polygons }
+    : null;
+}
+
 function applyChinaRegionGeometry(countryPlaces, regionPlaces) {
-  const chinaGeometry = mergePlaceGeometriesAsMultiPolygon(
-    regionPlaces.filter((place) => place.countryCode === "CHN" && place.level === "region"),
-  );
+  const chinaRegions = regionPlaces.filter((place) => place.countryCode === "CHN" && place.level === "region");
+  const chinaGeometry =
+    extractOuterBoundaryGeometry(chinaRegions) ||
+    mergePlaceGeometriesAsMultiPolygon(chinaRegions);
   if (!chinaGeometry) return countryPlaces;
   return countryPlaces.map((place) =>
     place.id === "CHN"
@@ -1924,6 +2012,7 @@ function MapView({
   const layerRef = useRef(null);
   const tileLayerRef = useRef(null);
   const lastLevelRef = useRef(null);
+  const [activeVisitPreview, setActiveVisitPreview] = useState(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -2099,12 +2188,8 @@ function MapView({
         fillOpacity: visitInfo.length > 0 ? 0.9 : 0.45,
       })
         .bindTooltip(city.localName, { sticky: true })
-        .bindPopup(renderVisitPopup(city, visitInfo, profiles), {
-          className: "visit-popup",
-          autoPanPaddingBottomRight: [128, 48],
-          autoPanPaddingTopLeft: [32, 32],
-          maxWidth: 560,
-          minWidth: 360,
+        .on("click", () => {
+          setActiveVisitPreview({ place: city, visits: visitInfo });
         })
         .addTo(layer);
     }
@@ -2162,6 +2247,14 @@ function MapView({
       >
         <RotateCcw size={18} />
       </button>
+      {activeVisitPreview && (
+        <VisitPhotoOverlay
+          onClose={() => setActiveVisitPreview(null)}
+          place={activeVisitPreview.place}
+          profiles={profiles}
+          visits={activeVisitPreview.visits}
+        />
+      )}
     </div>
   );
 }
@@ -2233,6 +2326,77 @@ function renderVisitPopup(place, visits = [], profiles = []) {
       ${photoBlock}
     </article>
   `;
+}
+
+function VisitPhotoOverlay({ onClose, place, profiles = [], visits = [] }) {
+  if (!place) return null;
+  const profileNames = new Map(profiles.map((profile) => [profile.id, profile.name]));
+  const photos = visits.flatMap((visit) =>
+    (visit.photos || []).map((photo) => ({
+      ...photo,
+      profileName: profileNames.get(visit.profileId),
+      visitedAt: visit.visitedAt,
+    })),
+  );
+
+  return (
+    <aside className="visit-photo-overlay">
+      <header>
+        <div>
+          <strong>{displayPlaceName(place)}</strong>
+          <span>
+            {displayCountryName({
+              id: place.countryCode,
+              isoA2: place.isoA2,
+              localName: place.countryName,
+            })}
+          </span>
+        </div>
+        <button aria-label="关闭照片预览" className="icon-button" onClick={onClose} type="button">
+          <X size={17} />
+        </button>
+      </header>
+      <ul className="visit-photo-meta">
+        {visits.length > 0 ? (
+          visits.map((visit) => {
+            const rating = Number(visit.rating) || 0;
+            return (
+              <li key={visit.id}>
+                <strong>{profileNames.get(visit.profileId) || "足迹"}</strong>
+                <span>{displayVisitDate(visit) || "未填写日期"}</span>
+                <span>{visit.type || "旅行"}</span>
+                <em>{rating ? `${rating}/10 ★` : "未评分"}</em>
+              </li>
+            );
+          })
+        ) : (
+          <li>
+            <strong>暂无记录</strong>
+            <span>这个点位还没有足迹详情</span>
+          </li>
+        )}
+      </ul>
+      {photos.length > 0 ? (
+        <div className="visit-photo-carousel">
+          {photos.map((photo, index) => (
+            <figure key={`${photo.id || photo.url}-${index}`}>
+              <img
+                alt={photo.name || displayPlaceName(place)}
+                loading="lazy"
+                src={photo.url}
+              />
+              <figcaption>{index + 1}/{photos.length}</figcaption>
+            </figure>
+          ))}
+        </div>
+      ) : (
+        <div className="visit-photo-empty">
+          <strong>暂无照片</strong>
+          <span>可以在足迹编辑里上传这座城市的照片。</span>
+        </div>
+      )}
+    </aside>
+  );
 }
 
 function QuickAddDock({
@@ -2820,6 +2984,7 @@ function MiniCountryMap({
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const lastFitCountryRef = useRef(null);
+  const [activeVisitPreview, setActiveVisitPreview] = useState(null);
 
   useEffect(() => {
     if (!miniRef.current || mapRef.current) return;
@@ -2949,12 +3114,8 @@ function MiniCountryMap({
           permanent: false,
           sticky: true,
         })
-        .bindPopup(renderVisitPopup(place, visitInfo, profiles), {
-          className: "visit-popup",
-          autoPanPaddingBottomRight: [128, 48],
-          autoPanPaddingTopLeft: [32, 32],
-          maxWidth: 560,
-          minWidth: 360,
+        .on("click", () => {
+          setActiveVisitPreview({ place, visits: visitInfo });
         })
         .addTo(layer);
     }
@@ -2981,6 +3142,14 @@ function MiniCountryMap({
       >
         <RotateCcw size={16} />
       </button>
+      {activeVisitPreview && (
+        <VisitPhotoOverlay
+          onClose={() => setActiveVisitPreview(null)}
+          place={activeVisitPreview.place}
+          profiles={profiles}
+          visits={activeVisitPreview.visits}
+        />
+      )}
     </div>
   );
 }

@@ -609,6 +609,152 @@ h2 {
   font-weight: 750;
 }
 
+.visit-photo-overlay {
+  position: absolute;
+  z-index: 1150;
+  top: 86px;
+  right: 92px;
+  display: grid;
+  gap: 10px;
+  width: min(620px, calc(100% - 140px));
+  max-height: calc(100% - 112px);
+  overflow: auto;
+  border: 1px solid #d8e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+  color: #0f172a;
+  box-shadow: 0 24px 60px #0f172a38;
+}
+
+.mini-country-map-shell .visit-photo-overlay {
+  top: 14px;
+  right: 14px;
+  width: min(560px, calc(100% - 28px));
+  max-height: calc(100% - 28px);
+}
+
+.visit-photo-overlay header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.visit-photo-overlay header div {
+  display: grid;
+  gap: 2px;
+}
+
+.visit-photo-overlay header strong {
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.visit-photo-overlay header span {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.visit-photo-meta {
+  display: grid;
+  gap: 6px;
+  max-height: 128px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.visit-photo-meta li {
+  display: grid;
+  grid-template-columns: minmax(74px, 0.8fr) minmax(86px, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 7px 8px;
+}
+
+.visit-photo-meta li strong,
+.visit-photo-meta li span,
+.visit-photo-meta li em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visit-photo-meta li em {
+  color: #b45309;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.visit-photo-carousel {
+  display: grid;
+  grid-auto-columns: 100%;
+  grid-auto-flow: column;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+
+.visit-photo-carousel figure {
+  position: relative;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  height: min(58vh, 520px);
+  margin: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #0f172a;
+}
+
+.visit-photo-carousel img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.visit-photo-carousel figcaption {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  border-radius: 999px;
+  background: #0f172acc;
+  padding: 3px 9px;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.visit-photo-empty {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 18px;
+  text-align: center;
+}
+
+.visit-photo-empty strong {
+  color: #334155;
+  font-weight: 950;
+}
+
+.visit-photo-empty span {
+  color: #64748b;
+  font-weight: 750;
+}
+
 .leaflet-interactive:focus {
   outline: none;
 }
@@ -2098,6 +2244,23 @@ h2 {
     width: 34px;
     height: 34px;
     border-width: 2px;
+  }
+
+  .visit-photo-overlay,
+  .mini-country-map-shell .visit-photo-overlay {
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-height: calc(100% - 24px);
+  }
+
+  .visit-photo-meta li {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .visit-photo-carousel figure {
+    height: min(52vh, 420px);
   }
 
   .quick-add-dock {
