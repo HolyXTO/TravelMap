@@ -226,7 +226,7 @@ h2 {
 
 .metric-comparison-rows strong {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(126px, max-content);
   align-items: baseline;
   gap: 10px;
   font-size: 1.05rem;
@@ -244,6 +244,8 @@ h2 {
 }
 
 .metric-comparison-rows strong small {
+  justify-self: end;
+  text-align: right;
   color: #64748b;
   font-size: 0.75rem;
   font-weight: 850;
@@ -251,7 +253,7 @@ h2 {
 
 .comparison-diff-popover {
   position: absolute;
-  z-index: 20000;
+  z-index: 6000;
   top: calc(100% - 8px);
   left: 18px;
   display: none;
@@ -272,7 +274,7 @@ h2 {
 
 .metric-grid {
   position: relative;
-  z-index: 5000;
+  z-index: 20;
 }
 
 .comparison-metric {
@@ -280,7 +282,7 @@ h2 {
 }
 
 .comparison-metric:hover {
-  z-index: 20000;
+  z-index: 6000;
 }
 
 .comparison-diff-popover > strong {
@@ -1148,7 +1150,7 @@ h2 {
 
 .modal-backdrop {
   position: fixed;
-  z-index: 1400;
+  z-index: 30000;
   inset: 0;
   display: grid;
   place-items: center;
@@ -1195,6 +1197,10 @@ h2 {
   gap: 14px;
   min-height: 0;
   padding: 16px;
+}
+
+.comparison-modal-grid {
+  grid-template-columns: minmax(260px, 1fr) minmax(420px, 1.35fr) minmax(260px, 1fr);
 }
 
 .modal-grid > .place-search,
@@ -1258,6 +1264,23 @@ h2 {
   border-radius: 8px;
   background: #ffffff;
   padding: 14px;
+}
+
+.comparison-profile-summary {
+  min-width: 0;
+}
+
+.modal-profile-title {
+  position: sticky;
+  z-index: 3;
+  top: -14px;
+  margin: -14px -14px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 12px 14px;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 950;
 }
 
 .modal-stat-cards {
@@ -1510,8 +1533,8 @@ h2 {
 }
 
 .continent-icon svg {
-  width: 30px;
-  height: 20px;
+  width: 34px;
+  height: 23px;
 }
 
 .continent-icon path {
@@ -1608,6 +1631,10 @@ h2 {
   background: #ffffff;
   overflow: hidden;
   box-shadow: 0 3px 10px #0f172a0a;
+}
+
+.comparison-column .country-summary {
+  overflow: visible;
 }
 
 .country-summary::before {
@@ -1708,8 +1735,9 @@ h2 {
 .comparison-column .country-summary-main {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 12;
   background: #ffffff;
+  box-shadow: 0 1px 0 #e2e8f0;
 }
 
 .country-detail-head {
@@ -1763,6 +1791,32 @@ h2 {
   color: #94a3b8;
 }
 
+.comparison-column .city-chip.chip-shared {
+  border-color: #d7b891;
+  background: #fff7ed;
+  color: #7c4a2d;
+}
+
+.comparison-column .city-chip.chip-left-only {
+  border-color: #e9bd6d;
+  background: #fff6dd;
+  color: #92400e;
+}
+
+.comparison-column .city-chip.chip-left-only svg {
+  color: #d97706;
+}
+
+.comparison-column .city-chip.chip-right-only {
+  border-color: #9fc5ef;
+  background: #eef6ff;
+  color: #1d4ed8;
+}
+
+.comparison-column .city-chip.chip-right-only svg {
+  color: #2563eb;
+}
+
 .mini-map-hover-label {
   border: 1px solid #cbd5e1;
   border-radius: 4px;
@@ -1774,7 +1828,7 @@ h2 {
 
 .edit-dialog-backdrop {
   position: fixed;
-  z-index: 1600;
+  z-index: 31000;
   inset: 0;
   display: grid;
   place-items: center;

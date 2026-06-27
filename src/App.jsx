@@ -87,9 +87,9 @@ const CONTINENT_ACCENTS = {
 const COUNTRY_DOT_COLORS = ["#2563eb", "#16a34a", "#ea580c", "#7c3aed", "#dc2626", "#0f766e", "#ca8a04"];
 const PROFILE_TONES = [
   {
-    fill: "#e8ad7d",
-    stroke: "#9a5a31",
-    marker: "#8b4a25",
+    fill: "#f4c15d",
+    stroke: "#a45c12",
+    marker: "#c76a1e",
   },
   {
     fill: "#6aa6d9",
@@ -97,12 +97,6 @@ const PROFILE_TONES = [
     marker: "#2563eb",
   },
 ];
-const SHARED_TONE = {
-  fill: "#b97845",
-  stroke: "#764729",
-  marker: "#7c2d12",
-};
-
 function countryDotColor(id) {
   const source = id || "";
   const hash = source.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -122,7 +116,11 @@ function visitTone(visitInfo, profiles = [], mapTheme, activeProfile = "all") {
   const firstId = profiles[0]?.id;
   const secondId = profiles[1]?.id;
   if (firstId && secondId && profileIds.has(firstId) && profileIds.has(secondId)) {
-    return SHARED_TONE;
+    return {
+      fill: mapTheme.visitedFill,
+      stroke: mapTheme.visitedStroke,
+      marker: mapTheme.markerFill,
+    };
   }
   if (firstId && profileIds.has(firstId)) return PROFILE_TONES[0];
   if (secondId && profileIds.has(secondId)) return PROFILE_TONES[1];
@@ -235,13 +233,13 @@ const CONTINENT_ICONS = {
 };
 
 const CONTINENT_SHAPES = {
-  [CONTINENT_LABELS.Asia]: "M8 13 L17 6 L28 8 L39 5 L43 14 L35 21 L30 29 L19 25 L13 20 Z",
-  [CONTINENT_LABELS.Europe]: "M12 9 L22 5 L33 8 L39 15 L33 22 L24 20 L18 26 L10 20 Z",
-  [CONTINENT_LABELS.Africa]: "M22 4 L34 10 L37 21 L29 29 L20 27 L13 18 L15 9 Z",
-  [CONTINENT_LABELS.Oceania]: "M8 18 L19 13 L31 16 L39 23 L30 28 L17 25 Z M36 9 L42 11 L40 15 L35 14 Z",
-  [CONTINENT_LABELS["North America"]]: "M8 8 L20 4 L33 9 L39 17 L32 25 L20 23 L12 17 Z",
-  [CONTINENT_LABELS["South America"]]: "M20 4 L31 10 L30 20 L24 30 L17 25 L15 13 Z",
-  [CONTINENT_LABELS.Antarctica]: "M5 19 L15 14 L25 16 L34 13 L44 18 L39 24 L25 26 L12 24 Z",
+  [CONTINENT_LABELS.Asia]: "M6 17 L12 10 L20 8 L28 11 L35 8 L45 12 L55 19 L51 27 L43 28 L39 34 L31 31 L27 39 L21 33 L14 31 L9 25 Z M42 27 L50 32 L47 39 L40 34 Z",
+  [CONTINENT_LABELS.Europe]: "M8 18 L14 13 L22 10 L30 12 L37 10 L46 15 L50 22 L43 25 L37 22 L32 30 L25 26 L17 29 L12 24 Z M21 8 L25 4 L31 8 L25 10 Z",
+  [CONTINENT_LABELS.Africa]: "M28 5 L40 12 L45 23 L40 33 L34 42 L26 39 L20 31 L14 22 L18 11 Z M42 24 L50 25 L47 30 L42 29 Z",
+  [CONTINENT_LABELS.Oceania]: "M8 27 L18 22 L30 24 L40 30 L35 37 L23 36 L13 32 Z M43 18 L53 20 L57 25 L51 29 L44 25 Z M50 34 L58 36 L55 40 L49 38 Z",
+  [CONTINENT_LABELS["North America"]]: "M6 13 L16 7 L29 8 L42 14 L55 22 L49 32 L38 31 L30 24 L21 26 L13 21 Z M29 25 L36 34 L31 41 L25 31 Z",
+  [CONTINENT_LABELS["South America"]]: "M28 4 L39 12 L37 23 L32 32 L27 42 L21 36 L19 26 L16 16 L22 9 Z",
+  [CONTINENT_LABELS.Antarctica]: "M4 28 L15 22 L27 25 L38 21 L51 24 L60 29 L52 35 L38 37 L25 34 L12 36 Z",
 };
 
 const PLACE_NAME_OVERRIDES = {
@@ -601,6 +599,7 @@ function placeToFeature(place) {
 
 function findPlace(placeId, placeLookup) {
   const canonicalId = canonicalPlaceId(placeId);
+
   return (
     placeLookup?.get(canonicalId) ||
     placeLookup?.get(placeId) ||
@@ -2286,18 +2285,19 @@ function CountryModal({
   );
   const modalVisitedByLevel = useMemo(() => {
     const result = new Map();
-    const add = (id) => {
+    const add = (id, profileId) => {
       if (!id) return;
-      result.set(id, {
-        count: (result.get(id)?.count || 0) + 1,
-      });
+      const current = result.get(id) || { count: 0, profileIds: new Set() };
+      current.count += 1;
+      if (profileId) current.profileIds.add(profileId);
+      result.set(id, current);
     };
     for (const visit of visits) {
-      add(country.id);
+      add(country.id, visit.profileId);
       const regionId = resolveMapIdForLevel(visit.placeId, "region", placeLookup);
       const cityId = resolveMapIdForLevel(visit.placeId, "city", placeLookup);
-      if (regionId && regionId !== country.id) add(regionId);
-      if (cityId) add(cityId);
+      if (regionId && regionId !== country.id) add(regionId, visit.profileId);
+      if (cityId) add(cityId, visit.profileId);
     }
     return result;
   }, [country.id, placeLookup, visits]);
@@ -2331,10 +2331,17 @@ function CountryModal({
     });
   }
 
-  function toggleAllGroups() {
-    setExpandedGroups((current) =>
-      current.size === grouped.length ? new Set() : new Set(grouped.map((group) => group.id)),
-    );
+  function toggleAllGroups(targetGroups = grouped) {
+    const targetIds = targetGroups.map((group) => group.id);
+    setExpandedGroups((current) => {
+      const allTargetOpen = targetIds.length > 0 && targetIds.every((id) => current.has(id));
+      if (allTargetOpen) {
+        const next = new Set(current);
+        targetIds.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...current, ...targetIds]);
+    });
   }
 
   const regionProgress = regionTotal ? Math.min(100, (visitedRegions.size / regionTotal) * 100) : 0;
@@ -2344,6 +2351,126 @@ function CountryModal({
     : country.id === "CHN"
       ? "尚未覆盖省 / 自治区"
       : `覆盖 ${grouped.length || 0} 个分组`;
+
+  const comparisonMode = activeProfile === "all" && profiles.length >= 2;
+
+  function summarizeCountryVisits(targetVisits) {
+    const targetRegions = new Set();
+    const targetCities = new Set();
+    for (const visit of targetVisits) {
+      const regionId = resolveMapIdForLevel(visit.placeId, "region", placeLookup);
+      const cityId = resolveMapIdForLevel(visit.placeId, "city", placeLookup);
+      if (regionId && regionId !== country.id) targetRegions.add(regionId);
+      if (cityId) targetCities.add(cityId);
+    }
+    const targetGrouped = buildCountryGroups(targetVisits, placeLookup, country, {
+      cityPlaces,
+      regionPlaces,
+      showLockedPlaces,
+    });
+    const targetRegionProgress = regionTotal ? Math.min(100, (targetRegions.size / regionTotal) * 100) : 0;
+    const targetCityProgress = cityTotal ? Math.min(100, (targetCities.size / cityTotal) * 100) : 0;
+    return {
+      coveredRegionText: regionTotal
+        ? `覆盖 ${targetRegions.size} 省 / 自治区`
+        : country.id === "CHN"
+          ? "尚未覆盖省 / 自治区"
+          : `覆盖 ${targetGrouped.length || 0} 个分组`,
+      grouped: targetGrouped,
+      regionProgress: targetRegionProgress,
+      cityProgress: targetCityProgress,
+      visitedCities: targetCities,
+      visitedRegions: targetRegions,
+    };
+  }
+
+  const profileModalSummaries = useMemo(
+    () =>
+      profiles.slice(0, 2).map((profile) => ({
+        profile,
+        ...summarizeCountryVisits(visits.filter((visit) => visit.profileId === profile.id)),
+      })),
+    [cityPlaces, country, placeLookup, profiles, regionPlaces, showLockedPlaces, visits],
+  );
+
+  function renderSummaryPanel(summary = null, profile = null) {
+    const targetGroups = summary?.grouped || grouped;
+    const targetVisitedRegions = summary?.visitedRegions || visitedRegions;
+    const targetVisitedCities = summary?.visitedCities || visitedCities;
+    const targetRegionProgress = summary?.regionProgress ?? regionProgress;
+    const targetCityProgress = summary?.cityProgress ?? cityProgress;
+    const targetCoveredRegionText = summary?.coveredRegionText || coveredRegionText;
+    const allGroupsOpen = targetGroups.length > 0 && targetGroups.every((group) => expandedGroups.has(group.id));
+    return (
+      <aside className={comparisonMode ? "modal-summary comparison-profile-summary" : "modal-summary"}>
+        {profile && <div className="modal-profile-title">{profile.name}</div>}
+        <div className="modal-stat-cards">
+          <article className="modal-stat-card">
+            <p>州 / 省 / 行政区</p>
+            <strong>
+              {regionTotal ? targetVisitedRegions.size : targetGroups.length || "-"}
+              {regionTotal && <span> / {regionTotal}</span>}
+            </strong>
+            <div className="modal-progress">
+              <span style={{ width: `${targetRegionProgress}%` }} />
+            </div>
+            <small>
+              {regionTotal
+                ? `地图上已点亮 ${targetVisitedRegions.size} / ${regionTotal} 省 / 自治区 · ${targetRegionProgress.toFixed(1)}%`
+                : "当前国家暂无省级边界数据"}
+            </small>
+          </article>
+          <article className="modal-stat-card">
+            <p>打卡城市</p>
+            <strong>
+              {cityTotal ? targetVisitedCities.size : targetVisitedCities.size}
+              {cityTotal && <span> / {cityTotal}</span>}
+            </strong>
+            {cityTotal && (
+              <div className="modal-progress">
+                <span style={{ width: `${targetCityProgress}%` }} />
+              </div>
+            )}
+            <small>
+              共 {targetVisitedCities.size} 座城市 · {targetCoveredRegionText}
+              {cityTotal ? ` · ${targetCityProgress.toFixed(1)}%` : ""}
+            </small>
+          </article>
+        </div>
+        <div className="modal-summary-title">
+          <h3>足迹记录</h3>
+          <button onClick={() => setShowLockedPlaces((value) => !value)} type="button">
+            {showLockedPlaces ? "隐藏未解锁" : "显示未解锁"}
+          </button>
+          {targetGroups.length > 0 && (
+            <button onClick={() => toggleAllGroups(targetGroups)} type="button">
+              {allGroupsOpen ? "全部收起 -" : "全部展开 +"}
+            </button>
+          )}
+        </div>
+        {targetGroups.length === 0 && <p className="empty">尚未标记地点。</p>}
+        {targetGroups.map((group) => (
+          <div className="admin-group modal-group" key={group.id}>
+            <button onClick={() => toggleGroup(group.id)} type="button">
+              <strong>{group.name}</strong>
+              <span>
+                {group.total ? `${group.count} / ${group.total} 城市` : `${group.count} 城市 / 地点`} {expandedGroups.has(group.id) ? "-" : "+"}
+              </span>
+            </button>
+            {expandedGroups.has(group.id) && (
+              <div className="modal-city-list">
+                {group.cities.map((city) => (
+                  <span className={city.visited ? "" : "locked"} key={city.id || city.name}>
+                    {city.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </aside>
+    );
+  }
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -2362,23 +2489,27 @@ function CountryModal({
           </button>
         </header>
 
-        <div className="modal-grid">
-          <PlaceSearchPanel
-            activeProfile={activeProfile}
-            addPlace={addPlace}
-            authMessage={authMessage}
-            compact
-            isEditor={isEditor}
-            isSaving={isSaving}
-            onEditVisit={onEditVisit}
-            onDeleteVisit={onDeleteVisit}
-            places={countryPlaces}
-            profiles={profiles}
-            session={session}
-            title={`添加 ${country.localName || country.name} 的地点`}
-            visitedPlaceIds={modalVisitedPlaceIds}
-            visits={visits}
-          />
+        <div className={comparisonMode ? "modal-grid comparison-modal-grid" : "modal-grid"}>
+          {comparisonMode ? (
+            renderSummaryPanel(profileModalSummaries[0], profileModalSummaries[0]?.profile)
+          ) : (
+            <PlaceSearchPanel
+              activeProfile={activeProfile}
+              addPlace={addPlace}
+              authMessage={authMessage}
+              compact
+              isEditor={isEditor}
+              isSaving={isSaving}
+              onEditVisit={onEditVisit}
+              onDeleteVisit={onDeleteVisit}
+              places={countryPlaces}
+              profiles={profiles}
+              session={session}
+              title={`添加 ${country.localName || country.name} 的地点`}
+              visitedPlaceIds={modalVisitedPlaceIds}
+              visits={visits}
+            />
+          )}
           <div className="modal-map-wrap">
             <div className="modal-map-toolbar">
               <button
@@ -2417,6 +2548,9 @@ function CountryModal({
               visitedPlaces={countryPlaces.filter((place) => modalVisitedPlaceIds.has(canonicalPlaceId(place.id)))}
             />
           </div>
+          {comparisonMode ? (
+            renderSummaryPanel(profileModalSummaries[1], profileModalSummaries[1]?.profile)
+          ) : (
           <aside className="modal-summary">
             <div className="modal-stat-cards">
               <article className="modal-stat-card">
@@ -2483,6 +2617,7 @@ function CountryModal({
               </div>
             ))}
           </aside>
+          )}
         </div>
       </section>
     </div>
@@ -3216,7 +3351,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
       <span className="continent-title">
         {label}
         <span className="continent-icon" aria-hidden="true">
-          <svg viewBox="0 0 48 32" focusable="false">
+          <svg viewBox="0 0 64 44" focusable="false">
             <path d={CONTINENT_SHAPES[label] || "M10 16 L24 6 L38 16 L24 26 Z"} />
           </svg>
         </span>
@@ -3279,6 +3414,8 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
     detailOrders = new Map(),
     detailMeta = new Map(),
     countryMeta = new Map(),
+    sideIndex = null,
+    chipMeta = new Map(),
   ) {
     const countryById = new Map(continent.countries.map((country) => [country.id, country]));
     const countries = countryOrder
@@ -3371,12 +3508,21 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
                         </div>
                       )}
                       <div className="city-chip-list">
-                        {group.cities.map((cityName) => (
-                          <span className="city-chip" key={cityName}>
-                            {cityName}
-                            <MapPin size={15} />
-                          </span>
-                        ))}
+                        {group.cities.map((cityName) => {
+                          const chipState = chipMeta.get(`${country.id}::${group.id}::${cityName}`);
+                          const chipClass = [
+                            "city-chip",
+                            sideIndex === 0 && chipState === "left-only" ? "chip-left-only" : "",
+                            sideIndex === 1 && chipState === "right-only" ? "chip-right-only" : "",
+                            chipState === "shared" ? "chip-shared" : "",
+                          ].filter(Boolean).join(" ");
+                          return (
+                            <span className={chipClass} key={cityName}>
+                              {cityName}
+                              <MapPin size={15} />
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -3462,6 +3608,22 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
                 ];
               }),
             );
+            const chipMeta = new Map();
+            for (const countryId of countryOrder) {
+              const groupOrder = detailOrders.get(countryId) || [];
+              const leftGroups = new Map((leftCountryMap.get(countryId)?.detailGroups || []).map((group) => [group.id, group]));
+              const rightGroups = new Map((rightCountryMap.get(countryId)?.detailGroups || []).map((group) => [group.id, group]));
+              for (const groupId of groupOrder) {
+                const leftCities = new Set(leftGroups.get(groupId)?.cities || []);
+                const rightCities = new Set(rightGroups.get(groupId)?.cities || []);
+                for (const cityName of new Set([...leftCities, ...rightCities])) {
+                  const key = `${countryId}::${groupId}::${cityName}`;
+                  if (leftCities.has(cityName) && rightCities.has(cityName)) chipMeta.set(key, "shared");
+                  else if (leftCities.has(cityName)) chipMeta.set(key, "left-only");
+                  else if (rightCities.has(cityName)) chipMeta.set(key, "right-only");
+                }
+              }
+            }
             return (
               <article className="comparison-continent-row" key={label} style={{ "--continent-accent": CONTINENT_ACCENTS[label] || "#2563eb" }}>
                 <header>
@@ -3476,7 +3638,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
                           <strong>{continent.countryCount || 0}/{continent.countryTotal || 0} 国家</strong>
                           <span>{continent.cityCount || continent.count || 0} 城市</span>
                         </div>
-                        {renderContinentBody(continent, countryOrder, detailOrders, detailMeta, countryMeta)}
+                        {renderContinentBody(continent, countryOrder, detailOrders, detailMeta, countryMeta, index, chipMeta)}
                       </div>
                     );
                   })}
