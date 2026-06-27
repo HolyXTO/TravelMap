@@ -251,7 +251,7 @@ h2 {
 
 .comparison-diff-popover {
   position: absolute;
-  z-index: 5000;
+  z-index: 20000;
   top: calc(100% - 8px);
   left: 18px;
   display: none;
@@ -272,7 +272,7 @@ h2 {
 
 .metric-grid {
   position: relative;
-  z-index: 50;
+  z-index: 5000;
 }
 
 .comparison-metric {
@@ -280,7 +280,7 @@ h2 {
 }
 
 .comparison-metric:hover {
-  z-index: 5000;
+  z-index: 20000;
 }
 
 .comparison-diff-popover > strong {
@@ -345,6 +345,8 @@ h2 {
   grid-template-columns: 340px minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
+  position: relative;
+  z-index: 1;
 }
 
 .map-surface,
@@ -359,6 +361,7 @@ h2 {
 
 .map-surface {
   position: relative;
+  z-index: 0;
   min-height: 730px;
   overflow: hidden;
 }
@@ -449,7 +452,27 @@ h2 {
 
 .leaflet-control-zoom {
   margin-left: 12px !important;
-  margin-bottom: 22px !important;
+  margin-bottom: 70px !important;
+}
+
+.map-reset-button {
+  position: absolute;
+  z-index: 900;
+  bottom: 22px;
+  left: 22px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid #aeb6bd;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 4px 12px #0f172a1a;
+}
+
+.map-reset-button:hover {
+  background: #f8fafc;
 }
 
 .visit-popup .leaflet-popup-content-wrapper {
@@ -496,7 +519,7 @@ h2 {
 
 .visit-popup-card li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(76px, 0.85fr) minmax(86px, 1fr) auto auto;
   gap: 8px;
   align-items: center;
   border: 1px solid #e2e8f0;
@@ -1479,12 +1502,23 @@ h2 {
 .continent-icon {
   display: inline-grid;
   place-items: center;
-  min-width: 28px;
-  height: 24px;
+  width: 36px;
+  height: 26px;
   border: 1px solid #dbe5ef;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #ffffffcc;
-  font-size: 0.95rem;
+}
+
+.continent-icon svg {
+  width: 30px;
+  height: 20px;
+}
+
+.continent-icon path {
+  fill: color-mix(in srgb, var(--continent-accent, #2563eb) 78%, #ffffff);
+  stroke: color-mix(in srgb, var(--continent-accent, #2563eb) 38%, #0f172a);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
 }
 
 .comparison-column {
@@ -1667,8 +1701,15 @@ h2 {
   gap: 10px;
 }
 
-.comparison-column .country-detail-group {
+.comparison-column .aligned-detail-group {
   min-height: calc(var(--detail-rows, 1) * 40px + 38px);
+}
+
+.comparison-column .country-summary-main {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #ffffff;
 }
 
 .country-detail-head {
@@ -1699,7 +1740,7 @@ h2 {
   gap: 8px 9px;
 }
 
-.comparison-column .city-chip-list {
+.comparison-column .aligned-detail-group .city-chip-list {
   min-height: calc(var(--detail-rows, 1) * 40px);
   align-content: start;
 }

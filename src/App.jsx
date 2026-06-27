@@ -14,6 +14,7 @@ import {
   MapPinned,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -40,6 +41,10 @@ const WORLD_BOUNDS = [
   [-56, -170],
   [81, 179],
 ];
+const WORLD_DEFAULT_VIEW = {
+  center: [10, 20],
+  zoom: 1.75,
+};
 const CHINA_SPECIAL_REGION_PARENT_IDS = {
   CN081: "CN-HK",
   CN082: "CN-MO",
@@ -80,11 +85,52 @@ const CONTINENT_ACCENTS = {
 };
 
 const COUNTRY_DOT_COLORS = ["#2563eb", "#16a34a", "#ea580c", "#7c3aed", "#dc2626", "#0f766e", "#ca8a04"];
+const PROFILE_TONES = [
+  {
+    fill: "#e8ad7d",
+    stroke: "#9a5a31",
+    marker: "#8b4a25",
+  },
+  {
+    fill: "#6aa6d9",
+    stroke: "#2463a8",
+    marker: "#2563eb",
+  },
+];
+const SHARED_TONE = {
+  fill: "#b97845",
+  stroke: "#764729",
+  marker: "#7c2d12",
+};
 
 function countryDotColor(id) {
   const source = id || "";
   const hash = source.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return COUNTRY_DOT_COLORS[hash % COUNTRY_DOT_COLORS.length];
+}
+
+function visitTone(visitInfo, profiles = [], mapTheme, activeProfile = "all") {
+  if (!visitInfo || !visitInfo.count) return null;
+  if (activeProfile !== "all") {
+    return {
+      fill: mapTheme.visitedFill,
+      stroke: mapTheme.visitedStroke,
+      marker: mapTheme.markerFill,
+    };
+  }
+  const profileIds = visitInfo.profileIds || new Set();
+  const firstId = profiles[0]?.id;
+  const secondId = profiles[1]?.id;
+  if (firstId && secondId && profileIds.has(firstId) && profileIds.has(secondId)) {
+    return SHARED_TONE;
+  }
+  if (firstId && profileIds.has(firstId)) return PROFILE_TONES[0];
+  if (secondId && profileIds.has(secondId)) return PROFILE_TONES[1];
+  return {
+    fill: mapTheme.visitedFill,
+    stroke: mapTheme.visitedStroke,
+    marker: mapTheme.markerFill,
+  };
 }
 
 const MAP_TILE_ATTRIBUTION =
@@ -186,6 +232,16 @@ const CONTINENT_ICONS = {
   [CONTINENT_LABELS["North America"]]: "🌎",
   [CONTINENT_LABELS["South America"]]: "🌎",
   [CONTINENT_LABELS.Antarctica]: "🇦🇶",
+};
+
+const CONTINENT_SHAPES = {
+  [CONTINENT_LABELS.Asia]: "M8 13 L17 6 L28 8 L39 5 L43 14 L35 21 L30 29 L19 25 L13 20 Z",
+  [CONTINENT_LABELS.Europe]: "M12 9 L22 5 L33 8 L39 15 L33 22 L24 20 L18 26 L10 20 Z",
+  [CONTINENT_LABELS.Africa]: "M22 4 L34 10 L37 21 L29 29 L20 27 L13 18 L15 9 Z",
+  [CONTINENT_LABELS.Oceania]: "M8 18 L19 13 L31 16 L39 23 L30 28 L17 25 Z M36 9 L42 11 L40 15 L35 14 Z",
+  [CONTINENT_LABELS["North America"]]: "M8 8 L20 4 L33 9 L39 17 L32 25 L20 23 L12 17 Z",
+  [CONTINENT_LABELS["South America"]]: "M20 4 L31 10 L30 20 L24 30 L17 25 L15 13 Z",
+  [CONTINENT_LABELS.Antarctica]: "M5 19 L15 14 L25 16 L34 13 L44 18 L39 24 L25 26 L12 24 Z",
 };
 
 const PLACE_NAME_OVERRIDES = {
@@ -692,6 +748,18 @@ function displayVisitDate(visit) {
   return visit?.dateDisplay || visit?.visitedAt || "";
 }
 
+function resetMapViewport(map, level) {
+  if (!map) return;
+  if (level === "country") {
+    map.setView(WORLD_DEFAULT_VIEW.center, WORLD_DEFAULT_VIEW.zoom, { animate: false });
+    return;
+  }
+  const bounds = L.latLngBounds(CHINA_BOUNDS);
+  if (bounds.isValid()) {
+    map.fitBounds(bounds, { padding: [10, 10], animate: false });
+  }
+}
+
 function calculateVisitStats(targetVisits, placeLookup) {
   const countries = new Set();
   const regions = new Set();
@@ -907,11 +975,13 @@ function App() {
   const [session, setSession] = useState(null);
   const [isEditor, setIsEditor] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
+  const [editMessage, setEditMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [editingVisit, setEditingVisit] = useState(null);
 
   function openVisitEditor(visit) {
     setAuthMessage("");
+    setEditMessage("");
     setEditingVisit(visit);
   }
 
@@ -1450,12 +1520,12 @@ function App() {
 
   async function updateVisit(visitId, { file, rating, type, visitedAt }) {
     if (!session || !isEditor) {
-      setAuthMessage("请先用已授权账号登录。");
+      setEditMessage("请先用已授权账号登录。");
       return false;
     }
     try {
       setIsSaving(true);
-      setAuthMessage("");
+      setEditMessage("");
       const normalizedDate = normalizeVisitDateInput(visitedAt);
       const { error: updateError } = await supabase
         .from("visits")
@@ -1491,12 +1561,11 @@ function App() {
       }
 
       await loadTravelData();
-      setEditingVisit(null);
-      setAuthMessage("已更新足迹。");
+      setEditMessage("已更新足迹。");
       return true;
     } catch (error) {
       console.error(error);
-      setAuthMessage(`更新失败：${error.message}`);
+      setEditMessage(`更新失败：${error.message}`);
       return false;
     } finally {
       setIsSaving(false);
@@ -1636,6 +1705,7 @@ function App() {
         />
         <MapView
           activeLevel={activeLevel}
+          activeProfile={activeProfile}
           cityPlaces={cityPlaces}
           countryPlaces={mapPlaces.country}
           displayPlaces={displayPlaces}
@@ -1643,6 +1713,7 @@ function App() {
           mapTheme={activeMapTheme}
           mapThemes={ORDERED_MAP_THEMES}
           placeLookup={placeLookup}
+          profiles={appProfiles}
           regionPlaces={mapPlaces.region}
           selectedPlaceId={selectedPlaceId}
           setSelectedPlaceId={setSelectedPlaceId}
@@ -1656,8 +1727,8 @@ function App() {
       </section>
 
       {modalCountry && (
-        <CountryModal
-          activeProfile={activeProfile}
+          <CountryModal
+            activeProfile={activeProfile}
           addPlace={addPlace}
           authMessage={authMessage}
           cityPlaces={mapPlaces.city}
@@ -1670,7 +1741,7 @@ function App() {
           onEditVisit={openVisitEditor}
           onClose={() => setCountryModalId(null)}
           onDeleteVisit={deleteVisit}
-          profiles={appProfiles}
+            profiles={appProfiles}
           regionPlaces={mapPlaces.region}
           placeLookup={placeLookup}
           session={session}
@@ -1691,7 +1762,7 @@ function App() {
       />
       {editingVisit && (
         <VisitEditDialog
-          authMessage={authMessage}
+          authMessage={editMessage}
           isSaving={isSaving}
           onClose={() => setEditingVisit(null)}
           onDeleteVisit={deleteVisit}
@@ -1769,6 +1840,7 @@ function ComparisonDiffPopover({ diff, leftLabel, rightLabel, type }) {
 
 function MapView({
   activeLevel,
+  activeProfile,
   cityPlaces,
   countryPlaces,
   displayPlaces,
@@ -1776,6 +1848,7 @@ function MapView({
   mapTheme,
   mapThemes,
   placeLookup,
+  profiles,
   regionPlaces,
   selectedPlaceId,
   setMapThemeId,
@@ -1829,7 +1902,7 @@ function MapView({
     tileLayerRef.current = L.tileLayer(mapTheme.tile, {
       attribution: MAP_TILE_ATTRIBUTION,
       maxZoom: 20,
-      noWrap: true,
+      noWrap: false,
       keepBuffer: 4,
       subdomains: "abcd",
     }).addTo(map);
@@ -1853,22 +1926,23 @@ function MapView({
       style: (feature) => {
         const id = feature.properties.id;
         const visitInfo = visitedByCountry.get(id);
+        const tone = visitTone(visitInfo, profiles, mapTheme, activeProfile);
         const isSelected = selectedPlaceId === id;
         const isSubLevelCountryBase = activeLevel !== "country" && id === "CHN" && visitInfo;
         return {
           color: isSelected
             ? mapTheme.selectedStroke
-            : visitInfo
-              ? mapTheme.visitedStroke
+            : tone
+              ? tone.stroke
               : mapTheme.emptyStroke,
           weight: isSelected ? 1.5 : 0.65,
           opacity: 0.95,
-          fillColor: visitInfo
+          fillColor: tone
             ? isSubLevelCountryBase
               ? mapTheme.countryBaseFill || mapTheme.visitedFill
-              : mapTheme.visitedFill
+              : tone.fill
             : mapTheme.emptyFill,
-          fillOpacity: visitInfo ? (isSubLevelCountryBase ? 0.34 : 0.72) : activeLevel === "country" ? 0.46 : 0.26,
+          fillOpacity: tone ? (isSubLevelCountryBase ? 0.34 : 0.72) : activeLevel === "country" ? 0.46 : 0.26,
         };
       },
       onEachFeature: (feature, leafletLayer) => {
@@ -1895,17 +1969,18 @@ function MapView({
           style: (feature) => {
             const id = feature.properties.id;
             const visitInfo = visitedByLevel.get(id);
+            const tone = visitTone(visitInfo, profiles, mapTheme, activeProfile);
             const isSelected = selectedPlaceId === id;
             return {
               color: isSelected
                 ? mapTheme.selectedStroke
-                : visitInfo
-                  ? mapTheme.visitedStroke
+                : tone
+                  ? tone.stroke
                   : "#9aacbd",
               weight: isSelected ? 1.4 : activeLevel === "city" ? 0.5 : 0.7,
               opacity: 0.9,
-              fillColor: visitInfo ? mapTheme.visitedFill : "#ffffff",
-              fillOpacity: visitInfo ? 0.7 : 0.08,
+              fillColor: tone ? tone.fill : "#ffffff",
+              fillOpacity: tone ? 0.7 : 0.08,
             };
           },
           onEachFeature: (feature, leafletLayer) => {
@@ -1947,17 +2022,22 @@ function MapView({
         visitedCityVisits.get(cityMapId) ||
         visitedCityVisits.get(canonicalPlaceId(city.id)) ||
         [];
+      const markerInfo = {
+        count: visitInfo.length,
+        profileIds: new Set(visitInfo.map((visit) => visit.profileId)),
+      };
+      const tone = visitTone(markerInfo, profiles, mapTheme, activeProfile);
       const [lon, lat] = city.center;
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
       L.circleMarker([lat, lon], {
         radius: activeLevel === "city" ? 5 : 3.5,
         color: mapTheme.markerStroke,
         weight: 1.5,
-        fillColor: visitInfo.length > 0 ? mapTheme.markerFill : mapTheme.emptyStroke,
+        fillColor: tone ? tone.marker : mapTheme.emptyStroke,
         fillOpacity: visitInfo.length > 0 ? 0.9 : 0.45,
       })
         .bindTooltip(city.localName, { sticky: true })
-        .bindPopup(renderVisitPopup(city, visitInfo), {
+        .bindPopup(renderVisitPopup(city, visitInfo, profiles), {
           className: "visit-popup",
           autoPanPaddingBottomRight: [128, 48],
           autoPanPaddingTopLeft: [32, 32],
@@ -1974,18 +2054,16 @@ function MapView({
         ? L.latLngBounds(WORLD_BOUNDS)
         : L.latLngBounds(CHINA_BOUNDS);
     if (bounds.isValid() && lastLevelRef.current !== activeLevel) {
-      if (activeLevel === "country") {
-        map.setView([10, 20], 1.75, { animate: false });
-      } else {
-        map.fitBounds(bounds, { padding: [10, 10], animate: false });
-      }
+      resetMapViewport(map, activeLevel);
       lastLevelRef.current = activeLevel;
     }
   }, [
     activeLevel,
+    activeProfile,
     cityPlaces,
     displayPlaces,
     placeLookup,
+    profiles,
     countryPlaces,
     regionPlaces,
     selectedPlaceId,
@@ -2013,6 +2091,15 @@ function MapView({
         themes={mapThemes}
       />
       <div className="leaflet-map" ref={containerRef} />
+      <button
+        aria-label="复原地图视角"
+        className="map-reset-button"
+        onClick={() => resetMapViewport(mapRef.current, activeLevel)}
+        title="复原地图视角"
+        type="button"
+      >
+        <RotateCcw size={18} />
+      </button>
     </div>
   );
 }
@@ -2049,7 +2136,8 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-function renderVisitPopup(place, visits = []) {
+function renderVisitPopup(place, visits = [], profiles = []) {
+  const profileNames = new Map(profiles.map((profile) => [profile.id, profile.name]));
   const photos = visits.flatMap((visit) =>
     (visit.photos || []).map((photo) => ({
       ...photo,
@@ -2060,7 +2148,7 @@ function renderVisitPopup(place, visits = []) {
     ? visits
         .map((visit) => {
           const rating = Number(visit.rating) || 0;
-          return `<li><strong>${escapeHtml(displayVisitDate(visit) || "未填写日期")}</strong><span>${escapeHtml(visit.type || "旅行")}</span><em>${rating ? `${rating}/10 ★` : "未评分"}</em></li>`;
+          return `<li><strong>${escapeHtml(profileNames.get(visit.profileId) || "足迹")}</strong><span>${escapeHtml(displayVisitDate(visit) || "未填写日期")}</span><span>${escapeHtml(visit.type || "旅行")}</span><em>${rating ? `${rating}/10 ★` : "未评分"}</em></li>`;
         })
         .join("")
     : "<li><strong>暂无记录</strong><span>这个点位还没有足迹详情</span></li>";
@@ -2317,9 +2405,11 @@ function CountryModal({
               </button>
             </div>
             <MiniCountryMap
+              activeProfile={activeProfile}
               cityPlaces={cityPlaces}
               country={country}
               detailLevel={modalMapLevel}
+              profiles={profiles}
               regionPlaces={regionPlaces}
               showLabels={showMapLabels}
               visitedByLevel={modalVisitedByLevel}
@@ -2501,9 +2591,11 @@ function buildCountryGroups(visits, placeLookup, country, options = {}) {
 }
 
 function MiniCountryMap({
+  activeProfile,
   cityPlaces,
   country,
   detailLevel,
+  profiles,
   regionPlaces,
   showLabels,
   visitedByLevel,
@@ -2583,11 +2675,16 @@ function MiniCountryMap({
             const id = feature.properties.id;
             const visitInfo = visitedByLevel.get(id);
             const countryVisited = country.id !== "CHN" && visitedByLevel.get(country.id);
+            const tone = visitTone(visitInfo || countryVisited, profiles, {
+              visitedFill: "#76d69a",
+              visitedStroke: "#19a35b",
+              markerFill: "#16361f",
+            }, activeProfile);
             return {
-              color: visitInfo || countryVisited ? "#19a35b" : "#9aacbd",
-              weight: visitInfo || countryVisited ? 1.2 : 0.55,
-              fillColor: visitInfo || countryVisited ? "#76d69a" : "#edf2f7",
-              fillOpacity: visitInfo || countryVisited ? 0.72 : 0.46,
+              color: tone ? tone.stroke : "#9aacbd",
+              weight: tone ? 1.2 : 0.55,
+              fillColor: tone ? tone.fill : "#edf2f7",
+              fillOpacity: tone ? 0.72 : 0.46,
             };
           },
         },
@@ -2617,11 +2714,20 @@ function MiniCountryMap({
       const [lon, lat] = place.center || [];
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
       const visitInfo = visitedCityVisits?.get(place.mapId || place.id) ?? visitedCityVisits?.get(place.id) ?? [];
+      const markerInfo = {
+        count: visitInfo.length,
+        profileIds: new Set(visitInfo.map((visit) => visit.profileId)),
+      };
+      const tone = visitTone(markerInfo, profiles, {
+        visitedFill: "#76d69a",
+        visitedStroke: "#19a35b",
+        markerFill: "#16361f",
+      }, activeProfile);
       L.circleMarker([lat, lon], {
         radius: 4,
         color: "#fff",
         weight: 1.2,
-        fillColor: "#16361f",
+        fillColor: tone ? tone.marker : "#16361f",
         fillOpacity: 0.92,
       })
         .bindTooltip(place.localName || place.name, {
@@ -2629,7 +2735,7 @@ function MiniCountryMap({
           permanent: false,
           sticky: true,
         })
-        .bindPopup(renderVisitPopup(place, visitInfo), {
+        .bindPopup(renderVisitPopup(place, visitInfo, profiles), {
           className: "visit-popup",
           autoPanPaddingBottomRight: [128, 48],
           autoPanPaddingTopLeft: [32, 32],
@@ -2652,7 +2758,7 @@ function MiniCountryMap({
         lastFitCountryRef.current = country.id;
       }
     }, 60);
-  }, [cityPlaces, country, detailLevel, regionPlaces, showLabels, visitedByLevel, visitedCityVisits, visitedPlaces]);
+  }, [activeProfile, cityPlaces, country, detailLevel, profiles, regionPlaces, showLabels, visitedByLevel, visitedCityVisits, visitedPlaces]);
 
   return <div className="mini-country-map" ref={miniRef} />;
 }
@@ -3110,7 +3216,9 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
       <span className="continent-title">
         {label}
         <span className="continent-icon" aria-hidden="true">
-          {CONTINENT_ICONS[label] || "◇"}
+          <svg viewBox="0 0 48 32" focusable="false">
+            <path d={CONTINENT_SHAPES[label] || "M10 16 L24 6 L38 16 L24 26 Z"} />
+          </svg>
         </span>
       </span>
     );
@@ -3248,9 +3356,13 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
                 <div className="country-summary-detail">
                   {detailGroups.map((group) => (
                     <div
-                      className={group.placeholder ? "country-detail-group detail-placeholder" : "country-detail-group"}
+                      className={[
+                        "country-detail-group",
+                        group.placeholder ? "detail-placeholder" : "",
+                        country.regions.size > 0 ? "aligned-detail-group" : "",
+                      ].filter(Boolean).join(" ")}
                       key={group.id}
-                      style={{ "--detail-rows": groupMeta.get(group.id)?.rows || Math.max(1, Math.ceil(group.cities.length / 4)) }}
+                      style={{ "--detail-rows": groupMeta.get(group.id)?.rows || Math.max(1, Math.ceil(group.cities.length / 6)) }}
                     >
                       {country.regions.size > 0 && (
                         <div className="country-detail-head">
@@ -3342,7 +3454,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
                         groupId,
                         {
                           name: group?.name || "",
-                          rows: Math.max(1, Math.ceil(maxCities / 4)),
+                          rows: Math.max(1, Math.ceil(maxCities / 6)),
                         },
                       ];
                     }),
