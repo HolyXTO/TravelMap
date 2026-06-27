@@ -37,6 +37,10 @@ const CHINA_BOUNDS = [
   [18, 73],
   [54, 135],
 ];
+const CHINA_MODAL_BOUNDS = [
+  [18, 73],
+  [54, 125],
+];
 const WORLD_BOUNDS = [
   [-56, -170],
   [81, 179],
@@ -233,13 +237,18 @@ const CONTINENT_ICONS = {
 };
 
 const CONTINENT_SHAPES = {
-  [CONTINENT_LABELS.Asia]: "M6 17 L12 10 L20 8 L28 11 L35 8 L45 12 L55 19 L51 27 L43 28 L39 34 L31 31 L27 39 L21 33 L14 31 L9 25 Z M42 27 L50 32 L47 39 L40 34 Z",
-  [CONTINENT_LABELS.Europe]: "M8 18 L14 13 L22 10 L30 12 L37 10 L46 15 L50 22 L43 25 L37 22 L32 30 L25 26 L17 29 L12 24 Z M21 8 L25 4 L31 8 L25 10 Z",
-  [CONTINENT_LABELS.Africa]: "M28 5 L40 12 L45 23 L40 33 L34 42 L26 39 L20 31 L14 22 L18 11 Z M42 24 L50 25 L47 30 L42 29 Z",
-  [CONTINENT_LABELS.Oceania]: "M8 27 L18 22 L30 24 L40 30 L35 37 L23 36 L13 32 Z M43 18 L53 20 L57 25 L51 29 L44 25 Z M50 34 L58 36 L55 40 L49 38 Z",
-  [CONTINENT_LABELS["North America"]]: "M6 13 L16 7 L29 8 L42 14 L55 22 L49 32 L38 31 L30 24 L21 26 L13 21 Z M29 25 L36 34 L31 41 L25 31 Z",
-  [CONTINENT_LABELS["South America"]]: "M28 4 L39 12 L37 23 L32 32 L27 42 L21 36 L19 26 L16 16 L22 9 Z",
-  [CONTINENT_LABELS.Antarctica]: "M4 28 L15 22 L27 25 L38 21 L51 24 L60 29 L52 35 L38 37 L25 34 L12 36 Z",
+  [CONTINENT_LABELS.Asia]:
+    "M7 17 C12 9 22 7 31 9 C40 6 52 11 58 20 C55 28 48 29 44 35 C39 32 35 38 30 35 C27 30 21 30 16 26 C12 26 9 23 7 17 Z M33 31 C37 34 38 40 33 43 C30 39 29 35 33 31 Z M48 29 C54 31 58 36 54 42 C49 39 46 34 48 29 Z",
+  [CONTINENT_LABELS.Europe]:
+    "M10 18 C14 12 22 10 29 12 C36 8 46 12 51 19 C48 25 40 26 35 23 C31 28 27 31 22 27 C17 30 12 25 10 18 Z M23 8 C26 3 33 4 35 9 C31 12 27 11 23 8 Z M30 25 C34 29 33 35 29 38 C27 34 27 29 30 25 Z",
+  [CONTINENT_LABELS.Africa]:
+    "M29 4 C38 7 45 15 46 24 C43 32 37 41 31 45 C24 41 18 33 15 24 C15 15 20 7 29 4 Z M43 25 C50 24 54 28 50 33 C45 33 42 30 43 25 Z",
+  [CONTINENT_LABELS.Oceania]:
+    "M8 29 C17 23 31 23 42 31 C37 38 23 39 13 34 C10 33 9 31 8 29 Z M43 18 C51 18 59 23 58 29 C50 32 43 28 43 18 Z M51 36 C57 36 60 40 56 44 C51 43 48 40 51 36 Z",
+  [CONTINENT_LABELS["North America"]]:
+    "M6 14 C15 7 28 6 41 13 C50 15 58 23 56 31 C49 36 39 35 31 27 C24 29 15 25 9 20 C7 18 6 16 6 14 Z M30 27 C37 31 39 37 32 43 C27 38 25 32 30 27 Z",
+  [CONTINENT_LABELS["South America"]]:
+    "M29 4 C38 9 42 17 39 27 C35 35 31 45 25 47 C20 41 18 34 16 26 C13 17 19 8 29 4 Z",
 };
 
 const PLACE_NAME_OVERRIDES = {
@@ -424,6 +433,9 @@ const regionNamesZh =
 
 const COUNTRY_NAME_ZH_OVERRIDES = {
   CHN: "中国",
+  PRK: "朝鲜",
+  KOR: "韩国",
+  JPN: "日本",
   VAT: "梵蒂冈",
   PSE: "巴勒斯坦",
   ATA: "南极洲",
@@ -485,6 +497,47 @@ function countryNameZh(code, isoA2, fallback) {
   return fallback;
 }
 
+function cleanPlaceName(value) {
+  return String(value || "")
+    .replace(/[\[〔【（(]\s*\d+\s*[\]〕】）)]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function mergePlaceGeometriesAsMultiPolygon(places = []) {
+  const polygons = [];
+  for (const place of places) {
+    const geometry = place.geometry;
+    if (!geometry) continue;
+    if (geometry.type === "Polygon") {
+      polygons.push(geometry.coordinates);
+    } else if (geometry.type === "MultiPolygon") {
+      polygons.push(...geometry.coordinates);
+    } else if (Array.isArray(geometry)) {
+      polygons.push([geometry]);
+    }
+  }
+  return polygons.length > 0
+    ? { type: "MultiPolygon", coordinates: polygons }
+    : null;
+}
+
+function applyChinaRegionGeometry(countryPlaces, regionPlaces) {
+  const chinaGeometry = mergePlaceGeometriesAsMultiPolygon(
+    regionPlaces.filter((place) => place.countryCode === "CHN" && place.level === "region"),
+  );
+  if (!chinaGeometry) return countryPlaces;
+  return countryPlaces.map((place) =>
+    place.id === "CHN"
+      ? {
+          ...place,
+          geometry: chinaGeometry,
+          center: geometryCenter(chinaGeometry),
+        }
+      : place,
+  );
+}
+
 function featureToPlace(feature) {
   const props = feature.properties;
   const localName = countryNameZh(
@@ -492,15 +545,18 @@ function featureToPlace(feature) {
     props.isoA2,
     props.localName || props.name,
   );
+  const name = cleanPlaceName(props.name);
+  const cleanLocalName = cleanPlaceName(localName || name);
   return {
     ...props,
     id: props.id,
     level: props.level,
-    name: props.name,
-    localName,
+    name,
+    localName: cleanLocalName,
     parentId: props.parentId,
     countryCode: props.countryCode || props.code || props.id,
-    countryName: props.country || localName || props.name,
+    countryName: cleanPlaceName(props.country || cleanLocalName || name),
+    province: cleanPlaceName(props.province),
     flag: flagEmoji(props.isoA2),
     region: props.region || props.continent,
     geometry: feature.geometry,
@@ -540,12 +596,16 @@ function normalizePlace(place) {
     next.countryName = "中国";
     next.province = "澳门";
   }
+  next.name = cleanPlaceName(next.name);
+  next.localName = cleanPlaceName(next.localName || next.name);
+  next.countryName = cleanPlaceName(next.countryName);
+  next.province = cleanPlaceName(next.province);
+  next.aliases = [...new Set((next.aliases || []).map(cleanPlaceName).filter(Boolean))];
   return next;
 }
 
 function normalizeProvinceName(value) {
-  return String(value || "")
-    .replace(/\[[^\]]+\]/g, "")
+  return cleanPlaceName(value)
     .replace(/\s+/g, "")
     .trim();
 }
@@ -1063,8 +1123,9 @@ function App() {
           indexResponse.json(),
         ]);
         if (!cancelled) {
-          const countryPlaces = countries.features.map((feature) => normalizePlace(featureToPlace(feature)));
+          const rawCountryPlaces = countries.features.map((feature) => normalizePlace(featureToPlace(feature)));
           const regionPlaces = states.features.map((feature) => normalizePlace(featureToPlace(feature)));
+          const countryPlaces = applyChinaRegionGeometry(rawCountryPlaces, regionPlaces);
           const cityPlaces = linkChinaCityParents(
             regionPlaces,
             cities.features.map((feature) => normalizePlace(featureToPlace(feature))),
@@ -1946,7 +2007,9 @@ function MapView({
       },
       onEachFeature: (feature, leafletLayer) => {
         leafletLayer.bindTooltip(feature.properties.localName || feature.properties.name, {
-          sticky: true,
+          className: "country-hover-label",
+          direction: "center",
+          sticky: false,
         });
         leafletLayer.on("click", () => {
           setSelectedPlaceId(feature.properties.id);
@@ -2399,7 +2462,6 @@ function CountryModal({
     const targetVisitedCities = summary?.visitedCities || visitedCities;
     const targetRegionProgress = summary?.regionProgress ?? regionProgress;
     const targetCityProgress = summary?.cityProgress ?? cityProgress;
-    const targetCoveredRegionText = summary?.coveredRegionText || coveredRegionText;
     const allGroupsOpen = targetGroups.length > 0 && targetGroups.every((group) => expandedGroups.has(group.id));
     return (
       <aside className={comparisonMode ? "modal-summary comparison-profile-summary" : "modal-summary"}>
@@ -2432,7 +2494,7 @@ function CountryModal({
               </div>
             )}
             <small>
-              共 {targetVisitedCities.size} 座城市 · {targetCoveredRegionText}
+              共 {targetVisitedCities.size} 座城市
               {cityTotal ? ` · ${targetCityProgress.toFixed(1)}%` : ""}
             </small>
           </article>
@@ -2580,7 +2642,7 @@ function CountryModal({
                   </div>
                 )}
                 <small>
-                  共 {visitedCities.size} 座城市 · {coveredRegionText}
+                  共 {visitedCities.size} 座城市
                   {cityTotal ? ` · ${cityProgress.toFixed(1)}%` : ""}
                 </small>
               </article>
@@ -2723,6 +2785,23 @@ function buildCountryGroups(visits, placeLookup, country, options = {}) {
       cities: Array.from(group.visitedCities.values()).sort((a, b) => a.name.localeCompare(b.name, "zh-CN")),
     }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"));
+}
+
+function fitMiniCountryMap(map, country, layer) {
+  if (!map || !country) return;
+  if (country.id === "CHN") {
+    map.fitBounds(L.latLngBounds(CHINA_MODAL_BOUNDS), {
+      padding: [18, 18],
+      animate: false,
+    });
+    return;
+  }
+  const bounds = layer?.getBounds?.();
+  if (bounds?.isValid?.()) {
+    map.fitBounds(bounds, { padding: [18, 18], animate: false });
+  } else if (country.center) {
+    map.setView([country.center[1], country.center[0]], 5, { animate: false });
+  }
 }
 
 function MiniCountryMap({
@@ -2883,19 +2962,27 @@ function MiniCountryMap({
     layerRef.current = layer;
     window.setTimeout(() => {
       map.invalidateSize();
-      if (lastFitCountryRef.current === country.id) return;
-      const bounds = layer.getBounds();
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [16, 16], animate: false });
-        lastFitCountryRef.current = country.id;
-      } else if (country.center) {
-        map.setView([country.center[1], country.center[0]], country.id === "CHN" ? 4 : 5);
-        lastFitCountryRef.current = country.id;
-      }
+      const fitKey = country.id;
+      if (lastFitCountryRef.current === fitKey) return;
+      fitMiniCountryMap(map, country, layer);
+      lastFitCountryRef.current = fitKey;
     }, 60);
   }, [activeProfile, cityPlaces, country, detailLevel, profiles, regionPlaces, showLabels, visitedByLevel, visitedCityVisits, visitedPlaces]);
 
-  return <div className="mini-country-map" ref={miniRef} />;
+  return (
+    <div className="mini-country-map-shell">
+      <div className="mini-country-map" ref={miniRef} />
+      <button
+        aria-label="恢复初始视野"
+        className="mini-map-reset-button"
+        onClick={() => fitMiniCountryMap(mapRef.current, country, layerRef.current)}
+        title="恢复初始视野"
+        type="button"
+      >
+        <RotateCcw size={16} />
+      </button>
+    </div>
+  );
 }
 
 function CountryPanel({
@@ -3351,9 +3438,16 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
       <span className="continent-title">
         {label}
         <span className="continent-icon" aria-hidden="true">
-          <svg viewBox="0 0 64 44" focusable="false">
-            <path d={CONTINENT_SHAPES[label] || "M10 16 L24 6 L38 16 L24 26 Z"} />
-          </svg>
+          {label === CONTINENT_LABELS.Antarctica ? (
+            <img
+              alt=""
+              src="https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/aq.svg"
+            />
+          ) : (
+            <svg viewBox="0 0 64 50" focusable="false">
+              <path d={CONTINENT_SHAPES[label] || "M10 18 L24 8 L38 18 L24 30 Z"} />
+            </svg>
+          )}
         </span>
       </span>
     );

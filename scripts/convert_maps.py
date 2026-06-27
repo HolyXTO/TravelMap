@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -268,7 +269,8 @@ def clean_code(value):
 
 
 def clean_text(value):
-    return str(value or "").replace("[1]", "").strip().translate(TRADITIONAL_TO_SIMPLIFIED)
+    value = str(value or "").translate(TRADITIONAL_TO_SIMPLIFIED)
+    return re.sub(r"[\[〔【（(]\s*\d+\s*[\]〕】）)]", "", value).strip()
 
 
 def merge_geometry(base, extra):
