@@ -45,7 +45,7 @@ create table if not exists public.visits (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid not null references public.travel_profiles(id) on delete cascade,
   place_id text not null,
-  visited_at date not null,
+  visited_at date,
   trip_type text not null,
   note text,
   created_by uuid references auth.users(id) on delete set null,

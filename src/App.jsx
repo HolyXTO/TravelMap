@@ -173,6 +173,21 @@ const MAP_THEMES = [
   },
 ];
 
+const MAP_THEME_PICKER_ORDER = ["copper", "ocean", "ink", "coral", "mint"];
+const ORDERED_MAP_THEMES = MAP_THEME_PICKER_ORDER
+  .map((id) => MAP_THEMES.find((theme) => theme.id === id))
+  .filter(Boolean);
+
+const CONTINENT_ICONS = {
+  [CONTINENT_LABELS.Asia]: "🌏",
+  [CONTINENT_LABELS.Europe]: "🌍",
+  [CONTINENT_LABELS.Africa]: "🌍",
+  [CONTINENT_LABELS.Oceania]: "🌏",
+  [CONTINENT_LABELS["North America"]]: "🌎",
+  [CONTINENT_LABELS["South America"]]: "🌎",
+  [CONTINENT_LABELS.Antarctica]: "🇦🇶",
+};
+
 const PLACE_NAME_OVERRIDES = {
   "W-3191281": { localName: "萨拉热窝", aliases: ["Sarajevo", "塞拉耶佛"] },
   "W-2193733": { localName: "奥克兰", aliases: ["奥克兰都會区", "Auckland"] },
@@ -653,8 +668,7 @@ function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, t
 function normalizeVisitDateInput(value) {
   const raw = String(value || "").trim().replace(/\//g, "-").replace(/\s+/g, "");
   if (!raw) {
-    const today = new Date().toISOString().slice(0, 10);
-    return { dbDate: today, display: "", precision: "none" };
+    return { dbDate: null, display: "", precision: "none" };
   }
   const yearOnly = raw.match(/^(\d{4})$/);
   if (yearOnly) {
@@ -881,7 +895,7 @@ function App() {
   const [regionFilter, setRegionFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const [activeMapThemeId, setActiveMapThemeId] = useState("ocean");
+  const [activeMapThemeId, setActiveMapThemeId] = useState("copper");
   const [appProfiles, setAppProfiles] = useState(profiles);
   const [visits, setVisits] = useState([]);
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
@@ -1080,7 +1094,7 @@ function App() {
       const chain = placeChain(visit.placeId, placeLookup);
       const country = chain.find((item) => item.level === "country");
       const text = `${formatPath(visit.placeId, placeLookup)} ${visit.note}`.toLowerCase();
-      const year = visit.visitedAt.slice(0, 4);
+      const year = visit.visitedAt ? visit.visitedAt.slice(0, 4) : "";
       const profileMatch =
         activeProfile === "all" || visit.profileId === activeProfile;
       const yearMatch = yearFilter === "all" || year === yearFilter;
@@ -1184,7 +1198,7 @@ function App() {
 
   const years = useMemo(
     () =>
-      Array.from(new Set(visits.map((visit) => visit.visitedAt.slice(0, 4)))).sort(),
+      Array.from(new Set(visits.map((visit) => (visit.visitedAt ? visit.visitedAt.slice(0, 4) : "")).filter(Boolean))).sort(),
     [visits],
   );
 
@@ -1627,7 +1641,7 @@ function App() {
           displayPlaces={displayPlaces}
           mapStatus={mapStatus}
           mapTheme={activeMapTheme}
-          mapThemes={MAP_THEMES}
+          mapThemes={ORDERED_MAP_THEMES}
           placeLookup={placeLookup}
           regionPlaces={mapPlaces.region}
           selectedPlaceId={selectedPlaceId}
@@ -1796,7 +1810,7 @@ function MapView({
       [-64, -180],
       [84, 180],
     ]);
-    L.control.zoom({ position: "bottomright" }).addTo(map);
+    L.control.zoom({ position: "bottomleft" }).addTo(map);
 
     mapRef.current = map;
 
@@ -1914,7 +1928,7 @@ function MapView({
           interactive: false,
           style: {
             color: "#536579",
-            weight: 1.8,
+            weight: 1.25,
             opacity: 0.9,
             fillOpacity: 0,
           },
@@ -1961,7 +1975,7 @@ function MapView({
         : L.latLngBounds(CHINA_BOUNDS);
     if (bounds.isValid() && lastLevelRef.current !== activeLevel) {
       if (activeLevel === "country") {
-        map.setView([16, 15], 2, { animate: false });
+        map.setView([10, 20], 1.75, { animate: false });
       } else {
         map.fitBounds(bounds, { padding: [10, 10], animate: false });
       }
@@ -2509,7 +2523,7 @@ function MiniCountryMap({
       scrollWheelZoom: true,
       zoomControl: false,
     });
-    L.control.zoom({ position: "bottomright" }).addTo(map);
+    L.control.zoom({ position: "bottomleft" }).addTo(map);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 20,
       subdomains: "abcd",
@@ -2591,7 +2605,7 @@ function MiniCountryMap({
           interactive: false,
           style: {
             color: "#64748b",
-            weight: 1.8,
+            weight: 1.25,
             opacity: 0.9,
             fillOpacity: 0,
           },
@@ -2693,7 +2707,7 @@ function CountryPanel({
         {selectedVisits.length === 0 && <p className="empty">还没有符合当前筛选的足迹。</p>}
         {selectedVisits.slice(0, 6).map((visit) => (
           <p key={visit.id}>
-            <span>{visit.visitedAt}</span>
+            <span>{displayVisitDate(visit) || "未填写日期"}</span>
             {visit.type}
           </p>
         ))}
@@ -2762,7 +2776,7 @@ function PlaceSearchPanel({
         return place ? { place, visit } : null;
       })
       .filter(Boolean)
-      .sort((a, b) => b.visit.visitedAt.localeCompare(a.visit.visitedAt))
+      .sort((a, b) => (b.visit.visitedAt || "").localeCompare(a.visit.visitedAt || ""))
       .forEach((item) => {
         const key = `${item.visit.profileId}:${canonicalPlaceId(item.place.mapId || item.place.id)}`;
         if (!byPlace.has(key)) byPlace.set(key, item);
@@ -3044,7 +3058,7 @@ function DetailPanel({ placeLookup, profiles, selectedPlaceId, visits }) {
           <article className="visit-item" key={visit.id}>
             <div>
               <strong>{profiles.find((profile) => profile.id === visit.profileId)?.name}</strong>
-              <span>{visit.visitedAt}</span>
+              <span>{displayVisitDate(visit) || "未填写日期"}</span>
             </div>
             <p>{visit.note}</p>
             <small>{visit.type}</small>
@@ -3077,7 +3091,7 @@ function VisitList({ placeLookup, profiles, visits }) {
           <div className="table-row" key={visit.id}>
             <span>{profiles.find((profile) => profile.id === visit.profileId)?.name}</span>
             <span>{formatPath(visit.placeId, placeLookup)}</span>
-            <span>{visit.visitedAt}</span>
+            <span>{displayVisitDate(visit) || "未填写日期"}</span>
             <span>{visit.type}</span>
             <span>{visit.note}</span>
           </div>
@@ -3090,6 +3104,17 @@ function VisitList({ placeLookup, profiles, visits }) {
 function TravelOverview({ activeProfile, continentSummary, profileSummaries = [] }) {
   const defaultContinents = ["亚洲", "欧洲", "北美洲", "南美洲", "非洲", "大洋洲", "南极洲"];
   const [expandedCountries, setExpandedCountries] = useState(new Set());
+
+  function renderContinentTitle(label) {
+    return (
+      <span className="continent-title">
+        {label}
+        <span className="continent-icon" aria-hidden="true">
+          {CONTINENT_ICONS[label] || "◇"}
+        </span>
+      </span>
+    );
+  }
 
   function normalizeSummary(summary) {
     const existing = new Set(summary.map((item) => item.label));
@@ -3140,17 +3165,35 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
     return alignIds(leftCountry?.detailGroups || [], rightCountry?.detailGroups || [], (group) => group?.cities?.length || 0);
   }
 
-  function renderContinentBody(continent, countryOrder = null, detailOrders = new Map()) {
+  function renderContinentBody(
+    continent,
+    countryOrder = null,
+    detailOrders = new Map(),
+    detailMeta = new Map(),
+    countryMeta = new Map(),
+  ) {
+    const countryById = new Map(continent.countries.map((country) => [country.id, country]));
     const countries = countryOrder
-      ? countryOrder
-          .map((countryId) => continent.countries.find((country) => country.id === countryId))
-          .filter(Boolean)
+      ? countryOrder.map((countryId) => countryById.get(countryId) || {
+          id: countryId,
+          placeholder: true,
+        })
       : continent.countries;
 
     return (
       <div className="continent-body">
         {countries.length === 0 && <p className="empty">尚未标记地点。</p>}
         {countries.map((country) => {
+          if (country.placeholder) {
+            return (
+              <div className="country-summary country-summary-placeholder" key={country.id} aria-hidden="true">
+                <div className="country-summary-main">
+                  <span />
+                  <span>{countryMeta.get(country.id)?.name || " "}</span>
+                </div>
+              </div>
+            );
+          }
           const expanded = expandedCountries.has(country.id);
           const rawDetailGroups = country.detailGroups.length > 0
             ? country.detailGroups
@@ -3162,10 +3205,15 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
                 },
               ].filter((group) => group.cities.length > 0);
           const detailOrder = detailOrders.get(country.id);
+          const groupMeta = detailMeta.get(country.id) || new Map();
           const detailGroups = detailOrder
             ? detailOrder
-                .map((groupId) => rawDetailGroups.find((group) => group.id === groupId))
-                .filter(Boolean)
+                .map((groupId) => rawDetailGroups.find((group) => group.id === groupId) || {
+                  id: groupId,
+                  name: groupMeta.get(groupId)?.name || "",
+                  cities: [],
+                  placeholder: true,
+                })
             : rawDetailGroups;
           const regionLabel = country.regions.size
             ? country.regions.size + " " + (country.id === "CHN" ? "省份" : "省州") + "，"
@@ -3199,7 +3247,11 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
               {expanded && detailGroups.length > 0 && (
                 <div className="country-summary-detail">
                   {detailGroups.map((group) => (
-                    <div className="country-detail-group" key={group.id}>
+                    <div
+                      className={group.placeholder ? "country-detail-group detail-placeholder" : "country-detail-group"}
+                      key={group.id}
+                      style={{ "--detail-rows": groupMeta.get(group.id)?.rows || Math.max(1, Math.ceil(group.cities.length / 4)) }}
+                    >
                       {country.regions.size > 0 && (
                         <div className="country-detail-head">
                           <strong>{group.name}</strong>
@@ -3260,16 +3312,48 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
             const countryOrder = alignIds(pairedContinents[0].countries, pairedContinents[1].countries);
             const leftCountryMap = new Map(pairedContinents[0].countries.map((country) => [country.id, country]));
             const rightCountryMap = new Map(pairedContinents[1].countries.map((country) => [country.id, country]));
+            const countryMeta = new Map(
+              countryOrder.map((countryId) => {
+                const country = leftCountryMap.get(countryId) || rightCountryMap.get(countryId);
+                return [countryId, { name: country?.name || "" }];
+              }),
+            );
             const detailOrders = new Map(
               countryOrder.map((countryId) => [
                 countryId,
                 detailOrderForPair(leftCountryMap.get(countryId), rightCountryMap.get(countryId)),
               ]),
             );
+            const detailMeta = new Map(
+              countryOrder.map((countryId) => {
+                const groupOrder = detailOrders.get(countryId) || [];
+                const leftGroups = new Map((leftCountryMap.get(countryId)?.detailGroups || []).map((group) => [group.id, group]));
+                const rightGroups = new Map((rightCountryMap.get(countryId)?.detailGroups || []).map((group) => [group.id, group]));
+                return [
+                  countryId,
+                  new Map(
+                    groupOrder.map((groupId) => {
+                      const group = leftGroups.get(groupId) || rightGroups.get(groupId);
+                      const maxCities = Math.max(
+                        leftGroups.get(groupId)?.cities?.length || 0,
+                        rightGroups.get(groupId)?.cities?.length || 0,
+                      );
+                      return [
+                        groupId,
+                        {
+                          name: group?.name || "",
+                          rows: Math.max(1, Math.ceil(maxCities / 4)),
+                        },
+                      ];
+                    }),
+                  ),
+                ];
+              }),
+            );
             return (
               <article className="comparison-continent-row" key={label} style={{ "--continent-accent": CONTINENT_ACCENTS[label] || "#2563eb" }}>
                 <header>
-                  <h3>{label}</h3>
+                  <h3>{renderContinentTitle(label)}</h3>
                 </header>
                 <div className="comparison-columns">
                   {normalized.slice(0, 2).map(({ profile }, index) => {
@@ -3280,7 +3364,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
                           <strong>{continent.countryCount || 0}/{continent.countryTotal || 0} 国家</strong>
                           <span>{continent.cityCount || continent.count || 0} 城市</span>
                         </div>
-                        {renderContinentBody(continent, countryOrder, detailOrders)}
+                        {renderContinentBody(continent, countryOrder, detailOrders, detailMeta, countryMeta)}
                       </div>
                     );
                   })}
@@ -3308,7 +3392,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
             style={{ "--continent-accent": CONTINENT_ACCENTS[continent.label] || "#2563eb" }}
           >
             <header>
-              <h3>{continent.label}</h3>
+              <h3>{renderContinentTitle(continent.label)}</h3>
               <div className="continent-stat">
                 <strong>{continent.countryCount || 0}/{continent.countryTotal || 0} 国家</strong>
                 <span>{continent.cityCount || continent.count || 0} 城市</span>
