@@ -458,7 +458,26 @@ h2 {
 }
 
 .country-hover-label {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0;
+  background: transparent;
   pointer-events: none;
+}
+
+.country-hover-label span {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 1px solid #d8e1e7;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 6px 9px;
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px #18332024;
 }
 
 .map-reset-button {
@@ -1773,7 +1792,7 @@ h2 {
   display: inline-grid;
   place-items: center;
   width: auto;
-  height: 1em;
+  height: 0.92em;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1787,7 +1806,7 @@ h2 {
 
 .continent-icon img {
   width: auto;
-  height: 1em;
+  height: 0.92em;
   object-fit: contain;
   border-radius: 0;
 }

@@ -2181,6 +2181,7 @@ function MapView({
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const tileLayerRef = useRef(null);
+  const countryLabelRef = useRef(null);
   const lastLevelRef = useRef(null);
   const [activeVisitPreview, setActiveVisitPreview] = useState(null);
 
@@ -2235,8 +2236,38 @@ function MapView({
     if (layerRef.current) {
       layerRef.current.remove();
     }
+    if (countryLabelRef.current) {
+      countryLabelRef.current.remove();
+      countryLabelRef.current = null;
+    }
 
     const layer = L.featureGroup().addTo(map);
+    const hideCountryLabel = () => {
+      if (countryLabelRef.current) {
+        countryLabelRef.current.remove();
+        countryLabelRef.current = null;
+      }
+    };
+    const showCountryLabel = (feature) => {
+      const label = countryNameZh(
+        feature.properties.id || feature.properties.countryCode,
+        feature.properties.isoA2,
+        feature.properties.localName || feature.properties.name,
+      );
+      const latLng = countryTooltipLatLng(feature);
+      if (!latLng) return;
+      hideCountryLabel();
+      countryLabelRef.current = L.marker(latLng, {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: "country-hover-label",
+          html: `<span>${escapeHtml(label)}</span>`,
+          iconAnchor: [0, 0],
+          iconSize: [0, 0],
+        }),
+      }).addTo(map);
+    };
     const countryLayer = L.geoJSON(
       {
         type: "FeatureCollection",
@@ -2266,30 +2297,20 @@ function MapView({
         };
       },
       onEachFeature: (feature, leafletLayer) => {
-        const label = countryNameZh(
-          feature.properties.id || feature.properties.countryCode,
-          feature.properties.isoA2,
-          feature.properties.localName || feature.properties.name,
-        );
-        const tooltip = L.tooltip({
-          className: "country-hover-label",
-          direction: "center",
-          permanent: false,
-        }).setContent(label);
         leafletLayer.on("click", () => {
           setSelectedPlaceId(feature.properties.id);
+          showCountryLabel(feature);
           onCountryOpen(feature.properties.id);
         });
         leafletLayer.on("mouseover", () => {
           setSelectedPlaceId(feature.properties.id);
-          const latLng = countryTooltipLatLng(feature);
-          if (latLng) {
-            tooltip.setLatLng(latLng);
-            tooltip.addTo(map);
-          }
+          showCountryLabel(feature);
+        });
+        leafletLayer.on("mousemove", () => {
+          showCountryLabel(feature);
         });
         leafletLayer.on("mouseout", () => {
-          tooltip.remove();
+          hideCountryLabel();
         });
       },
     }).addTo(layer);
@@ -2521,13 +2542,6 @@ function renderVisitPopup(place, visits = [], profiles = []) {
 
 function VisitPhotoOverlay({ onClose, place, profiles = [], visits = [] }) {
   const overlayRef = useRef(null);
-  useEffect(() => {
-    window.requestAnimationFrame(() => {
-      const host = overlayRef.current?.closest(".map-surface, .mini-country-map-shell");
-      host?.scrollIntoView({ block: "center", behavior: "smooth" });
-      window.setTimeout(() => window.scrollBy({ top: 72, behavior: "smooth" }), 160);
-    });
-  }, [place?.id, visits.length]);
   useEffect(() => {
     const handlePointerDown = (event) => {
       if (!overlayRef.current || overlayRef.current.contains(event.target)) return;
@@ -3480,6 +3494,7 @@ function PlaceSearchPanel({
   const [visitedAt, setVisitedAt] = useState("");
   const [type, setType] = useState("旅行");
   const addedItemRefs = useRef(new Map());
+  const addedListRef = useRef(null);
 
   useEffect(() => {
     const validIds = new Set(profiles.map((profile) => profile.id));
@@ -3531,7 +3546,11 @@ function PlaceSearchPanel({
     if (!targetId) return;
     window.setTimeout(() => {
       const node = addedItemRefs.current.get(canonicalPlaceId(targetId));
-      node?.scrollIntoView({ block: "start", behavior: "smooth" });
+      const list = addedListRef.current;
+      if (node && list) {
+        const nodeTop = node.offsetTop - list.offsetTop;
+        list.scrollTo({ top: Math.max(0, nodeTop), behavior: "smooth" });
+      }
       onFocusConsumed?.();
     }, 0);
   }, [focusRequest, onFocusConsumed]);
@@ -3627,7 +3646,7 @@ function PlaceSearchPanel({
         ))}
       </div>
       {authMessage && session && <p className="dock-message">{authMessage}</p>}
-      <div className="added-list">
+      <div className="added-list" ref={addedListRef}>
         <p>你去过的地方</p>
         {addedPlaces.length === 0 && <small>尚未标记地点。</small>}
         {addedPlaces.map(({ place, visit }) => (
