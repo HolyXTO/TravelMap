@@ -631,12 +631,12 @@ h2 {
 .visit-photo-overlay {
   position: absolute;
   z-index: 1150;
-  top: 74px;
-  right: 92px;
+  top: 46px;
+  right: 76px;
   display: grid;
   gap: 10px;
-  width: min(620px, calc(100% - 140px));
-  max-height: calc(100% - 92px);
+  width: min(760px, calc(100% - 118px));
+  max-height: calc(100% - 58px);
   overflow: auto;
   border: 1px solid #d8e2ee;
   border-radius: 8px;
@@ -725,8 +725,8 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
-  height: min(42vh, 360px);
+  min-height: 260px;
+  height: min(54vh, 520px);
   margin: 0;
   overflow: hidden;
   border-radius: 8px;
@@ -1673,6 +1673,29 @@ h2 {
   box-shadow: none;
   color: #2563eb;
   font-weight: 950;
+  text-shadow:
+    0 1px 0 #fff,
+    1px 0 0 #fff,
+    0 -1px 0 #fff,
+    -1px 0 0 #fff;
+}
+
+.mini-map-fixed-label {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.mini-map-fixed-label span {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  color: #2563eb;
+  font-size: 0.95rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
   text-shadow:
     0 1px 0 #fff,
     1px 0 0 #fff,

@@ -2155,6 +2155,15 @@ function countryTooltipLatLng(feature) {
   return null;
 }
 
+function countryFeatureLabel(feature) {
+  const props = feature?.properties || {};
+  return countryNameZh(
+    props.id || props.countryCode,
+    props.isoA2,
+    props.localName || props.name,
+  );
+}
+
 function MapView({
   activeLevel,
   activeProfile,
@@ -2249,11 +2258,7 @@ function MapView({
       }
     };
     const showCountryLabel = (feature) => {
-      const label = countryNameZh(
-        feature.properties.id || feature.properties.countryCode,
-        feature.properties.isoA2,
-        feature.properties.localName || feature.properties.name,
-      );
+      const label = countryFeatureLabel(feature);
       const latLng = countryTooltipLatLng(feature);
       if (!latLng) return;
       hideCountryLabel();
@@ -3290,13 +3295,18 @@ function MiniCountryMap({
           onEachFeature: (feature, leafletLayer) => {
             const id = feature.properties.id;
             const shouldLabel = visitedByLevel.get(id) || (country.id !== "CHN" && id === country.id);
-            const label = feature.properties.localName || feature.properties.name;
+            const isCountryFeature = feature.properties.level === "country";
+            const label = isCountryFeature
+              ? countryFeatureLabel(feature)
+              : feature.properties.localName || feature.properties.name;
             if (showLabels && shouldLabel) {
-              leafletLayer.bindTooltip(label, {
-                className: "mini-map-label",
-                direction: "center",
-                permanent: true,
-              });
+              if (!isCountryFeature) {
+                leafletLayer.bindTooltip(label, {
+                  className: "mini-map-label",
+                  direction: "center",
+                  permanent: true,
+                });
+              }
               return;
             }
             leafletLayer.bindTooltip(label, {
@@ -3323,6 +3333,22 @@ function MiniCountryMap({
         },
       );
       boundaryLayer.addTo(layer);
+      if (country.id !== "CHN" && showLabels) {
+        const feature = placeToFeature(country);
+        const latLng = countryTooltipLatLng(feature);
+        if (latLng) {
+          L.marker(latLng, {
+            interactive: false,
+            keyboard: false,
+            icon: L.divIcon({
+              className: "mini-map-fixed-label",
+              html: `<span>${escapeHtml(countryFeatureLabel(feature))}</span>`,
+              iconAnchor: [0, 0],
+              iconSize: [0, 0],
+            }),
+          }).addTo(layer);
+        }
+      }
     }
 
     if (country.id === "CHN" && detailLevel === "city" && regionPlaces.length > 0) {
