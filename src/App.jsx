@@ -91,9 +91,9 @@ const CONTINENT_ACCENTS = {
 const COUNTRY_DOT_COLORS = ["#2563eb", "#16a34a", "#ea580c", "#7c3aed", "#dc2626", "#0f766e", "#ca8a04"];
 const PROFILE_TONES = [
   {
-    fill: "#f4c15d",
-    stroke: "#a45c12",
-    marker: "#c76a1e",
+    fill: "#f3a6bd",
+    stroke: "#be4469",
+    marker: "#d9467a",
   },
   {
     fill: "#6aa6d9",
@@ -249,6 +249,15 @@ const CONTINENT_SHAPES = {
     "M6 14 C15 7 28 6 41 13 C50 15 58 23 56 31 C49 36 39 35 31 27 C24 29 15 25 9 20 C7 18 6 16 6 14 Z M30 27 C37 31 39 37 32 43 C27 38 25 32 30 27 Z",
   [CONTINENT_LABELS["South America"]]:
     "M29 4 C38 9 42 17 39 27 C35 35 31 45 25 47 C20 41 18 34 16 26 C13 17 19 8 29 4 Z",
+};
+
+const CONTINENT_ICON_IMAGES = {
+  [CONTINENT_LABELS.Asia]: "continent-icons/asia.png",
+  [CONTINENT_LABELS.Europe]: "continent-icons/europe.png",
+  [CONTINENT_LABELS.Africa]: "continent-icons/africa.png",
+  [CONTINENT_LABELS.Oceania]: "continent-icons/oceania.png",
+  [CONTINENT_LABELS["North America"]]: "continent-icons/north-america.png",
+  [CONTINENT_LABELS["South America"]]: "continent-icons/south-america.png",
 };
 
 const PLACE_NAME_OVERRIDES = {
@@ -605,8 +614,23 @@ function extractOuterBoundaryGeometry(places = []) {
   }
 
   return polygons.length > 0
-    ? { type: "MultiPolygon", coordinates: polygons }
+    ? {
+        type: "MultiPolygon",
+        coordinates: polygons
+          .map((polygon) => ({ polygon, area: ringArea(polygon[0]) }))
+          .filter((item) => item.area > 1)
+          .sort((a, b) => b.area - a.area)
+          .map((item) => item.polygon),
+      }
     : null;
+}
+
+function ringArea(ring = []) {
+  let area = 0;
+  for (let index = 0; index < ring.length - 1; index += 1) {
+    area += ring[index][0] * ring[index + 1][1] - ring[index + 1][0] * ring[index][1];
+  }
+  return Math.abs(area / 2);
 }
 
 function applyChinaRegionGeometry(countryPlaces, regionPlaces) {
@@ -889,6 +913,81 @@ function normalizeVisitDateInput(value) {
     return { dbDate: `${fullDate[1]}-${month}-${day}`, display: `${fullDate[1]}-${month}-${day}`, precision: "day" };
   }
   throw new Error("日期格式请填写为 YYYY、YYYY-MM 或 YYYY-MM-DD");
+}
+
+function DatePrecisionInput({ disabled = false, onChange, value }) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState("day");
+
+  function applyDate(nextValue) {
+    onChange(nextValue || "");
+    if (nextValue && mode === "day") setOpen(false);
+  }
+
+  return (
+    <div className="date-precision-input">
+      <input
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="YYYY / YYYY-MM / YYYY-MM-DD"
+        type="text"
+        value={value || ""}
+      />
+      <button
+        aria-label="打开日期选择"
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        title="选择日期"
+        type="button"
+      >
+        <CalendarDays size={16} />
+      </button>
+      {open && !disabled && (
+        <div className="date-picker-popover">
+          <div className="date-picker-modes">
+            {[
+              ["year", "年"],
+              ["month", "年月"],
+              ["day", "年月日"],
+            ].map(([id, label]) => (
+              <button
+                className={mode === id ? "active" : ""}
+                key={id}
+                onClick={() => setMode(id)}
+                type="button"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {mode === "year" && (
+            <input
+              max="2100"
+              min="1900"
+              onChange={(event) => applyDate(event.target.value)}
+              placeholder="YYYY"
+              type="number"
+              value={/^\d{4}$/.test(value || "") ? value : ""}
+            />
+          )}
+          {mode === "month" && (
+            <input
+              onChange={(event) => applyDate(event.target.value)}
+              type="month"
+              value={/^\d{4}-\d{2}$/.test(value || "") ? value : ""}
+            />
+          )}
+          {mode === "day" && (
+            <input
+              onChange={(event) => applyDate(event.target.value)}
+              type="date"
+              value={/^\d{4}-\d{2}-\d{2}$/.test(value || "") ? value : ""}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function displayVisitDate(visit) {
@@ -2033,6 +2132,7 @@ function MapView({
       [84, 180],
     ]);
     L.control.zoom({ position: "bottomleft" }).addTo(map);
+    map.on("click", () => setActiveVisitPreview(null));
 
     mapRef.current = map;
 
@@ -2188,7 +2288,8 @@ function MapView({
         fillOpacity: visitInfo.length > 0 ? 0.9 : 0.45,
       })
         .bindTooltip(city.localName, { sticky: true })
-        .on("click", () => {
+        .on("click", (event) => {
+          L.DomEvent.stopPropagation(event);
           setActiveVisitPreview({ place: city, visits: visitInfo });
         })
         .addTo(layer);
@@ -2329,6 +2430,13 @@ function renderVisitPopup(place, visits = [], profiles = []) {
 }
 
 function VisitPhotoOverlay({ onClose, place, profiles = [], visits = [] }) {
+  const overlayRef = useRef(null);
+  useEffect(() => {
+    window.requestAnimationFrame(() => {
+      overlayRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  }, [place?.id, visits.length]);
+
   if (!place) return null;
   const profileNames = new Map(profiles.map((profile) => [profile.id, profile.name]));
   const photos = visits.flatMap((visit) =>
@@ -2340,7 +2448,7 @@ function VisitPhotoOverlay({ onClose, place, profiles = [], visits = [] }) {
   );
 
   return (
-    <aside className="visit-photo-overlay">
+    <aside className="visit-photo-overlay" ref={overlayRef}>
       <header>
         <div>
           <strong>{displayPlaceName(place)}</strong>
@@ -2484,6 +2592,7 @@ function CountryModal({
   const [modalMapLevel, setModalMapLevel] = useState(country.id === "CHN" ? "region" : "city");
   const [showMapLabels, setShowMapLabels] = useState(true);
   const [showLockedPlaces, setShowLockedPlaces] = useState(false);
+  const [focusedModalPlaceId, setFocusedModalPlaceId] = useState("");
   const visitedRegions = new Set();
   const visitedCities = new Set();
   for (const visit of visits) {
@@ -2580,6 +2689,14 @@ function CountryModal({
       : `覆盖 ${grouped.length || 0} 个分组`;
 
   const comparisonMode = activeProfile === "all" && profiles.length >= 2;
+  const comparisonGroupOrder = useMemo(() => {
+    if (!comparisonMode) return null;
+    return buildCountryGroups(visits, placeLookup, country, {
+      cityPlaces,
+      regionPlaces,
+      showLockedPlaces,
+    }).map((group) => group.id);
+  }, [cityPlaces, comparisonMode, country, placeLookup, regionPlaces, showLockedPlaces, visits]);
 
   function summarizeCountryVisits(targetVisits) {
     const targetRegions = new Set();
@@ -2592,6 +2709,7 @@ function CountryModal({
     }
     const targetGrouped = buildCountryGroups(targetVisits, placeLookup, country, {
       cityPlaces,
+      groupOrder: comparisonGroupOrder,
       regionPlaces,
       showLockedPlaces,
     });
@@ -2617,7 +2735,7 @@ function CountryModal({
         profile,
         ...summarizeCountryVisits(visits.filter((visit) => visit.profileId === profile.id)),
       })),
-    [cityPlaces, country, placeLookup, profiles, regionPlaces, showLockedPlaces, visits],
+    [cityPlaces, comparisonGroupOrder, country, placeLookup, profiles, regionPlaces, showLockedPlaces, visits],
   );
 
   function renderSummaryPanel(summary = null, profile = null) {
@@ -2642,7 +2760,7 @@ function CountryModal({
             </div>
             <small>
               {regionTotal
-                ? `地图上已点亮 ${targetVisitedRegions.size} / ${regionTotal} 省 / 自治区 · ${targetRegionProgress.toFixed(1)}%`
+                ? `地图上已点亮 ${targetVisitedRegions.size} 省 / 自治区 · ${targetRegionProgress.toFixed(1)}%`
                 : "当前国家暂无省级边界数据"}
             </small>
           </article>
@@ -2734,6 +2852,7 @@ function CountryModal({
               title={`添加 ${country.localName || country.name} 的地点`}
               visitedPlaceIds={modalVisitedPlaceIds}
               visits={visits}
+              focusPlaceId={focusedModalPlaceId}
             />
           )}
           <div className="modal-map-wrap">
@@ -2772,6 +2891,7 @@ function CountryModal({
               visitedByLevel={modalVisitedByLevel}
               visitedCityVisits={modalVisitedCityVisits}
               visitedPlaces={countryPlaces.filter((place) => modalVisitedPlaceIds.has(canonicalPlaceId(place.id)))}
+              onPlaceFocus={setFocusedModalPlaceId}
             />
           </div>
           {comparisonMode ? (
@@ -2790,7 +2910,7 @@ function CountryModal({
                 </div>
                 <small>
                   {regionTotal
-                    ? `地图上已点亮 ${visitedRegions.size} / ${regionTotal} 省 / 自治区 · ${regionProgress.toFixed(1)}%`
+                    ? `地图上已点亮 ${visitedRegions.size} 省 / 自治区 · ${regionProgress.toFixed(1)}%`
                     : "当前国家暂无省级边界数据"}
                 </small>
               </article>
@@ -2851,7 +2971,18 @@ function CountryModal({
 }
 
 function buildCountryGroups(visits, placeLookup, country, options = {}) {
-  const { cityPlaces = [], regionPlaces = [], showLockedPlaces = false } = options;
+  const { cityPlaces = [], groupOrder = null, regionPlaces = [], showLockedPlaces = false } = options;
+  const orderIndex = groupOrder
+    ? new Map(groupOrder.map((id, index) => [id, index]))
+    : null;
+  const compareGroups = (a, b) => {
+    if (orderIndex) {
+      const aOrder = orderIndex.has(a.id) ? orderIndex.get(a.id) : Number.MAX_SAFE_INTEGER;
+      const bOrder = orderIndex.has(b.id) ? orderIndex.get(b.id) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+    }
+    return b.count - a.count || a.name.localeCompare(b.name, "zh-CN");
+  };
   const groups = new Map();
   const countryId = country?.id;
 
@@ -2918,7 +3049,7 @@ function buildCountryGroups(visits, placeLookup, country, options = {}) {
         };
       })
       .filter((group) => showLockedPlaces || group.count > 0)
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"));
+      .sort(compareGroups);
   }
 
   for (const visit of visits) {
@@ -2948,7 +3079,7 @@ function buildCountryGroups(visits, placeLookup, country, options = {}) {
       total: null,
       cities: Array.from(group.visitedCities.values()).sort((a, b) => a.name.localeCompare(b.name, "zh-CN")),
     }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"));
+    .sort(compareGroups);
 }
 
 function fitMiniCountryMap(map, country, layer) {
@@ -2979,6 +3110,7 @@ function MiniCountryMap({
   visitedByLevel,
   visitedCityVisits,
   visitedPlaces,
+  onPlaceFocus,
 }) {
   const miniRef = useRef(null);
   const mapRef = useRef(null);
@@ -2995,6 +3127,7 @@ function MiniCountryMap({
       zoomControl: false,
     });
     L.control.zoom({ position: "bottomleft" }).addTo(map);
+    map.on("click", () => setActiveVisitPreview(null));
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 20,
       subdomains: "abcd",
@@ -3114,7 +3247,9 @@ function MiniCountryMap({
           permanent: false,
           sticky: true,
         })
-        .on("click", () => {
+        .on("click", (event) => {
+          L.DomEvent.stopPropagation(event);
+          onPlaceFocus?.(canonicalPlaceId(place.mapId || place.id));
           setActiveVisitPreview({ place, visits: visitInfo });
         })
         .addTo(layer);
@@ -3128,7 +3263,7 @@ function MiniCountryMap({
       fitMiniCountryMap(map, country, layer);
       lastFitCountryRef.current = fitKey;
     }, 60);
-  }, [activeProfile, cityPlaces, country, detailLevel, profiles, regionPlaces, showLabels, visitedByLevel, visitedCityVisits, visitedPlaces]);
+  }, [activeProfile, cityPlaces, country, detailLevel, onPlaceFocus, profiles, regionPlaces, showLabels, visitedByLevel, visitedCityVisits, visitedPlaces]);
 
   return (
     <div className="mini-country-map-shell">
@@ -3227,6 +3362,7 @@ function PlaceSearchPanel({
   title,
   visitedPlaceIds,
   visits,
+  focusPlaceId,
   onDeleteVisit,
   onSignIn,
   onSignOut,
@@ -3235,6 +3371,7 @@ function PlaceSearchPanel({
   const [profileId, setProfileId] = useState(profiles[0]?.id || "");
   const [visitedAt, setVisitedAt] = useState("");
   const [type, setType] = useState("旅行");
+  const addedItemRefs = useRef(new Map());
 
   useEffect(() => {
     const validIds = new Set(profiles.map((profile) => profile.id));
@@ -3280,6 +3417,12 @@ function PlaceSearchPanel({
       });
     return Array.from(byPlace.values());
   }, [compact, places, visits]);
+
+  useEffect(() => {
+    if (!focusPlaceId) return;
+    const node = addedItemRefs.current.get(canonicalPlaceId(focusPlaceId));
+    node?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [focusPlaceId, addedPlaces]);
 
   async function handleAdd(place) {
     const existing = addedPlaces.find(
@@ -3333,11 +3476,9 @@ function PlaceSearchPanel({
             </option>
           ))}
         </select>
-        <input
+        <DatePrecisionInput
           disabled={!session || !isEditor}
-          onChange={(event) => setVisitedAt(event.target.value)}
-          placeholder="YYYY / YYYY-MM / YYYY-MM-DD"
-          type="text"
+          onChange={setVisitedAt}
           value={visitedAt}
         />
       </div>
@@ -3378,7 +3519,14 @@ function PlaceSearchPanel({
         <p>你去过的地方</p>
         {addedPlaces.length === 0 && <small>尚未标记地点。</small>}
         {addedPlaces.map(({ place, visit }) => (
-          <div key={visit.id}>
+          <div
+            key={visit.id}
+            ref={(node) => {
+              const key = canonicalPlaceId(place.mapId || place.id);
+              if (node) addedItemRefs.current.set(key, node);
+              else addedItemRefs.current.delete(key);
+            }}
+          >
             <FlagIcon place={place} />
             <span>
               <strong>{displayPlaceName(place)}</strong>
@@ -3489,12 +3637,7 @@ function VisitEditDialog({
         </div>
         <label>
           日期
-          <input
-            onChange={(event) => setVisitedAt(event.target.value)}
-            placeholder="YYYY / YYYY-MM / YYYY-MM-DD"
-            type="text"
-            value={visitedAt || ""}
-          />
+          <DatePrecisionInput onChange={setVisitedAt} value={visitedAt || ""} />
         </label>
         <label>
           类型
@@ -3603,6 +3746,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
   const [expandedCountries, setExpandedCountries] = useState(new Set());
 
   function renderContinentTitle(label) {
+    const imagePath = CONTINENT_ICON_IMAGES[label];
     return (
       <span className="continent-title">
         {label}
@@ -3611,6 +3755,11 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
             <img
               alt=""
               src="https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/aq.svg"
+            />
+          ) : imagePath ? (
+            <img
+              alt=""
+              src={`${import.meta.env.BASE_URL}${imagePath}`}
             />
           ) : (
             <svg viewBox="0 0 64 50" focusable="false">

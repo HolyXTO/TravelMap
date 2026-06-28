@@ -1057,6 +1057,70 @@ h2 {
   grid-column: 1 / -1;
 }
 
+.date-precision-input {
+  position: relative;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) 38px;
+}
+
+.date-precision-input input {
+  grid-column: auto;
+  padding-right: 10px;
+}
+
+.date-precision-input > button {
+  display: grid;
+  place-items: center;
+  border: 1px solid #cad6ce;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: #f8fafc;
+  color: #325141;
+  cursor: pointer;
+}
+
+.date-precision-input > input {
+  border-radius: 8px 0 0 8px;
+}
+
+.date-picker-popover {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  width: min(240px, 100%);
+  border: 1px solid #d7e1dc;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+  box-shadow: 0 16px 34px #0f172a22;
+}
+
+.date-picker-modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.date-picker-modes button {
+  border: 1px solid #d7e1dc;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 6px 4px;
+  color: #385147;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.date-picker-modes button.active {
+  border-color: #22c55e;
+  background: #ecfff2;
+  color: #15803d;
+}
+
 .search-field {
   display: flex;
   align-items: center;
@@ -1708,11 +1772,12 @@ h2 {
 .continent-icon {
   display: inline-grid;
   place-items: center;
-  width: 36px;
-  height: 26px;
+  width: 42px;
+  height: 32px;
   border: 1px solid #dbe5ef;
   border-radius: 6px;
   background: #ffffffcc;
+  overflow: hidden;
 }
 
 .continent-icon svg {
@@ -1721,8 +1786,8 @@ h2 {
 }
 
 .continent-icon img {
-  width: 30px;
-  height: 22px;
+  width: 38px;
+  height: 28px;
   object-fit: contain;
   border-radius: 3px;
 }
