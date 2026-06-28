@@ -633,10 +633,26 @@ function ringArea(ring = []) {
   return Math.abs(area / 2);
 }
 
+function appendPlaceGeometries(geometry, places = []) {
+  if (!geometry) return geometry;
+  const coordinates = [...(geometry.coordinates || [])];
+  for (const place of places) {
+    const source = place.geometry;
+    if (!source) continue;
+    if (source.type === "Polygon") {
+      coordinates.push(source.coordinates);
+    } else if (source.type === "MultiPolygon") {
+      coordinates.push(...source.coordinates);
+    }
+  }
+  return { ...geometry, coordinates };
+}
+
 function applyChinaRegionGeometry(countryPlaces, regionPlaces) {
   const chinaRegions = regionPlaces.filter((place) => place.countryCode === "CHN" && place.level === "region");
+  const specialRegionGeometries = chinaRegions.filter((place) => place.id === "CN-HK" || place.id === "CN-MO");
   const chinaGeometry =
-    extractOuterBoundaryGeometry(chinaRegions) ||
+    appendPlaceGeometries(extractOuterBoundaryGeometry(chinaRegions), specialRegionGeometries) ||
     mergePlaceGeometriesAsMultiPolygon(chinaRegions);
   if (!chinaGeometry) return countryPlaces;
   return countryPlaces.map((place) =>
@@ -1224,6 +1240,7 @@ function App() {
   const [editMessage, setEditMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [editingVisit, setEditingVisit] = useState(null);
+  const [quickAddFocusRequest, setQuickAddFocusRequest] = useState(null);
 
   function openVisitEditor(visit) {
     setAuthMessage("");
@@ -1949,6 +1966,7 @@ function App() {
           visitedPlaceIds={profileScopedVisitedPlaceIds}
           visits={profileScopedVisits}
           onDeleteVisit={deleteVisit}
+          focusRequest={quickAddFocusRequest}
         />
         <MapView
           activeLevel={activeLevel}
@@ -1970,6 +1988,9 @@ function App() {
           visitedByCountry={visitedByCountry}
           visitedCityVisits={visitedCityVisits}
           visitedPlaces={searchPlaces.filter((place) => visibleVisitedPlaceIds.has(canonicalPlaceId(place.id)))}
+          onPlaceFocus={(placeId) =>
+            setQuickAddFocusRequest({ placeId, token: Date.now() })
+          }
         />
       </section>
 
@@ -2105,6 +2126,7 @@ function MapView({
   visitedByCountry,
   visitedCityVisits,
   visitedPlaces,
+  onPlaceFocus,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -2290,6 +2312,7 @@ function MapView({
         .bindTooltip(city.localName, { sticky: true })
         .on("click", (event) => {
           L.DomEvent.stopPropagation(event);
+          onPlaceFocus?.(canonicalPlaceId(city.mapId || city.id));
           setActiveVisitPreview({ place: city, visits: visitInfo });
         })
         .addTo(layer);
@@ -2317,6 +2340,7 @@ function MapView({
     selectedPlaceId,
     setSelectedPlaceId,
     onCountryOpen,
+    onPlaceFocus,
     mapTheme,
     visitedByLevel,
     visitedByCountry,
@@ -2325,7 +2349,11 @@ function MapView({
   ]);
 
   return (
-    <div className="map-surface" style={{ "--map-bg": mapTheme.background }}>
+    <div
+      className="map-surface"
+      onClick={() => setActiveVisitPreview(null)}
+      style={{ "--map-bg": mapTheme.background }}
+    >
       <div className="map-head">
         <div>
           <p className="eyebrow">Layer</p>
@@ -2433,9 +2461,19 @@ function VisitPhotoOverlay({ onClose, place, profiles = [], visits = [] }) {
   const overlayRef = useRef(null);
   useEffect(() => {
     window.requestAnimationFrame(() => {
-      overlayRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      const host = overlayRef.current?.closest(".map-surface, .mini-country-map-shell");
+      host?.scrollIntoView({ block: "center", behavior: "smooth" });
+      window.setTimeout(() => window.scrollBy({ top: 72, behavior: "smooth" }), 160);
     });
   }, [place?.id, visits.length]);
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!overlayRef.current || overlayRef.current.contains(event.target)) return;
+      onClose?.();
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [onClose]);
 
   if (!place) return null;
   const profileNames = new Map(profiles.map((profile) => [profile.id, profile.name]));
@@ -2448,7 +2486,7 @@ function VisitPhotoOverlay({ onClose, place, profiles = [], visits = [] }) {
   );
 
   return (
-    <aside className="visit-photo-overlay" ref={overlayRef}>
+    <aside className="visit-photo-overlay" onClick={(event) => event.stopPropagation()} ref={overlayRef}>
       <header>
         <div>
           <strong>{displayPlaceName(place)}</strong>
@@ -2522,6 +2560,7 @@ function QuickAddDock({
   visitedPlaceIds,
   visits,
   onDeleteVisit,
+  focusRequest,
 }) {
   return (
     <aside className="quick-add-dock" aria-label="快速添加足迹">
@@ -2544,6 +2583,7 @@ function QuickAddDock({
         visitedPlaceIds={visitedPlaceIds}
         visits={visits}
         onDeleteVisit={onDeleteVisit}
+        focusRequest={focusRequest}
       />
     </aside>
   );
@@ -2592,7 +2632,7 @@ function CountryModal({
   const [modalMapLevel, setModalMapLevel] = useState(country.id === "CHN" ? "region" : "city");
   const [showMapLabels, setShowMapLabels] = useState(true);
   const [showLockedPlaces, setShowLockedPlaces] = useState(false);
-  const [focusedModalPlaceId, setFocusedModalPlaceId] = useState("");
+  const [focusedModalPlaceRequest, setFocusedModalPlaceRequest] = useState(null);
   const visitedRegions = new Set();
   const visitedCities = new Set();
   for (const visit of visits) {
@@ -2852,7 +2892,7 @@ function CountryModal({
               title={`添加 ${country.localName || country.name} 的地点`}
               visitedPlaceIds={modalVisitedPlaceIds}
               visits={visits}
-              focusPlaceId={focusedModalPlaceId}
+              focusRequest={focusedModalPlaceRequest}
             />
           )}
           <div className="modal-map-wrap">
@@ -2891,7 +2931,9 @@ function CountryModal({
               visitedByLevel={modalVisitedByLevel}
               visitedCityVisits={modalVisitedCityVisits}
               visitedPlaces={countryPlaces.filter((place) => modalVisitedPlaceIds.has(canonicalPlaceId(place.id)))}
-              onPlaceFocus={setFocusedModalPlaceId}
+              onPlaceFocus={(placeId) =>
+                setFocusedModalPlaceRequest({ placeId, token: Date.now() })
+              }
             />
           </div>
           {comparisonMode ? (
@@ -3266,7 +3308,7 @@ function MiniCountryMap({
   }, [activeProfile, cityPlaces, country, detailLevel, onPlaceFocus, profiles, regionPlaces, showLabels, visitedByLevel, visitedCityVisits, visitedPlaces]);
 
   return (
-    <div className="mini-country-map-shell">
+    <div className="mini-country-map-shell" onClick={() => setActiveVisitPreview(null)}>
       <div className="mini-country-map" ref={miniRef} />
       <button
         aria-label="恢复初始视野"
@@ -3362,7 +3404,7 @@ function PlaceSearchPanel({
   title,
   visitedPlaceIds,
   visits,
-  focusPlaceId,
+  focusRequest,
   onDeleteVisit,
   onSignIn,
   onSignOut,
@@ -3419,10 +3461,11 @@ function PlaceSearchPanel({
   }, [compact, places, visits]);
 
   useEffect(() => {
-    if (!focusPlaceId) return;
-    const node = addedItemRefs.current.get(canonicalPlaceId(focusPlaceId));
-    node?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [focusPlaceId, addedPlaces]);
+    const targetId = typeof focusRequest === "string" ? focusRequest : focusRequest?.placeId;
+    if (!targetId) return;
+    const node = addedItemRefs.current.get(canonicalPlaceId(targetId));
+    node?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [focusRequest, addedPlaces]);
 
   async function handleAdd(place) {
     const existing = addedPlaces.find(

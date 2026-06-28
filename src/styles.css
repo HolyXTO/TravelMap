@@ -454,7 +454,7 @@ h2 {
 
 .leaflet-control-zoom {
   margin-left: 12px !important;
-  margin-bottom: 70px !important;
+  margin-bottom: 50px !important;
 }
 
 .country-hover-label {
@@ -464,13 +464,13 @@ h2 {
 .map-reset-button {
   position: absolute;
   z-index: 900;
-  bottom: 22px;
-  left: 22px;
+  bottom: 12px;
+  left: 12px;
   display: grid;
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 2px solid #aeb6bd;
+  border: 1px solid #aeb6bd;
   border-radius: 4px;
   background: #ffffff;
   color: #0f172a;
@@ -612,12 +612,12 @@ h2 {
 .visit-photo-overlay {
   position: absolute;
   z-index: 1150;
-  top: 86px;
+  top: 74px;
   right: 92px;
   display: grid;
   gap: 10px;
   width: min(620px, calc(100% - 140px));
-  max-height: calc(100% - 112px);
+  max-height: calc(100% - 92px);
   overflow: auto;
   border: 1px solid #d8e2ee;
   border-radius: 8px;
@@ -659,7 +659,7 @@ h2 {
 .visit-photo-meta {
   display: grid;
   gap: 6px;
-  max-height: 128px;
+  max-height: 92px;
   overflow: auto;
   margin: 0;
   padding: 0;
@@ -706,8 +706,8 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 260px;
-  height: min(58vh, 520px);
+  min-height: 200px;
+  height: min(42vh, 360px);
   margin: 0;
   overflow: hidden;
   border-radius: 8px;
@@ -1481,13 +1481,13 @@ h2 {
 }
 
 .mini-country-map-shell .leaflet-control-zoom {
-  margin-bottom: 58px !important;
+  margin-bottom: 50px !important;
 }
 
 .mini-map-reset-button {
   position: absolute;
   z-index: 700;
-  bottom: 16px;
+  bottom: 12px;
   left: 12px;
   display: grid;
   place-items: center;
@@ -2325,7 +2325,7 @@ h2 {
   }
 
   .visit-photo-carousel figure {
-    height: min(52vh, 420px);
+    height: min(38vh, 320px);
   }
 
   .quick-add-dock {
