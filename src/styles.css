@@ -1766,17 +1766,17 @@ h2 {
 .continent-title {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .continent-icon {
   display: inline-grid;
   place-items: center;
-  width: 42px;
-  height: 32px;
-  border: 1px solid #dbe5ef;
-  border-radius: 6px;
-  background: #ffffffcc;
+  width: auto;
+  height: 1em;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
 }
 
@@ -1786,10 +1786,10 @@ h2 {
 }
 
 .continent-icon img {
-  width: 38px;
-  height: 28px;
+  width: auto;
+  height: 1em;
   object-fit: contain;
-  border-radius: 3px;
+  border-radius: 0;
 }
 
 .continent-icon path {

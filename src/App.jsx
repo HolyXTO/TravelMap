@@ -258,6 +258,7 @@ const CONTINENT_ICON_IMAGES = {
   [CONTINENT_LABELS.Oceania]: "continent-icons/oceania.png",
   [CONTINENT_LABELS["North America"]]: "continent-icons/north-america.png",
   [CONTINENT_LABELS["South America"]]: "continent-icons/south-america.png",
+  [CONTINENT_LABELS.Antarctica]: "continent-icons/antarctica.png",
 };
 
 const PLACE_NAME_OVERRIDES = {
@@ -450,6 +451,12 @@ const COUNTRY_NAME_ZH_OVERRIDES = {
   ATA: "南极洲",
 };
 
+const COUNTRY_LABEL_CENTERS = {
+  PRK: [40.25, 127.35],
+  KOR: [36.35, 127.85],
+  JPN: [38.1, 138.15],
+};
+
 function geometryCenter(geometry) {
   const points = [];
   const collect = (item) => {
@@ -573,43 +580,65 @@ function extractOuterBoundaryGeometry(places = []) {
   }
 
   const adjacency = new Map();
+  const pointLookup = new Map();
   const connect = (a, b) => {
-    if (!adjacency.has(a)) adjacency.set(a, new Set());
-    adjacency.get(a).add(b);
+    if (!adjacency.has(a)) adjacency.set(a, []);
+    adjacency.get(a).push(b);
+    pointLookup.set(a, pointFromEdgeKey(a));
+    pointLookup.set(b, pointFromEdgeKey(b));
   };
   edges.forEach(([a, b]) => {
     connect(a, b);
     connect(b, a);
   });
 
-  const remaining = new Set(edges.keys());
-  const takeEdge = (a, b) => {
-    const key = edgeKey(a, b);
-    remaining.delete(key);
-    adjacency.get(a)?.delete(b);
-    adjacency.get(b)?.delete(a);
-  };
+  adjacency.forEach((neighbors, key) => {
+    const [lon, lat] = pointLookup.get(key);
+    neighbors.sort((aKey, bKey) => {
+      const [aLon, aLat] = pointLookup.get(aKey);
+      const [bLon, bLat] = pointLookup.get(bKey);
+      return Math.atan2(aLat - lat, aLon - lon) - Math.atan2(bLat - lat, bLon - lon);
+    });
+  });
+
+  const visited = new Set();
+  const directedEdgeKey = (a, b) => `${a}->${b}`;
   const polygons = [];
 
-  for (const [startA, startB] of edges.values()) {
-    if (!remaining.has(edgeKey(startA, startB))) continue;
-    const ringKeys = [startA, startB];
-    takeEdge(startA, startB);
-    let previous = startA;
-    let current = startB;
+  for (const [edgeA, edgeB] of edges.values()) {
+    for (const [startA, startB] of [
+      [edgeA, edgeB],
+      [edgeB, edgeA],
+    ]) {
+      if (visited.has(directedEdgeKey(startA, startB))) continue;
 
-    for (let guard = 0; guard < edges.size + 8 && current !== startA; guard += 1) {
-      const candidates = [...(adjacency.get(current) || [])];
-      if (candidates.length === 0) break;
-      const next = candidates.find((candidate) => candidate !== previous) || candidates[0];
-      ringKeys.push(next);
-      takeEdge(current, next);
-      previous = current;
-      current = next;
-    }
+      const ringKeys = [];
+      let previous = startA;
+      let current = startB;
 
-    if (ringKeys.length > 3 && ringKeys[ringKeys.length - 1] === startA) {
-      polygons.push([ringKeys.map(pointFromEdgeKey)]);
+      for (let guard = 0; guard < edges.size * 2 + 20; guard += 1) {
+        const currentDirectedKey = directedEdgeKey(previous, current);
+        if (visited.has(currentDirectedKey)) break;
+        visited.add(currentDirectedKey);
+        ringKeys.push(previous);
+
+        const candidates = adjacency.get(current) || [];
+        const previousIndex = candidates.indexOf(previous);
+        if (previousIndex < 0) break;
+
+        const next = candidates[(previousIndex - 1 + candidates.length) % candidates.length];
+        previous = current;
+        current = next;
+
+        if (previous === startA && current === startB) {
+          ringKeys.push(previous);
+          break;
+        }
+      }
+
+      if (ringKeys.length > 3 && ringKeys[ringKeys.length - 1] === startA) {
+        polygons.push([ringKeys.map(pointFromEdgeKey)]);
+      }
     }
   }
 
@@ -617,7 +646,7 @@ function extractOuterBoundaryGeometry(places = []) {
     ? {
         type: "MultiPolygon",
         coordinates: polygons
-          .map((polygon) => ({ polygon, area: ringArea(polygon[0]) }))
+          .map((polygon) => ({ polygon, area: ringSignedArea(polygon[0]) }))
           .filter((item) => item.area > 1)
           .sort((a, b) => b.area - a.area)
           .map((item) => item.polygon),
@@ -625,12 +654,12 @@ function extractOuterBoundaryGeometry(places = []) {
     : null;
 }
 
-function ringArea(ring = []) {
+function ringSignedArea(ring = []) {
   let area = 0;
   for (let index = 0; index < ring.length - 1; index += 1) {
     area += ring[index][0] * ring[index + 1][1] - ring[index + 1][0] * ring[index][1];
   }
-  return Math.abs(area / 2);
+  return area / 2;
 }
 
 function appendPlaceGeometries(geometry, places = []) {
@@ -778,6 +807,9 @@ function placeToFeature(place) {
       level: place.level,
       name: place.name,
       localName: place.localName,
+      center: place.center,
+      countryCode: place.countryCode,
+      isoA2: place.isoA2,
     },
     geometry: Array.isArray(place.geometry)
       ? { type: "Polygon", coordinates: [place.geometry] }
@@ -1450,6 +1482,10 @@ function App() {
     yearFilter,
   ]);
 
+  useEffect(() => {
+    setQuickAddFocusRequest(null);
+  }, [activeProfile, activeLevel]);
+
   const visitedByLevel = useMemo(() => {
     const result = new Map();
     for (const visit of filteredVisits) {
@@ -1967,6 +2003,7 @@ function App() {
           visits={profileScopedVisits}
           onDeleteVisit={deleteVisit}
           focusRequest={quickAddFocusRequest}
+          onFocusConsumed={() => setQuickAddFocusRequest(null)}
         />
         <MapView
           activeLevel={activeLevel}
@@ -2007,7 +2044,10 @@ function App() {
           isEditor={isEditor}
           isSaving={isSaving}
           onEditVisit={openVisitEditor}
-          onClose={() => setCountryModalId(null)}
+          onClose={() => {
+            setCountryModalId(null);
+            setQuickAddFocusRequest(null);
+          }}
           onDeleteVisit={deleteVisit}
             profiles={appProfiles}
           regionPlaces={mapPlaces.region}
@@ -2104,6 +2144,15 @@ function ComparisonDiffPopover({ diff, leftLabel, rightLabel, type }) {
       {renderItems(diff.rightOnly)}
     </div>
   );
+}
+
+function countryTooltipLatLng(feature) {
+  const props = feature?.properties || {};
+  const id = props.id || props.countryCode;
+  if (COUNTRY_LABEL_CENTERS[id]) return L.latLng(COUNTRY_LABEL_CENTERS[id]);
+  const [lon, lat] = props.center || [];
+  if (Number.isFinite(lon) && Number.isFinite(lat)) return L.latLng(lat, lon);
+  return null;
 }
 
 function MapView({
@@ -2217,17 +2266,30 @@ function MapView({
         };
       },
       onEachFeature: (feature, leafletLayer) => {
-        leafletLayer.bindTooltip(feature.properties.localName || feature.properties.name, {
+        const label = countryNameZh(
+          feature.properties.id || feature.properties.countryCode,
+          feature.properties.isoA2,
+          feature.properties.localName || feature.properties.name,
+        );
+        const tooltip = L.tooltip({
           className: "country-hover-label",
           direction: "center",
-          sticky: false,
-        });
+          permanent: false,
+        }).setContent(label);
         leafletLayer.on("click", () => {
           setSelectedPlaceId(feature.properties.id);
           onCountryOpen(feature.properties.id);
         });
         leafletLayer.on("mouseover", () => {
           setSelectedPlaceId(feature.properties.id);
+          const latLng = countryTooltipLatLng(feature);
+          if (latLng) {
+            tooltip.setLatLng(latLng);
+            tooltip.addTo(map);
+          }
+        });
+        leafletLayer.on("mouseout", () => {
+          tooltip.remove();
         });
       },
     }).addTo(layer);
@@ -2561,6 +2623,7 @@ function QuickAddDock({
   visits,
   onDeleteVisit,
   focusRequest,
+  onFocusConsumed,
 }) {
   return (
     <aside className="quick-add-dock" aria-label="快速添加足迹">
@@ -2584,6 +2647,7 @@ function QuickAddDock({
         visits={visits}
         onDeleteVisit={onDeleteVisit}
         focusRequest={focusRequest}
+        onFocusConsumed={onFocusConsumed}
       />
     </aside>
   );
@@ -2800,7 +2864,7 @@ function CountryModal({
             </div>
             <small>
               {regionTotal
-                ? `地图上已点亮 ${targetVisitedRegions.size} 省 / 自治区 · ${targetRegionProgress.toFixed(1)}%`
+                ? `已点亮 ${targetVisitedRegions.size} 省 / 自治区 · ${targetRegionProgress.toFixed(1)}%`
                 : "当前国家暂无省级边界数据"}
             </small>
           </article>
@@ -2893,6 +2957,7 @@ function CountryModal({
               visitedPlaceIds={modalVisitedPlaceIds}
               visits={visits}
               focusRequest={focusedModalPlaceRequest}
+              onFocusConsumed={() => setFocusedModalPlaceRequest(null)}
             />
           )}
           <div className="modal-map-wrap">
@@ -2952,7 +3017,7 @@ function CountryModal({
                 </div>
                 <small>
                   {regionTotal
-                    ? `地图上已点亮 ${visitedRegions.size} 省 / 自治区 · ${regionProgress.toFixed(1)}%`
+                    ? `已点亮 ${visitedRegions.size} 省 / 自治区 · ${regionProgress.toFixed(1)}%`
                     : "当前国家暂无省级边界数据"}
                 </small>
               </article>
@@ -3405,6 +3470,7 @@ function PlaceSearchPanel({
   visitedPlaceIds,
   visits,
   focusRequest,
+  onFocusConsumed,
   onDeleteVisit,
   onSignIn,
   onSignOut,
@@ -3463,9 +3529,12 @@ function PlaceSearchPanel({
   useEffect(() => {
     const targetId = typeof focusRequest === "string" ? focusRequest : focusRequest?.placeId;
     if (!targetId) return;
-    const node = addedItemRefs.current.get(canonicalPlaceId(targetId));
-    node?.scrollIntoView({ block: "start", behavior: "smooth" });
-  }, [focusRequest, addedPlaces]);
+    window.setTimeout(() => {
+      const node = addedItemRefs.current.get(canonicalPlaceId(targetId));
+      node?.scrollIntoView({ block: "start", behavior: "smooth" });
+      onFocusConsumed?.();
+    }, 0);
+  }, [focusRequest, onFocusConsumed]);
 
   async function handleAdd(place) {
     const existing = addedPlaces.find(
@@ -3794,12 +3863,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
       <span className="continent-title">
         {label}
         <span className="continent-icon" aria-hidden="true">
-          {label === CONTINENT_LABELS.Antarctica ? (
-            <img
-              alt=""
-              src="https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/aq.svg"
-            />
-          ) : imagePath ? (
+          {imagePath ? (
             <img
               alt=""
               src={`${import.meta.env.BASE_URL}${imagePath}`}
