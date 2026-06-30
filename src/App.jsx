@@ -99,14 +99,14 @@ const CONTINENT_ACCENTS = {
 const COUNTRY_DOT_COLORS = ["#2563eb", "#16a34a", "#ea580c", "#7c3aed", "#dc2626", "#0f766e", "#ca8a04"];
 const PROFILE_TONES = [
   {
-    fill: "#f3a6bd",
-    stroke: "#be4469",
-    marker: "#d9467a",
-  },
-  {
     fill: "#6aa6d9",
     stroke: "#2463a8",
     marker: "#2563eb",
+  },
+  {
+    fill: "#f3a6bd",
+    stroke: "#be4469",
+    marker: "#d9467a",
   },
 ];
 function countryDotColor(id) {
@@ -3853,6 +3853,7 @@ function MapView({
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const tileLayerRef = useRef(null);
+  const vectorRendererRef = useRef(null);
   const countryLabelRef = useRef(null);
   const lastLevelRef = useRef(null);
   const [activeVisitPreview, setActiveVisitPreview] = useState(null);
@@ -3870,7 +3871,14 @@ function MapView({
       scrollWheelZoom: true,
       worldCopyJump: false,
       zoomControl: false,
+      preferCanvas: true,
+      zoomAnimation: false,
+      fadeAnimation: false,
+      markerZoomAnimation: false,
+      wheelDebounceTime: 35,
+      wheelPxPerZoomLevel: 80,
     });
+    vectorRendererRef.current = L.canvas({ padding: 0.45 });
     map.setMaxBounds([
       [-64, -180],
       [84, 180],
@@ -3884,6 +3892,7 @@ function MapView({
     return () => {
       map.remove();
       mapRef.current = null;
+      vectorRendererRef.current = null;
     };
   }, []);
 
@@ -3915,6 +3924,8 @@ function MapView({
       maxZoom: 20,
       noWrap: false,
       keepBuffer: 4,
+      updateWhenZooming: true,
+      updateWhenIdle: false,
       subdomains: "abcd",
     }).addTo(map);
   }, [mapTheme]);
@@ -3932,6 +3943,7 @@ function MapView({
     }
 
     const layer = L.featureGroup().addTo(map);
+    const vectorRenderer = vectorRendererRef.current || undefined;
     const hideCountryLabel = () => {
       if (countryLabelRef.current) {
         countryLabelRef.current.remove();
@@ -3960,46 +3972,47 @@ function MapView({
         features: countryPlaces.map(placeToFeature),
       },
       {
-      style: (feature) => {
-        const id = feature.properties.id;
-        const visitInfo = visitedByCountry.get(id);
-        const tone = visitTone(visitInfo, profiles, mapTheme, activeProfile);
-        const isSelected = selectedPlaceId === id;
-        const isSubLevelCountryBase = activeLevel !== "country" && id === "CHN" && visitInfo;
-        return {
-          color: isSelected
-            ? mapTheme.selectedStroke
-            : tone
-              ? tone.stroke
-              : mapTheme.emptyStroke,
-          weight: isSelected ? 1.5 : 0.65,
-          opacity: 0.95,
-          fillColor: tone
-            ? isSubLevelCountryBase
-              ? mapTheme.countryBaseFill || mapTheme.visitedFill
-              : tone.fill
-            : mapTheme.emptyFill,
-          fillOpacity: tone ? (isSubLevelCountryBase ? 0.34 : 0.72) : activeLevel === "country" ? 0.46 : 0.26,
-        };
+        renderer: vectorRenderer,
+        style: (feature) => {
+          const id = feature.properties.id;
+          const visitInfo = visitedByCountry.get(id);
+          const tone = visitTone(visitInfo, profiles, mapTheme, activeProfile);
+          const isSelected = selectedPlaceId === id;
+          const isSubLevelCountryBase = activeLevel !== "country" && id === "CHN" && visitInfo;
+          return {
+            color: isSelected
+              ? mapTheme.selectedStroke
+              : tone
+                ? tone.stroke
+                : mapTheme.emptyStroke,
+            weight: isSelected ? 1.5 : 0.65,
+            opacity: 0.95,
+            fillColor: tone
+              ? isSubLevelCountryBase
+                ? mapTheme.countryBaseFill || mapTheme.visitedFill
+                : tone.fill
+              : mapTheme.emptyFill,
+            fillOpacity: tone ? (isSubLevelCountryBase ? 0.34 : 0.72) : activeLevel === "country" ? 0.46 : 0.26,
+          };
+        },
+        onEachFeature: (feature, leafletLayer) => {
+          leafletLayer.on("click", () => {
+            setSelectedPlaceId(feature.properties.id);
+            showCountryLabel(feature);
+            onCountryOpen(feature.properties.id);
+          });
+          leafletLayer.on("mouseover", () => {
+            showCountryLabel(feature);
+          });
+          leafletLayer.on("mousemove", () => {
+            showCountryLabel(feature);
+          });
+          leafletLayer.on("mouseout", () => {
+            hideCountryLabel();
+          });
+        },
       },
-      onEachFeature: (feature, leafletLayer) => {
-        leafletLayer.on("click", () => {
-          setSelectedPlaceId(feature.properties.id);
-          showCountryLabel(feature);
-          onCountryOpen(feature.properties.id);
-        });
-        leafletLayer.on("mouseover", () => {
-          setSelectedPlaceId(feature.properties.id);
-          showCountryLabel(feature);
-        });
-        leafletLayer.on("mousemove", () => {
-          showCountryLabel(feature);
-        });
-        leafletLayer.on("mouseout", () => {
-          hideCountryLabel();
-        });
-      },
-    }).addTo(layer);
+    ).addTo(layer);
 
     if (activeLevel !== "country" && displayPlaces.length > 0) {
       L.geoJSON(
@@ -4008,6 +4021,7 @@ function MapView({
           features: displayPlaces.map(placeToFeature),
         },
         {
+          renderer: vectorRenderer,
           style: (feature) => {
             const id = feature.properties.id;
             const visitInfo = visitedByLevel.get(id);
@@ -4042,6 +4056,7 @@ function MapView({
           features: regionPlaces.map(placeToFeature),
         },
         {
+          renderer: vectorRenderer,
           interactive: false,
           style: {
             color: "#536579",
@@ -4072,6 +4087,7 @@ function MapView({
       const [lon, lat] = city.center;
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
       L.circleMarker([lat, lon], {
+        renderer: vectorRenderer,
         radius: activeLevel === "city" ? 5 : 3.5,
         color: mapTheme.markerStroke,
         weight: 1.5,
