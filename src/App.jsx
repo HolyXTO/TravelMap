@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   CalendarDays,
+  ChevronLeft,
   ChevronDown,
   ChevronRight,
   Database,
@@ -33,6 +36,7 @@ import {
 import { supabase } from "./lib/supabase";
 
 const PHOTO_BUCKET = "travel-photos";
+const GLOBE_SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
 const CHINA_BOUNDS = [
   [18, 73],
   [54, 135],
@@ -1084,6 +1088,174 @@ function calculateVisitStats(targetVisits, placeLookup) {
   };
 }
 
+function placeLatLng(place) {
+  const [lng, lat] = place?.center || [];
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+function buildJourneyPoints(targetVisits, placeLookup) {
+  const uniquePoints = new Map();
+  const sequence = [];
+  const orderedVisits = [...targetVisits].reverse();
+  for (const visit of orderedVisits) {
+    const place =
+      resolvePlaceForLevel(visit.placeId, "city", placeLookup) ||
+      findPlace(visit.placeId, placeLookup);
+    const latLng = placeLatLng(place);
+    if (!place || !latLng) continue;
+    const id = canonicalPlaceId(place.id);
+    const point = {
+      id,
+      lat: latLng.lat,
+      lng: latLng.lng,
+      name: displayPlaceName(place),
+      country: displayCountryName(resolvePlaceForLevel(visit.placeId, "country", placeLookup)),
+    };
+    if (!uniquePoints.has(id)) uniquePoints.set(id, point);
+    if (sequence.at(-1)?.id !== id) sequence.push(point);
+  }
+  const points = Array.from(uniquePoints.values()).slice(0, 220);
+  const arcs = [];
+  for (let index = 1; index < sequence.length && arcs.length < 90; index += 1) {
+    const start = sequence[index - 1];
+    const end = sequence[index];
+    if (start.id !== end.id) arcs.push({ id: `${start.id}-${end.id}-${index}`, start, end });
+  }
+  return { points, arcs };
+}
+
+function mapRoute(row) {
+  const meta = parseVisitMeta(row.note);
+  return {
+    id: row.id,
+    profileId: row.profile_id,
+    startPlaceId: row.start_place_id,
+    endPlaceId: row.end_place_id,
+    traveledAt: row.traveled_at,
+    dateDisplay: meta.dateDisplay || row.traveled_at || "",
+    datePrecision: meta.datePrecision || "day",
+  };
+}
+
+function routeArcFromPlaces(route, placeLookup) {
+  const startPlace = findPlace(route.startPlaceId, placeLookup);
+  const endPlace = findPlace(route.endPlaceId, placeLookup);
+  const startLatLng = placeLatLng(startPlace);
+  const endLatLng = placeLatLng(endPlace);
+  if (!startPlace || !endPlace || !startLatLng || !endLatLng) return null;
+  return {
+    id: `route-${route.id}`,
+    routeId: route.id,
+    profileId: route.profileId,
+    start: {
+      id: canonicalPlaceId(startPlace.id),
+      lat: startLatLng.lat,
+      lng: startLatLng.lng,
+      name: displayPlaceName(startPlace),
+      country: displayCountryName(resolvePlaceForLevel(startPlace.id, "country", placeLookup)),
+    },
+    end: {
+      id: canonicalPlaceId(endPlace.id),
+      lat: endLatLng.lat,
+      lng: endLatLng.lng,
+      name: displayPlaceName(endPlace),
+      country: displayCountryName(resolvePlaceForLevel(endPlace.id, "country", placeLookup)),
+    },
+    dateDisplay: route.dateDisplay,
+    generated: false,
+  };
+}
+
+function buildRouteArcs(routes, placeLookup) {
+  return routes
+    .map((route) => routeArcFromPlaces(route, placeLookup))
+    .filter(Boolean)
+    .slice(0, 160);
+}
+
+function collectGeometryCoordinates(geometry, output = []) {
+  if (!geometry) return output;
+  const walk = (item) => {
+    if (!Array.isArray(item)) return;
+    if (typeof item[0] === "number" && typeof item[1] === "number") {
+      output.push(item);
+      return;
+    }
+    item.forEach(walk);
+  };
+  walk(geometry.coordinates || geometry);
+  return output;
+}
+
+function geometryPolygons(geometry) {
+  if (!geometry) return [];
+  if (geometry.type === "Polygon") return [geometry.coordinates || []];
+  if (geometry.type === "MultiPolygon") return geometry.coordinates || [];
+  return [];
+}
+
+function ringBounds(ring) {
+  return ring.reduce(
+    (bounds, point) => ({
+      minLng: Math.min(bounds.minLng, point[0]),
+      maxLng: Math.max(bounds.maxLng, point[0]),
+      minLat: Math.min(bounds.minLat, point[1]),
+      maxLat: Math.max(bounds.maxLat, point[1]),
+    }),
+    { minLng: 180, maxLng: -180, minLat: 90, maxLat: -90 },
+  );
+}
+
+function isPointInBounds(lng, lat, bounds) {
+  return lng >= bounds.minLng && lng <= bounds.maxLng && lat >= bounds.minLat && lat <= bounds.maxLat;
+}
+
+function isPointInRing(lng, lat, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const xi = ring[i][0];
+    const yi = ring[i][1];
+    const xj = ring[j][0];
+    const yj = ring[j][1];
+    const intersects = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi || 1e-12) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function isPointInPolygon(lng, lat, polygon) {
+  if (!polygon.rings.length || !isPointInBounds(lng, lat, polygon.bounds)) return false;
+  if (!isPointInRing(lng, lat, polygon.rings[0])) return false;
+  return !polygon.rings.slice(1).some((ring) => isPointInRing(lng, lat, ring));
+}
+
+function buildWorldShapeDots(countryPlaces) {
+  const polygons = countryPlaces
+    .filter((country) => country.id !== "ATA")
+    .flatMap((country) =>
+      geometryPolygons(country.geometry)
+        .filter((rings) => rings?.[0]?.length)
+        .map((rings) => ({
+          bounds: ringBounds(rings[0]),
+          rings,
+        })),
+    );
+  const dots = [];
+  const latStep = 2.15;
+  const lngStep = 2.15;
+  let row = 0;
+  for (let lat = 82; lat >= -57; lat -= latStep, row += 1) {
+    const offset = row % 2 === 0 ? 0 : lngStep / 2;
+    for (let lng = -178 + offset; lng <= 180; lng += lngStep) {
+      if (polygons.some((polygon) => isPointInPolygon(lng, lat, polygon))) {
+        dots.push({ id: `${lng.toFixed(2)},${lat.toFixed(2)}`, lat, lng });
+      }
+    }
+  }
+  return dots;
+}
+
 function collectUniquePlacesForLevel(targetVisits, placeLookup, level) {
   const result = new Map();
   for (const visit of targetVisits) {
@@ -1260,6 +1432,15 @@ function App() {
   const [activeMapThemeId, setActiveMapThemeId] = useState("copper");
   const [appProfiles, setAppProfiles] = useState(profiles);
   const [visits, setVisits] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  const [routeMessage, setRouteMessage] = useState("");
+  const [hiddenGeneratedRouteIds, setHiddenGeneratedRouteIds] = useState(() => {
+    try {
+      return new Set(JSON.parse(window.localStorage.getItem("travelmap-hidden-generated-routes") || "[]"));
+    } catch {
+      return new Set();
+    }
+  });
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
   const [countryModalId, setCountryModalId] = useState(null);
   const [mapPlaces, setMapPlaces] = useState({ country: [], region: [], city: [] });
@@ -1269,10 +1450,13 @@ function App() {
   const [session, setSession] = useState(null);
   const [isEditor, setIsEditor] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
+  const [authPanelOpen, setAuthPanelOpen] = useState(false);
   const [editMessage, setEditMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [editingVisit, setEditingVisit] = useState(null);
   const [quickAddFocusRequest, setQuickAddFocusRequest] = useState(null);
+  const [profileSettingsOpen, setProfileSettingsOpen] = useState(false);
+  const [profileSettingsMessage, setProfileSettingsMessage] = useState("");
 
   function openVisitEditor(visit) {
     setAuthMessage("");
@@ -1297,6 +1481,13 @@ function App() {
     }
   }, [activeProfile, appProfiles]);
 
+  useEffect(() => {
+    window.localStorage.setItem(
+      "travelmap-hidden-generated-routes",
+      JSON.stringify(Array.from(hiddenGeneratedRouteIds)),
+    );
+  }, [hiddenGeneratedRouteIds]);
+
   const loadTravelData = async () => {
     try {
       setDataStatus("正在同步 Supabase 数据");
@@ -1319,11 +1510,24 @@ function App() {
       const nextProfiles = profilesResult.data.map(mapProfile);
       setAppProfiles(nextProfiles.length > 0 ? nextProfiles : profiles);
       setVisits(visitsResult.data.map(mapVisit));
+      const routesResult = await supabase
+        .from("travel_routes")
+        .select("id, profile_id, start_place_id, end_place_id, traveled_at, note, created_by, created_at")
+        .order("created_at", { ascending: false });
+      if (routesResult.error) {
+        console.warn("travel_routes is not ready yet", routesResult.error);
+        setRoutes([]);
+        setRouteMessage("轨迹表还未创建，执行 supabase/schema.sql 后可保存真实轨迹。");
+      } else {
+        setRoutes(routesResult.data.map(mapRoute));
+        setRouteMessage("");
+      }
       setDataStatus("Supabase 已连接");
     } catch (error) {
       console.error(error);
       setAppProfiles(profiles);
       setVisits(initialVisits);
+      setRoutes([]);
       setDataStatus("Supabase 暂不可用，正在显示本地示例数据");
     }
   };
@@ -1688,6 +1892,45 @@ function App() {
     };
   }, [appProfiles, placeLookup, visits]);
 
+  const generatedJourneyVisuals = useMemo(
+    () => buildJourneyPoints(filteredVisits, placeLookup),
+    [filteredVisits, placeLookup],
+  );
+
+  const profileScopedRoutes = useMemo(
+    () =>
+      activeProfile === "all"
+        ? routes
+        : routes.filter((route) => route.profileId === activeProfile),
+    [activeProfile, routes],
+  );
+
+  const routeArcs = useMemo(
+    () => buildRouteArcs(profileScopedRoutes, placeLookup),
+    [placeLookup, profileScopedRoutes],
+  );
+
+  const generatedRouteArcs = useMemo(
+    () =>
+      generatedJourneyVisuals.arcs
+        .map((arc, index) => ({ ...arc, id: `generated-${arc.id}`, generated: true, generatedIndex: index }))
+        .filter((arc) => !hiddenGeneratedRouteIds.has(arc.id)),
+    [generatedJourneyVisuals.arcs, hiddenGeneratedRouteIds],
+  );
+
+  const journeyVisuals = useMemo(
+    () => ({
+      points: generatedJourneyVisuals.points,
+      arcs: [...routeArcs, ...generatedRouteArcs].slice(0, 160),
+    }),
+    [generatedJourneyVisuals.points, generatedRouteArcs, routeArcs],
+  );
+
+  const worldShapeDots = useMemo(
+    () => buildWorldShapeDots(mapPlaces.country),
+    [mapPlaces.country],
+  );
+
   function changeLevel(levelId) {
     setActiveLevel(levelId);
     if (levelId === "region" || levelId === "city") {
@@ -1872,6 +2115,79 @@ function App() {
     }
   }
 
+  async function saveRoute({ endPlaceId, id, profileId, startPlaceId, traveledAt }) {
+    if (!session || !isEditor) {
+      setRouteMessage("请先用已授权账号登录后再保存轨迹。");
+      return false;
+    }
+    if (!profileId || !startPlaceId || !endPlaceId) {
+      setRouteMessage("请选择人物、起点和终点。");
+      return false;
+    }
+    if (canonicalPlaceId(startPlaceId) === canonicalPlaceId(endPlaceId)) {
+      setRouteMessage("起点和终点不能是同一个地点。");
+      return false;
+    }
+    try {
+      setIsSaving(true);
+      setRouteMessage("");
+      const normalizedDate = normalizeVisitDateInput(traveledAt);
+      const payload = {
+        profile_id: profileId,
+        start_place_id: startPlaceId,
+        end_place_id: endPlaceId,
+        traveled_at: normalizedDate.dbDate,
+        note: buildVisitNote({
+          dateDisplay: normalizedDate.display,
+          datePrecision: normalizedDate.precision,
+        }),
+        created_by: session.user.id,
+      };
+      const result = id
+        ? await supabase.from("travel_routes").update(payload).eq("id", id)
+        : await supabase.from("travel_routes").insert(payload);
+      if (result.error) throw result.error;
+      await loadTravelData();
+      setRouteMessage(id ? "轨迹已更新。" : "轨迹已保存。");
+      return true;
+    } catch (error) {
+      console.error(error);
+      setRouteMessage(`轨迹保存失败：${error.message}`);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function deleteRoute(routeId) {
+    if (!session || !isEditor) {
+      setRouteMessage("请先用已授权账号登录后再删除轨迹。");
+      return false;
+    }
+    const ok = window.confirm("确认删除这条轨迹吗？");
+    if (!ok) return false;
+    try {
+      setIsSaving(true);
+      setRouteMessage("");
+      const { error } = await supabase.from("travel_routes").delete().eq("id", routeId);
+      if (error) throw error;
+      await loadTravelData();
+      setRouteMessage("轨迹已删除。");
+      return true;
+    } catch (error) {
+      console.error(error);
+      setRouteMessage(`轨迹删除失败：${error.message}`);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function hideGeneratedRoute(routeId) {
+    setHiddenGeneratedRouteIds((current) => new Set([...current, routeId]));
+    setRouteMessage("已隐藏这条自动轨迹。");
+  }
+
   async function signIn(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -1888,6 +2204,41 @@ function App() {
     setAuthMessage("已退出登录。");
   }
 
+  async function updateProfileNames(nextNames) {
+    if (!session || !isEditor) {
+      setProfileSettingsMessage("请先登录有编辑权限的账号。");
+      return false;
+    }
+    const cleanedNames = nextNames.map((name) => name.trim());
+    if (cleanedNames.some((name) => !name)) {
+      setProfileSettingsMessage("两个人的名字都不能为空。");
+      return false;
+    }
+    try {
+      setIsSaving(true);
+      setProfileSettingsMessage("");
+      const results = await Promise.all(
+        appProfiles.map((profile, index) =>
+          supabase
+            .from("travel_profiles")
+            .update({ display_name: cleanedNames[index] })
+            .eq("id", profile.id),
+        ),
+      );
+      const error = results.find((result) => result.error)?.error;
+      if (error) throw error;
+      await loadTravelData();
+      setProfileSettingsMessage("名字已保存。");
+      return true;
+    } catch (error) {
+      console.error(error);
+      setProfileSettingsMessage(`保存失败：${error.message}`);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -1895,12 +2246,21 @@ function App() {
           <p className="eyebrow">TravelMapX</p>
           <h1>足迹地图</h1>
         </div>
-        <div className="status-strip" aria-label="项目状态">
+        <div
+          className="status-strip"
+          aria-label="项目状态"
+          onClick={() => setAuthPanelOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") setAuthPanelOpen(true);
+          }}
+          role="button"
+          tabIndex={0}
+        >
           <span>
-            <Database size={16} /> {dataStatus}
+            <Database size={16} /> {session ? "已登录" : "未登录"}
           </span>
           <span>
-            <ShieldCheck size={16} /> {session ? "已登录编辑账号" : "公开只读"}
+            <ShieldCheck size={16} /> {session && isEditor ? "可编辑" : dataStatus}
           </span>
         </div>
       </header>
@@ -2068,6 +2428,22 @@ function App() {
         placeLookup={placeLookup}
         profileSummaries={profileContinentSummaries}
       />
+      <JourneyVisuals
+        arcs={journeyVisuals.arcs}
+        generatedRoutes={generatedRouteArcs}
+        isEditor={isEditor}
+        isSaving={isSaving}
+        onDeleteRoute={deleteRoute}
+        onHideGeneratedRoute={hideGeneratedRoute}
+        onSaveRoute={saveRoute}
+        points={journeyVisuals.points}
+        profiles={appProfiles}
+        routeMessage={routeMessage}
+        routes={profileScopedRoutes}
+        searchPlaces={searchPlaces}
+        session={session}
+        worldDots={worldShapeDots}
+      />
       {editingVisit && (
         <VisitEditDialog
           authMessage={editMessage}
@@ -2079,7 +2455,1227 @@ function App() {
           visit={editingVisit}
         />
       )}
+      {authPanelOpen && (
+        <AuthDialog
+          authMessage={authMessage}
+          isEditor={isEditor}
+          onClose={() => setAuthPanelOpen(false)}
+          onSignIn={signIn}
+          onSignOut={signOut}
+          session={session}
+        />
+      )}
+      <ProfileNameSettings
+        isEditor={isEditor}
+        isOpen={profileSettingsOpen}
+        isSaving={isSaving}
+        message={profileSettingsMessage}
+        onClose={() => setProfileSettingsOpen(false)}
+        onOpen={() => {
+          setProfileSettingsMessage("");
+          setProfileSettingsOpen(true);
+        }}
+        onSave={updateProfileNames}
+        profiles={appProfiles}
+        session={session}
+      />
     </main>
+  );
+}
+
+function ProfileNameSettings({
+  isEditor,
+  isOpen,
+  isSaving,
+  message,
+  onClose,
+  onOpen,
+  onSave,
+  profiles,
+  session,
+}) {
+  const [names, setNames] = useState(profiles.map((profile) => profile.name));
+
+  useEffect(() => {
+    if (isOpen) setNames(profiles.map((profile) => profile.name));
+  }, [isOpen, profiles]);
+
+  async function submit(event) {
+    event.preventDefault();
+    await onSave(names);
+  }
+
+  return (
+    <>
+      <button
+        aria-label="修改两个人的名字"
+        className="hidden-profile-trigger"
+        onClick={onOpen}
+        title="修改名字"
+        type="button"
+      >
+        <SlidersHorizontal size={17} />
+      </button>
+      {isOpen && (
+        <div className="profile-settings-popover" role="dialog" aria-label="修改名字">
+          <header>
+            <div>
+              <p className="eyebrow">Names</p>
+              <strong>修改显示名字</strong>
+            </div>
+            <button aria-label="关闭" onClick={onClose} type="button">
+              <X size={18} />
+            </button>
+          </header>
+          <form onSubmit={submit}>
+            {profiles.map((profile, index) => (
+              <label key={profile.id}>
+                第 {index + 1} 个人
+                <input
+                  disabled={!session || !isEditor || isSaving}
+                  onChange={(event) => {
+                    const next = [...names];
+                    next[index] = event.target.value;
+                    setNames(next);
+                  }}
+                  value={names[index] || ""}
+                />
+              </label>
+            ))}
+            {!session && <p className="form-message">当前未登录，登录编辑账号后才能保存。</p>}
+            {session && !isEditor && <p className="form-message">当前账号没有编辑权限。</p>}
+            {message && <p className="form-message">{message}</p>}
+            <button
+              className="primary-action"
+              disabled={!session || !isEditor || isSaving}
+              type="submit"
+            >
+              {isSaving ? "保存中..." : "保存名字"}
+            </button>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
+
+function JourneyVisuals({
+  arcs,
+  generatedRoutes,
+  isEditor,
+  isSaving,
+  onDeleteRoute,
+  onHideGeneratedRoute,
+  onSaveRoute,
+  points,
+  profiles,
+  routeMessage,
+  routes,
+  searchPlaces,
+  session,
+  worldDots,
+}) {
+  return (
+    <section className="journey-visual-section" aria-label="足迹视觉展示">
+      <div className="section-title">
+        <p className="eyebrow">Visual Journey</p>
+        <h2>足迹可视化</h2>
+      </div>
+      <div className="journey-visual-grid">
+        <AceternityStyleGlobe
+          arcs={arcs}
+          generatedRoutes={generatedRoutes}
+          isEditor={isEditor}
+          isSaving={isSaving}
+          onDeleteRoute={onDeleteRoute}
+          onHideGeneratedRoute={onHideGeneratedRoute}
+          onSaveRoute={onSaveRoute}
+          points={points}
+          profiles={profiles}
+          routeMessage={routeMessage}
+          routes={routes}
+          searchPlaces={searchPlaces}
+          session={session}
+          worldDots={worldDots}
+        />
+        <AceternityStyleWorldMap arcs={arcs} points={points} worldDots={worldDots} />
+      </div>
+    </section>
+  );
+}
+
+function projectAceternityGlobePoint(point, rotation, radius = 43) {
+  const rad = Math.PI / 180;
+  const lat = point.lat * rad;
+  const lon = (point.lng + rotation) * rad;
+  const x = Math.cos(lat) * Math.sin(lon);
+  const y = Math.sin(lat);
+  const z = Math.cos(lat) * Math.cos(lon);
+  return {
+    x: 50 + x * radius,
+    y: 50 - y * radius,
+    z,
+    visible: z > -0.16,
+    opacity: Math.max(0.08, Math.min(1, (z + 1) / 1.48)),
+  };
+}
+
+function aceternityGlobeArcSegments(arc, rotation) {
+  let startLng = arc.start.lng;
+  let endLng = arc.end.lng;
+  const delta = endLng - startLng;
+  if (delta > 180) endLng -= 360;
+  if (delta < -180) endLng += 360;
+  const segments = [];
+  let current = [];
+  for (let index = 0; index <= 32; index += 1) {
+    const t = index / 32;
+    const lat = arc.start.lat + (arc.end.lat - arc.start.lat) * t;
+    const lng = startLng + (endLng - startLng) * t;
+    const lift = Math.sin(Math.PI * t) * 2.8;
+    const projected = projectAceternityGlobePoint({ lat, lng }, rotation, 43 + lift);
+    if (projected.z > 0.02) {
+      current.push(projected);
+    } else if (current.length > 1) {
+      segments.push(current);
+      current = [];
+    } else {
+      current = [];
+    }
+  }
+  if (current.length > 1) segments.push(current);
+  return segments.map((segment) =>
+    segment
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+      .join(" "),
+  );
+}
+
+function RoutePlanner({
+  generatedRoutes = [],
+  isEditor,
+  isSaving,
+  message,
+  onDeleteRoute,
+  onHideGeneratedRoute,
+  onSaveRoute,
+  profiles = [],
+  routes = [],
+  searchPlaces = [],
+  session,
+}) {
+  const [open, setOpen] = useState(false);
+  const [editingRoute, setEditingRoute] = useState(null);
+  const [profileId, setProfileId] = useState(profiles[0]?.id || "");
+  const [startPlace, setStartPlace] = useState(null);
+  const [endPlace, setEndPlace] = useState(null);
+  const [traveledAt, setTraveledAt] = useState("");
+  const plannerRef = useRef(null);
+
+  const placeLookup = useMemo(() => {
+    const lookup = new Map();
+    searchPlaces.forEach((place) => lookup.set(place.id, place));
+    return lookup;
+  }, [searchPlaces]);
+
+  useEffect(() => {
+    if (!profileId && profiles[0]) setProfileId(profiles[0].id);
+  }, [profileId, profiles]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handlePointerDown = (event) => {
+      if (plannerRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  function resetForm() {
+    setEditingRoute(null);
+    setStartPlace(null);
+    setEndPlace(null);
+    setTraveledAt("");
+  }
+
+  function startEdit(route) {
+    setEditingRoute(route);
+    setProfileId(route.profileId || profiles[0]?.id || "");
+    setStartPlace(placeLookup.get(route.startPlaceId) || null);
+    setEndPlace(placeLookup.get(route.endPlaceId) || null);
+    setTraveledAt(route.dateDisplay || route.traveledAt || "");
+    setOpen(true);
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    const ok = await onSaveRoute?.({
+      id: editingRoute?.id,
+      profileId,
+      startPlaceId: startPlace?.id,
+      endPlaceId: endPlace?.id,
+      traveledAt,
+    });
+    if (ok) resetForm();
+  }
+
+  const shownGeneratedRoutes = generatedRoutes.slice(0, 26);
+
+  return (
+    <div className={`route-planner ${open ? "open" : ""}`} ref={plannerRef}>
+      <button className="route-planner-trigger" onClick={() => setOpen((value) => !value)} type="button">
+        <Plus size={15} />
+        轨迹
+      </button>
+      {open && (
+        <div className="route-planner-popover">
+          <header>
+            <div>
+              <p className="eyebrow">Routes</p>
+              <strong>{editingRoute ? "编辑轨迹" : "添加轨迹"}</strong>
+            </div>
+            <button aria-label="关闭轨迹面板" onClick={() => setOpen(false)} type="button">
+              <X size={16} />
+            </button>
+          </header>
+          <form className="route-form" onSubmit={submit}>
+            <select
+              disabled={!session || !isEditor}
+              onChange={(event) => setProfileId(event.target.value)}
+              value={profileId}
+            >
+              {profiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
+                </option>
+              ))}
+            </select>
+            <RoutePlacePicker
+              disabled={!session || !isEditor}
+              label="起点"
+              onSelect={setStartPlace}
+              places={searchPlaces}
+              selected={startPlace}
+            />
+            <RoutePlacePicker
+              disabled={!session || !isEditor}
+              label="终点"
+              onSelect={setEndPlace}
+              places={searchPlaces}
+              selected={endPlace}
+            />
+            <DatePrecisionInput disabled={!session || !isEditor} onChange={setTraveledAt} value={traveledAt} />
+            <div className="route-form-actions">
+              {editingRoute && (
+                <button onClick={resetForm} type="button">
+                  取消编辑
+                </button>
+              )}
+              <button disabled={!session || !isEditor || isSaving || !startPlace || !endPlace} type="submit">
+                {isSaving ? "保存中..." : editingRoute ? "保存修改" : "保存轨迹"}
+              </button>
+            </div>
+          </form>
+          {message && <p className="route-message">{message}</p>}
+          <div className="route-list">
+            <p>已添加轨迹</p>
+            {routes.length === 0 && <small>还没有正式保存的轨迹。</small>}
+            {routes.map((route) => {
+              const start = placeLookup.get(route.startPlaceId);
+              const end = placeLookup.get(route.endPlaceId);
+              return (
+                <div className="route-list-item" key={route.id}>
+                  <span>
+                    <strong>
+                      {start ? displayPlaceName(start) : route.startPlaceId} → {end ? displayPlaceName(end) : route.endPlaceId}
+                    </strong>
+                    <small>{route.dateDisplay || "未填写日期"}</small>
+                  </span>
+                  <button disabled={isSaving} onClick={() => startEdit(route)} type="button">
+                    <Pencil size={13} />
+                  </button>
+                  <button disabled={isSaving} onClick={() => onDeleteRoute?.(route.id)} type="button">
+                    <X size={14} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="route-list generated">
+            <p>自动生成轨迹</p>
+            {shownGeneratedRoutes.length === 0 && <small>自动轨迹已隐藏或暂无可生成轨迹。</small>}
+            {shownGeneratedRoutes.map((route) => (
+              <div className="route-list-item" key={route.id}>
+                <span>
+                  <strong>
+                    {route.start.name} → {route.end.name}
+                  </strong>
+                  <small>由足迹顺序自动生成</small>
+                </span>
+                <button disabled={isSaving} onClick={() => onHideGeneratedRoute?.(route.id)} type="button">
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RoutePlacePicker({ disabled, label, onSelect, places, selected }) {
+  const [query, setQuery] = useState("");
+  const results = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return [];
+    return places
+      .filter((place) => placeSearchText(place).includes(needle))
+      .sort((a, b) => displayPlaceName(a).localeCompare(displayPlaceName(b), "zh-CN"))
+      .slice(0, 60);
+  }, [places, query]);
+
+  return (
+    <label className="route-place-picker">
+      <span>{label}</span>
+      <input
+        disabled={disabled}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder={selected ? displayPlaceName(selected) : `搜索${label}地点`}
+        value={query}
+      />
+      {selected && (
+        <em>
+          <FlagIcon place={selected} />
+          {displayPlaceName(selected)}
+        </em>
+      )}
+      {query.trim() && results.length > 0 && (
+        <div className="route-place-results">
+          {results.map((place) => (
+            <button
+              key={place.id}
+              onClick={() => {
+                onSelect(place);
+                setQuery("");
+              }}
+              type="button"
+            >
+              <FlagIcon place={place} />
+              <span>
+                <strong>{displayPlaceName(place)}</strong>
+                <small>{displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName })}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </label>
+  );
+}
+
+function AceternityStyleGlobe({
+  arcs,
+  generatedRoutes,
+  isEditor,
+  isSaving,
+  onDeleteRoute,
+  onHideGeneratedRoute,
+  onSaveRoute,
+  points,
+  profiles,
+  routeMessage,
+  routes,
+  searchPlaces,
+  session,
+  worldDots,
+}) {
+  const [rotation, setRotation] = useState(-112);
+  const [zoom, setZoom] = useState(0.88);
+  const [speedIndex, setSpeedIndex] = useState(2);
+  const [resetTick, setResetTick] = useState(0);
+  const globeSvgRef = useRef(null);
+  const dragRef = useRef({ active: false, x: 0 });
+  const speed = GLOBE_SPEEDS[speedIndex];
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (!dragRef.current.active) {
+        setRotation((value) => (value + 0.42 * speed * 2) % 360);
+      }
+    }, 70);
+    return () => window.clearInterval(timer);
+  }, [speed]);
+
+  useEffect(() => {
+    const globe = globeSvgRef.current;
+    if (!globe) return undefined;
+    const handleNativeWheel = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setZoom((value) => Math.max(0.72, Math.min(1.28, value + (event.deltaY < 0 ? 0.06 : -0.06))));
+    };
+    globe.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => globe.removeEventListener("wheel", handleNativeWheel);
+  }, []);
+
+  useEffect(() => {
+    const handleWindowPointerMove = (event) => {
+      if (!dragRef.current.active) return;
+      event.preventDefault();
+      const dx = event.clientX - dragRef.current.x;
+      dragRef.current.x = event.clientX;
+      setRotation((value) => (value + dx * 0.55 + 360) % 360);
+    };
+    const handleWindowPointerUp = () => {
+      dragRef.current.active = false;
+    };
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerUp);
+    window.addEventListener("pointercancel", handleWindowPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerUp);
+      window.removeEventListener("pointercancel", handleWindowPointerUp);
+    };
+  }, []);
+
+  function changeSpeed(direction) {
+    setSpeedIndex((value) => Math.max(0, Math.min(GLOBE_SPEEDS.length - 1, value + direction)));
+  }
+
+  function resetGlobes() {
+    dragRef.current.active = false;
+    setRotation(-112);
+    setZoom(0.88);
+    setSpeedIndex(2);
+    setResetTick((value) => value + 1);
+  }
+
+  function handlePointerDown(event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragRef.current = { active: true, x: event.clientX };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function finishDrag(event) {
+    dragRef.current.active = false;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  }
+
+  const landDots = useMemo(
+    () =>
+      worldDots
+        .filter((_, index) => index % 2 === 0)
+        .map((point) => ({ ...point, ...projectAceternityGlobePoint(point, rotation, 42.7) }))
+        .filter((point) => point.visible),
+    [rotation, worldDots],
+  );
+
+  const projectedPoints = useMemo(
+    () =>
+      points
+        .slice(0, 150)
+        .map((point) => ({ ...point, ...projectAceternityGlobePoint(point, rotation, 44) }))
+        .filter((point) => point.visible),
+    [points, rotation],
+  );
+
+  const routeSegments = useMemo(
+    () =>
+      arcs
+        .slice(0, 22)
+        .flatMap((arc) => aceternityGlobeArcSegments(arc, rotation))
+        .slice(0, 30),
+    [arcs, rotation],
+  );
+
+  return (
+    <article className="journey-card globe-card aceternity-globe-card">
+      <div>
+        <div>
+          <p className="eyebrow">Globe</p>
+          <h3>球形足迹</h3>
+        </div>
+        <div className="globe-card-actions">
+          <span>{points.length} 个地点</span>
+          <button className="globe-reset-button" type="button" onClick={resetGlobes} aria-label="重置两个球体">
+            <RotateCcw size={15} />
+          </button>
+          <div className="globe-speed-control" aria-label="调整球体转速">
+            <button
+              aria-label="减慢地球转速"
+              disabled={speedIndex === 0}
+              onClick={() => changeSpeed(-1)}
+              type="button"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <strong>{speed.toFixed(1)}x</strong>
+            <button
+              aria-label="加快地球转速"
+              disabled={speedIndex === GLOBE_SPEEDS.length - 1}
+              onClick={() => changeSpeed(1)}
+              type="button"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+      <RoutePlanner
+        generatedRoutes={generatedRoutes}
+        isEditor={isEditor}
+        isSaving={isSaving}
+        message={routeMessage}
+        onDeleteRoute={onDeleteRoute}
+        onHideGeneratedRoute={onHideGeneratedRoute}
+        onSaveRoute={onSaveRoute}
+        profiles={profiles}
+        routes={routes}
+        searchPlaces={searchPlaces}
+        session={session}
+      />
+      <div className="globe-visual-pair">
+      <svg
+        className="aceternity-globe"
+        onPointerCancel={finishDrag}
+        onPointerDown={handlePointerDown}
+        onPointerUp={finishDrag}
+        ref={globeSvgRef}
+        role="img"
+        style={{ "--globe-zoom": zoom }}
+        viewBox="0 0 100 100"
+        aria-label="球形地球足迹"
+      >
+        <defs>
+          <radialGradient id="aceternityGlobeSurface" cx="42%" cy="22%" r="82%">
+            <stop offset="0%" stopColor="#123a74" />
+            <stop offset="38%" stopColor="#061a56" />
+            <stop offset="72%" stopColor="#020617" />
+            <stop offset="100%" stopColor="#e6f6ff" />
+          </radialGradient>
+          <radialGradient id="aceternityGlobeShade" cx="50%" cy="22%" r="82%">
+            <stop offset="0%" stopColor="#ffffff00" />
+            <stop offset="63%" stopColor="#ffffff00" />
+            <stop offset="100%" stopColor="#e0f7ffdd" />
+          </radialGradient>
+          <clipPath id="aceternityGlobeClip">
+            <circle cx="50" cy="50" r="42.8" />
+          </clipPath>
+          <filter id="aceternityPointGlow">
+            <feGaussianBlur stdDeviation="1.35" />
+          </filter>
+        </defs>
+        <circle cx="50" cy="50" r="42.8" fill="url(#aceternityGlobeSurface)" />
+        <g clipPath="url(#aceternityGlobeClip)">
+          {landDots.map((point) => (
+            <circle
+              cx={point.x}
+              cy={point.y}
+              fill="#78c8ff"
+              key={point.id}
+              opacity={point.opacity * 0.45}
+              r="0.22"
+            />
+          ))}
+          {routeSegments.map((path, index) => (
+            <path
+              className="globe-route"
+              d={path}
+              key={`globe-route-${index}`}
+            />
+          ))}
+          {projectedPoints.map((point, index) => (
+            <g className="globe-visit-point" key={point.id}>
+              <circle cx={point.x} cy={point.y} fill="#38bdf8" filter="url(#aceternityPointGlow)" opacity="0.2" r="1.32" />
+              <circle cx={point.x} cy={point.y} fill="#0284c7" r="0.52" />
+              {index % 8 === 0 && <circle className="globe-ring" cx={point.x} cy={point.y} fill="none" r="0.82" />}
+            </g>
+          ))}
+        </g>
+        <circle cx="50" cy="50" r="42.8" fill="url(#aceternityGlobeShade)" />
+        <circle cx="50" cy="50" r="42.8" fill="none" stroke="#cbeeff" strokeOpacity="0.58" strokeWidth="0.72" />
+      </svg>
+        <SatellitePinGlobe points={points} resetTick={resetTick} speed={speed} />
+      </div>
+    </article>
+  );
+}
+
+function createPinTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 96;
+  canvas.height = 96;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.shadowColor = "rgba(0,0,0,0.55)";
+  context.shadowBlur = 10;
+  context.shadowOffsetY = 4;
+  context.font = "64px 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText("📍", 48, 49);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function latLngToVector3(lat, lng, radius) {
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (lng + 180) * (Math.PI / 180);
+  return new THREE.Vector3(
+    -radius * Math.sin(phi) * Math.cos(theta),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.sin(theta),
+  );
+}
+
+function SatellitePinGlobe({ points, resetTick, speed }) {
+  const mountRef = useRef(null);
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
+  const satelliteZoomRef = useRef(1.08);
+
+  useEffect(() => {
+    if (controlsRef.current) controlsRef.current.autoRotateSpeed = 2 * speed;
+  }, [speed]);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!mount || !camera || !controls) return;
+    satelliteZoomRef.current = 1.08;
+    mount.style.setProperty("--satellite-zoom", "1.08");
+    camera.position.set(0, 0, 7);
+    controls.target.set(0, 0, 0);
+    controls.update();
+  }, [resetTick]);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return undefined;
+
+    const width = mount.clientWidth || 520;
+    const height = mount.clientHeight || width;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(0, 0, 7);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(width, height);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    mount.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.enablePan = false;
+    controls.enableZoom = false;
+    controls.minDistance = 4.45;
+    controls.maxDistance = 9.2;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 2 * speed;
+    controlsRef.current = controls;
+    mount.style.setProperty("--satellite-zoom", satelliteZoomRef.current.toFixed(2));
+
+    const basePath = import.meta.env.BASE_URL || "/";
+    const textureLoader = new THREE.TextureLoader();
+    const earthTexture = textureLoader.load(`${basePath}textures/earth-blue-marble.jpg`);
+    const bumpTexture = textureLoader.load(`${basePath}textures/earth-topology.png`);
+    earthTexture.colorSpace = THREE.SRGBColorSpace;
+    earthTexture.anisotropy = 16;
+    bumpTexture.anisotropy = 8;
+
+    const earth = new THREE.Mesh(
+      new THREE.SphereGeometry(2, 96, 96),
+      new THREE.MeshStandardMaterial({
+        map: earthTexture,
+        bumpMap: bumpTexture,
+        bumpScale: 0.05,
+        roughness: 0.7,
+        metalness: 0,
+      }),
+    );
+    scene.add(earth);
+
+    const atmosphere = new THREE.Mesh(
+      new THREE.SphereGeometry(2.08, 96, 96),
+      new THREE.MeshBasicMaterial({
+        color: "#7dd3fc",
+        transparent: true,
+        opacity: 0,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    atmosphere.visible = false;
+    scene.add(atmosphere);
+
+    scene.add(new THREE.AmbientLight("#d8f4ff", 0.9));
+    const keyLight = new THREE.DirectionalLight("#ffffff", 2.4);
+    keyLight.position.set(4.2, 3.4, 5.6);
+    scene.add(keyLight);
+    const rimLight = new THREE.DirectionalLight("#7dd3fc", 1.4);
+    rimLight.position.set(-4, 1.3, -2.5);
+    scene.add(rimLight);
+
+    const markerGroup = new THREE.Group();
+    const pinHeadGeometry = new THREE.SphereGeometry(0.026, 18, 18);
+    const pinStemGeometry = new THREE.CylinderGeometry(0.0032, 0.0032, 0.08, 8);
+    const pinHeadMaterial = new THREE.MeshPhongMaterial({
+      color: "#f43f72",
+      emissive: "#7f1232",
+      emissiveIntensity: 0.12,
+      shininess: 54,
+    });
+    const pinStemMaterial = new THREE.MeshPhongMaterial({
+      color: "#d6d3d1",
+      shininess: 28,
+    });
+    const localUp = new THREE.Vector3(0, 1, 0);
+    points.forEach((point) => {
+      const normal = latLngToVector3(point.lat, point.lng, 1).normalize();
+      const pin = new THREE.Group();
+      pin.quaternion.setFromUnitVectors(localUp, normal);
+      pin.userData.normal = normal;
+      pin.userData.surfacePosition = normal.clone().multiplyScalar(2);
+
+      const stem = new THREE.Mesh(pinStemGeometry, pinStemMaterial);
+      stem.position.set(0, 2.05, 0);
+      const head = new THREE.Mesh(pinHeadGeometry, pinHeadMaterial);
+      head.position.set(0, 2.11, 0);
+      pin.add(stem, head);
+      markerGroup.add(pin);
+    });
+    scene.add(markerGroup);
+
+    const handleWheel = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      satelliteZoomRef.current = THREE.MathUtils.clamp(
+        satelliteZoomRef.current + (event.deltaY < 0 ? 0.06 : -0.06),
+        0.72,
+        1.28,
+      );
+      mount.style.setProperty("--satellite-zoom", satelliteZoomRef.current.toFixed(2));
+    };
+    renderer.domElement.addEventListener("wheel", handleWheel, { passive: false });
+
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      const nextWidth = entry.contentRect.width || width;
+      const nextHeight = entry.contentRect.height || nextWidth;
+      camera.aspect = nextWidth / nextHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nextWidth, nextHeight);
+    });
+    resizeObserver.observe(mount);
+
+    let frame = 0;
+    const animate = () => {
+      frame = window.requestAnimationFrame(animate);
+      controls.update();
+      markerGroup.children.forEach((pin) => {
+        const toCamera = camera.position.clone().sub(pin.userData.surfacePosition).normalize();
+        pin.visible = pin.userData.normal.dot(toCamera) > 0.08;
+      });
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      cameraRef.current = null;
+      controlsRef.current = null;
+      resizeObserver.disconnect();
+      renderer.domElement.removeEventListener("wheel", handleWheel);
+      controls.dispose();
+      earth.geometry.dispose();
+      earth.material.dispose();
+      atmosphere.geometry.dispose();
+      atmosphere.material.dispose();
+      pinHeadGeometry.dispose();
+      pinStemGeometry.dispose();
+      pinHeadMaterial.dispose();
+      pinStemMaterial.dispose();
+      earthTexture.dispose();
+      bumpTexture.dispose();
+      renderer.dispose();
+      mount.replaceChildren();
+    };
+  }, [points]);
+
+  return (
+    <div
+      aria-label="真实纹理 3D 地球足迹"
+      className="satellite-globe satellite-globe-mount"
+      ref={mountRef}
+      role="img"
+    />
+  );
+
+  const textureOffset = ((rotation % 360) / 360) * -42;
+  const pins = useMemo(
+    () =>
+      points
+        .slice(0, 180)
+        .map((point) => ({ ...point, ...projectAceternityGlobePoint(point, rotation - 32, 40.5) }))
+        .filter((point) => point.z > 0.08)
+        .sort((a, b) => a.z - b.z)
+        .slice(-18),
+    [points, rotation],
+  );
+
+  return (
+    <svg className="satellite-globe" viewBox="0 0 100 100" role="img" aria-label="遥感风格地球足迹">
+      <defs>
+        <radialGradient id="satelliteOcean" cx="34%" cy="26%" r="74%">
+          <stop offset="0%" stopColor="#244f86" />
+          <stop offset="42%" stopColor="#071f46" />
+          <stop offset="74%" stopColor="#020817" />
+          <stop offset="100%" stopColor="#00030a" />
+        </radialGradient>
+        <linearGradient id="satelliteLand" x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stopColor="#e2e7cf" />
+          <stop offset="36%" stopColor="#8ea15f" />
+          <stop offset="72%" stopColor="#694b2f" />
+          <stop offset="100%" stopColor="#2f3f2b" />
+        </linearGradient>
+        <linearGradient id="satelliteIce" x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="100%" stopColor="#b7d9f1" />
+        </linearGradient>
+        <radialGradient id="satelliteShade" cx="66%" cy="34%" r="72%">
+          <stop offset="0%" stopColor="#00000000" />
+          <stop offset="54%" stopColor="#00000018" />
+          <stop offset="100%" stopColor="#000000c5" />
+        </radialGradient>
+        <radialGradient id="satelliteBottomGlow" cx="54%" cy="118%" r="56%">
+          <stop offset="0%" stopColor="#eafafff0" />
+          <stop offset="42%" stopColor="#b9dcef91" />
+          <stop offset="100%" stopColor="#ffffff00" />
+        </radialGradient>
+        <pattern id="satelliteSpeckles" width="2.6" height="2.6" patternUnits="userSpaceOnUse">
+          <circle cx="0.75" cy="0.75" r="0.18" fill="#dff7ff" opacity="0.2" />
+        </pattern>
+        <clipPath id="satelliteGlobeClip">
+          <circle cx="50" cy="50" r="42.5" />
+        </clipPath>
+        <filter id="satelliteBlur">
+          <feGaussianBlur stdDeviation="0.45" />
+        </filter>
+      </defs>
+      <circle cx="50" cy="50" r="42.5" fill="url(#satelliteOcean)" />
+      <g clipPath="url(#satelliteGlobeClip)">
+        <rect x="6" y="6" width="88" height="88" fill="url(#satelliteSpeckles)" opacity="0.7" />
+        <g className="satellite-texture" transform={`translate(${textureOffset.toFixed(2)} 0)`}>
+          {[-44, 0, 44].map((offset) => (
+            <g key={offset} transform={`translate(${offset} 0)`}>
+              <path className="satellite-land" d="M26 20 C34 10 49 12 58 20 C62 27 55 34 45 32 C36 31 29 28 26 20Z" fill="url(#satelliteIce)" opacity="0.82" />
+              <path className="satellite-land" d="M14 31 C24 20 39 24 44 35 C42 45 36 48 29 55 C22 50 15 43 14 31Z" fill="url(#satelliteLand)" opacity="0.88" />
+              <path className="satellite-land" d="M31 55 C39 57 42 67 37 79 C29 74 25 64 31 55Z" fill="url(#satelliteLand)" opacity="0.76" />
+              <path className="satellite-land" d="M51 33 C61 21 78 24 87 37 C92 48 85 59 72 58 C59 56 49 47 51 33Z" fill="url(#satelliteLand)" opacity="0.9" />
+              <path className="satellite-land" d="M64 57 C73 58 80 66 79 75 C69 77 62 70 64 57Z" fill="url(#satelliteLand)" opacity="0.72" />
+              <path className="satellite-cloud" d="M19 25 C30 20 44 20 54 26 M50 45 C64 37 78 39 91 45 M18 62 C31 57 43 59 55 65" fill="none" stroke="#ffffff" strokeLinecap="round" strokeOpacity="0.23" strokeWidth="1.4" />
+            </g>
+          ))}
+        </g>
+        <rect x="0" y="0" width="100" height="100" fill="#ffffff" filter="url(#satelliteBlur)" opacity="0.03" />
+        {pins.map((point) => (
+          <text
+            className="satellite-pin"
+            dominantBaseline="central"
+            key={point.id}
+            opacity={Math.min(1, point.opacity + 0.18)}
+            textAnchor="middle"
+            x={point.x}
+            y={point.y}
+          >
+            📍
+          </text>
+        ))}
+      </g>
+      <circle cx="50" cy="50" r="42.5" fill="url(#satelliteShade)" />
+      <circle cx="50" cy="50" r="42.5" fill="url(#satelliteBottomGlow)" />
+      <circle cx="50" cy="50" r="42.5" fill="none" stroke="#9bd8ff" strokeOpacity="0.55" strokeWidth="0.58" />
+      <path d="M9 18 C29 -6 72 -3 91 23" fill="none" stroke="#93dfff" strokeLinecap="round" strokeOpacity="0.35" strokeWidth="0.55" />
+      <path d="M11 83 C30 106 72 105 90 78" fill="none" stroke="#93dfff" strokeLinecap="round" strokeOpacity="0.28" strokeWidth="0.55" />
+    </svg>
+  );
+}
+
+function projectAceternityFlatWorld(point) {
+  return {
+    x: ((point.lng + 180) / 360) * 800,
+    y: ((90 - point.lat) / 180) * 400,
+  };
+}
+
+function aceternityWorldRoutePath(start, end) {
+  const a = projectAceternityFlatWorld(start);
+  const b = projectAceternityFlatWorld(end);
+  const dx = Math.abs(b.x - a.x);
+  const distance = Math.hypot(b.x - a.x, b.y - a.y);
+  const lift = Math.min(95, Math.max(28, distance * 0.19 + dx * 0.05));
+  const cx = (a.x + b.x) / 2;
+  const cy = Math.min(a.y, b.y) - lift;
+  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+}
+
+function AceternityStyleWorldMap({ arcs, points, worldDots }) {
+  return (
+    <article className="journey-card dot-map-card aceternity-world-card">
+      <div>
+        <p className="eyebrow">World Map</p>
+        <h3>点阵轨迹</h3>
+        <span>{arcs.length} 条轨迹</span>
+      </div>
+      <svg className="aceternity-world-map" viewBox="0 0 800 400" role="img" aria-label="点阵世界地图轨迹">
+        <defs>
+          <linearGradient id="aceternityRouteGradient" x1="0%" x2="100%" y1="0%" y2="0%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="8%" stopColor="#0ea5e9" stopOpacity="0.96" />
+            <stop offset="92%" stopColor="#0ea5e9" stopOpacity="0.96" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="aceternityWorldFade" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="9%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="89%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+          <mask id="aceternityWorldMask">
+            <rect width="800" height="400" fill="url(#aceternityWorldFade)" />
+          </mask>
+          <filter id="aceternityMapGlow">
+            <feGaussianBlur stdDeviation="2" />
+          </filter>
+        </defs>
+        <rect width="800" height="400" rx="20" fill="#ffffff00" />
+        <g mask="url(#aceternityWorldMask)">
+          {worldDots.map((dot) => {
+            const projected = projectAceternityFlatWorld(dot);
+            return (
+              <circle
+                cx={projected.x}
+                cy={projected.y}
+                fill="#a8adb7"
+                key={dot.id}
+                opacity="0.82"
+                r="0.98"
+              />
+            );
+          })}
+        </g>
+        {arcs.slice(0, 34).map((arc, index) => (
+          <path
+            className="world-route-line"
+            d={aceternityWorldRoutePath(arc.start, arc.end)}
+            fill="none"
+            key={arc.id}
+            stroke="url(#aceternityRouteGradient)"
+            strokeLinecap="round"
+            strokeWidth="1.35"
+            style={{ animationDelay: `${index * 0.055}s` }}
+          />
+        ))}
+        {points.slice(0, 170).map((point, index) => {
+          const projected = projectAceternityFlatWorld(point);
+          return (
+            <g className="world-visit-point" key={point.id}>
+              <circle cx={projected.x} cy={projected.y} fill="#38bdf8" filter="url(#aceternityMapGlow)" opacity="0.38" r="7" />
+              <circle cx={projected.x} cy={projected.y} fill="#0ea5e9" r="3" />
+              {index % 2 === 0 && <circle className="world-map-pulse" cx={projected.x} cy={projected.y} fill="#0ea5e9" opacity="0.5" r="3" />}
+            </g>
+          );
+        })}
+      </svg>
+    </article>
+  );
+}
+
+function SphericalJourneyGlobe({ points }) {
+  const [rotation, setRotation] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setRotation((value) => (value + 1.1) % 360);
+    }, 80);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const projected = useMemo(() => {
+    const rad = Math.PI / 180;
+    return points.slice(0, 170).map((point) => {
+      const lat = point.lat * rad;
+      const lon = (point.lng + rotation) * rad;
+      const x = Math.cos(lat) * Math.sin(lon);
+      const y = Math.sin(lat);
+      const z = Math.cos(lat) * Math.cos(lon);
+      return {
+        ...point,
+        visible: z > -0.18,
+        x: 50 + x * 38,
+        y: 50 - y * 38,
+        opacity: Math.max(0.18, Math.min(1, (z + 1) / 1.55)),
+        size: 0.82 + Math.max(0, z) * 1.35,
+      };
+    });
+  }, [points, rotation]);
+
+  return (
+    <article className="journey-card globe-card">
+      <div>
+        <p className="eyebrow">Globe</p>
+        <h3>球形足迹</h3>
+        <span>{points.length} 个地点</span>
+      </div>
+      <svg className="journey-globe" viewBox="0 0 100 100" role="img" aria-label="球形地球足迹">
+        <defs>
+          <radialGradient id="globeSurface" cx="34%" cy="24%" r="72%">
+            <stop offset="0%" stopColor="#7dd3fc" />
+            <stop offset="45%" stopColor="#155e75" />
+            <stop offset="100%" stopColor="#082f49" />
+          </radialGradient>
+          <filter id="softGlow">
+            <feGaussianBlur stdDeviation="1.7" />
+          </filter>
+        </defs>
+        <circle cx="50" cy="50" r="40.5" fill="url(#globeSurface)" />
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#bae6fd" strokeOpacity="0.35" />
+        {[18, 30, 42, 58, 70, 82].map((cy) => (
+          <ellipse
+            cx="50"
+            cy={cy}
+            key={cy}
+            rx={Math.sqrt(Math.max(0, 40 * 40 - (cy - 50) * (cy - 50)))}
+            ry="3.8"
+            fill="none"
+            stroke="#e0f2fe"
+            strokeOpacity="0.14"
+            strokeWidth="0.45"
+          />
+        ))}
+        {[-45, -20, 20, 45].map((angle) => (
+          <ellipse
+            cx="50"
+            cy="50"
+            key={angle}
+            rx="11"
+            ry="40"
+            fill="none"
+            stroke="#e0f2fe"
+            strokeOpacity="0.16"
+            strokeWidth="0.45"
+            transform={`rotate(${angle} 50 50)`}
+          />
+        ))}
+        {projected.filter((point) => point.visible).map((point) => (
+          <g key={point.id}>
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={point.size + 1.7}
+              fill="#f97316"
+              filter="url(#softGlow)"
+              opacity={point.opacity * 0.32}
+            />
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={point.size}
+              fill="#fff7ed"
+              opacity={point.opacity}
+            />
+          </g>
+        ))}
+      </svg>
+    </article>
+  );
+}
+
+function projectFlatWorld(point) {
+  return {
+    x: ((point.lng + 180) / 360) * 1000,
+    y: ((84 - point.lat) / 142) * 500,
+  };
+}
+
+function arcPath(start, end) {
+  const a = projectFlatWorld(start);
+  const b = projectFlatWorld(end);
+  const dx = b.x - a.x;
+  const distance = Math.hypot(dx, b.y - a.y);
+  const lift = Math.min(130, Math.max(30, distance * 0.2));
+  const cx = (a.x + b.x) / 2;
+  const cy = Math.min(a.y, b.y) - lift;
+  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+}
+
+function DotWorldJourneyMap({ arcs, points, worldDots }) {
+  return (
+    <article className="journey-card dot-map-card">
+      <div>
+        <p className="eyebrow">World Dots</p>
+        <h3>点阵轨迹</h3>
+        <span>{arcs.length} 条轨迹</span>
+      </div>
+      <svg className="dot-world-map" viewBox="0 0 1000 500" role="img" aria-label="点阵世界地图轨迹">
+        <defs>
+          <linearGradient id="routeGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="100%" stopColor="#f97316" />
+          </linearGradient>
+        </defs>
+        <rect width="1000" height="500" rx="20" fill="#f8fafc" />
+        {worldDots.map((dot) => {
+          const projected = projectFlatWorld(dot);
+          return (
+            <circle
+              cx={projected.x}
+              cy={projected.y}
+              fill="#cbd5e1"
+              key={dot.id}
+              opacity="0.58"
+              r="1.15"
+            />
+          );
+        })}
+        {arcs.slice(0, 70).map((arc, index) => (
+          <path
+            d={arcPath(arc.start, arc.end)}
+            fill="none"
+            key={arc.id}
+            opacity={0.18 + (index % 4) * 0.08}
+            stroke="url(#routeGradient)"
+            strokeDasharray="7 10"
+            strokeLinecap="round"
+            strokeWidth="1.6"
+          />
+        ))}
+        {points.slice(0, 180).map((point) => {
+          const projected = projectFlatWorld(point);
+          return (
+            <g key={point.id}>
+              <circle cx={projected.x} cy={projected.y} fill="#f97316" opacity="0.22" r="6" />
+              <circle cx={projected.x} cy={projected.y} fill="#0f766e" r="2.5" />
+            </g>
+          );
+        })}
+      </svg>
+    </article>
   );
 }
 
@@ -2216,10 +3812,28 @@ function MapView({
     map.on("click", () => setActiveVisitPreview(null));
 
     mapRef.current = map;
+    window.setTimeout(() => map.invalidateSize(false), 0);
 
     return () => {
       map.remove();
       mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const container = containerRef.current;
+    if (!map || !container || typeof ResizeObserver === "undefined") return undefined;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => map.invalidateSize(false));
+    });
+    observer.observe(container);
+    if (container.parentElement) observer.observe(container.parentElement);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
     };
   }, []);
 
@@ -3601,15 +5215,6 @@ function PlaceSearchPanel({
         <h3>{title}</h3>
         <span>已添加 {addedPlaces.length}</span>
       </div>
-      <AuthMiniPanel
-        authMessage={authMessage}
-        isEditor={isEditor}
-        onSignIn={onSignIn}
-        onSignOut={onSignOut}
-        session={session}
-      />
-      {!session && <p className="empty">当前未登录编辑账号，登录状态恢复后可直接添加或删除。</p>}
-      {session && !isEditor && <p className="empty">当前账号没有编辑权限。</p>}
       <div className="mini-form">
         <select
           disabled={!session || !isEditor}
@@ -3716,6 +5321,31 @@ function PlaceSearchPanel({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function AuthDialog({ authMessage, isEditor, onClose, onSignIn, onSignOut, session }) {
+  return (
+    <div className="modal-backdrop auth-dialog-backdrop" role="dialog" aria-label="Supabase 登录">
+      <section className="auth-dialog">
+        <header>
+          <div>
+            <p className="eyebrow">Supabase</p>
+            <h2>{session ? "编辑账号" : "登录编辑账号"}</h2>
+          </div>
+          <button aria-label="关闭" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </header>
+        <AuthMiniPanel
+          authMessage={authMessage}
+          isEditor={isEditor}
+          onSignIn={onSignIn}
+          onSignOut={onSignOut}
+          session={session}
+        />
+      </section>
     </div>
   );
 }
