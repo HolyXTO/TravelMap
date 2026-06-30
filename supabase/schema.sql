@@ -21,7 +21,7 @@ as $$
 $$;
 
 create table if not exists public.travel_profiles (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   display_name text not null,
   color text not null default '#2563eb',
   created_at timestamptz not null default now()
@@ -43,7 +43,7 @@ create table if not exists public.places (
 
 create table if not exists public.visits (
   id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references public.travel_profiles(id) on delete cascade,
+  profile_id text not null references public.travel_profiles(id) on delete cascade,
   place_id text not null,
   visited_at date,
   trip_type text not null,
@@ -63,7 +63,7 @@ create table if not exists public.visit_photos (
 
 create table if not exists public.travel_routes (
   id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references public.travel_profiles(id) on delete cascade,
+  profile_id text not null references public.travel_profiles(id) on delete cascade,
   start_place_id text not null,
   end_place_id text not null,
   traveled_at date,
@@ -159,10 +159,10 @@ create policy "Only editor can delete photos"
   to authenticated
   using (public.is_travelmap_editor());
 
-insert into public.travel_profiles (display_name, color)
+insert into public.travel_profiles (id, display_name, color)
 values
-  ('Bobo', '#2563eb'),
-  ('Yier', '#dc2626')
+  ('person-a', 'Bobo', '#2563eb'),
+  ('person-b', 'Yier', '#dc2626')
 on conflict do nothing;
 
 -- After creating your own auth user, add yourself as the only editor:

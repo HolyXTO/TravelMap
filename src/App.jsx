@@ -37,6 +37,10 @@ import { supabase } from "./lib/supabase";
 
 const PHOTO_BUCKET = "travel-photos";
 const GLOBE_SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
+const PROFILE_ID_ORDER = new Map(profiles.map((profile, index) => [profile.id, index]));
+const PROFILE_COLOR_ORDER = new Map(
+  profiles.map((profile, index) => [(profile.color || "").toLowerCase(), index]),
+);
 const CHINA_BOUNDS = [
   [18, 73],
   [54, 135],
@@ -920,6 +924,39 @@ function displayProfileName(name) {
   return name;
 }
 
+function profileStableIndex(profile) {
+  if (PROFILE_ID_ORDER.has(profile?.id)) return PROFILE_ID_ORDER.get(profile.id);
+  const colorIndex = PROFILE_COLOR_ORDER.get((profile?.color || "").toLowerCase());
+  if (colorIndex !== undefined) return colorIndex;
+  return 99;
+}
+
+function sortProfilesStable(items = []) {
+  return [...items].sort((a, b) => {
+    const order = profileStableIndex(a) - profileStableIndex(b);
+    if (order !== 0) return order;
+    return String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
+  });
+}
+
+function normalizeProfilesForDisplay(items = []) {
+  const ordered = sortProfilesStable(items);
+  if (ordered.length >= 2) {
+    const [first, second] = ordered;
+    const firstName = (first.name || "").trim().toLowerCase();
+    const secondName = (second.name || "").trim().toLowerCase();
+    if (
+      profileStableIndex(first) === 0 &&
+      profileStableIndex(second) === 1 &&
+      firstName === "tang" &&
+      secondName === "xiao"
+    ) {
+      return [{ ...first, name: "Xiao" }, { ...second, name: "Tang" }, ...ordered.slice(2)];
+    }
+  }
+  return ordered;
+}
+
 function parseVisitMeta(note) {
   if (!note) return { rating: 0, text: "", datePrecision: "day", dateDisplay: "" };
   try {
@@ -1397,6 +1434,7 @@ function mapProfile(row) {
     id: row.id,
     name: displayProfileName(row.display_name),
     color: row.color,
+    createdAt: row.created_at,
   };
 }
 
@@ -1507,7 +1545,7 @@ function App() {
       if (profilesResult.error) throw profilesResult.error;
       if (visitsResult.error) throw visitsResult.error;
 
-      const nextProfiles = profilesResult.data.map(mapProfile);
+      const nextProfiles = normalizeProfilesForDisplay(profilesResult.data.map(mapProfile));
       setAppProfiles(nextProfiles.length > 0 ? nextProfiles : profiles);
       setVisits(visitsResult.data.map(mapVisit));
       const routesResult = await supabase
@@ -2217,8 +2255,9 @@ function App() {
     try {
       setIsSaving(true);
       setProfileSettingsMessage("");
+      const orderedProfiles = sortProfilesStable(appProfiles);
       const results = await Promise.all(
-        appProfiles.map((profile, index) =>
+        orderedProfiles.map((profile, index) =>
           supabase
             .from("travel_profiles")
             .update({ display_name: cleanedNames[index] })
@@ -2442,6 +2481,7 @@ function App() {
         routes={profileScopedRoutes}
         searchPlaces={searchPlaces}
         session={session}
+        visits={visits}
         worldDots={worldShapeDots}
       />
       {editingVisit && (
@@ -2573,6 +2613,7 @@ function JourneyVisuals({
   routes,
   searchPlaces,
   session,
+  visits,
   worldDots,
 }) {
   return (
@@ -2596,6 +2637,7 @@ function JourneyVisuals({
           routes={routes}
           searchPlaces={searchPlaces}
           session={session}
+          visits={visits}
           worldDots={worldDots}
         />
         <AceternityStyleWorldMap arcs={arcs} points={points} worldDots={worldDots} />
@@ -2663,6 +2705,7 @@ function RoutePlanner({
   routes = [],
   searchPlaces = [],
   session,
+  visits = [],
 }) {
   const [open, setOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState(null);
@@ -2678,9 +2721,31 @@ function RoutePlanner({
     return lookup;
   }, [searchPlaces]);
 
+  const routeSearchPlaces = useMemo(() => {
+    if (!profileId) return [];
+    const visitedIds = new Set(
+      visits
+        .filter((visit) => visit.profileId === profileId)
+        .map((visit) => canonicalPlaceId(visit.placeId)),
+    );
+    return searchPlaces
+      .filter((place) => {
+        const id = canonicalPlaceId(place.id);
+        const mapId = canonicalPlaceId(place.mapId || place.id);
+        return place.level === "city" && (visitedIds.has(id) || visitedIds.has(mapId));
+      })
+      .sort((a, b) => displayPlaceName(a).localeCompare(displayPlaceName(b), "zh-CN"));
+  }, [profileId, searchPlaces, visits]);
+
   useEffect(() => {
     if (!profileId && profiles[0]) setProfileId(profiles[0].id);
   }, [profileId, profiles]);
+
+  useEffect(() => {
+    const allowedIds = new Set(routeSearchPlaces.map((place) => canonicalPlaceId(place.id)));
+    if (startPlace && !allowedIds.has(canonicalPlaceId(startPlace.id))) setStartPlace(null);
+    if (endPlace && !allowedIds.has(canonicalPlaceId(endPlace.id))) setEndPlace(null);
+  }, [endPlace, routeSearchPlaces, startPlace]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -2762,14 +2827,14 @@ function RoutePlanner({
               disabled={!session || !isEditor}
               label="起点"
               onSelect={setStartPlace}
-              places={searchPlaces}
+              places={routeSearchPlaces}
               selected={startPlace}
             />
             <RoutePlacePicker
               disabled={!session || !isEditor}
               label="终点"
               onSelect={setEndPlace}
-              places={searchPlaces}
+              places={routeSearchPlaces}
               selected={endPlace}
             />
             <DatePrecisionInput disabled={!session || !isEditor} onChange={setTraveledAt} value={traveledAt} />
@@ -2896,6 +2961,7 @@ function AceternityStyleGlobe({
   routes,
   searchPlaces,
   session,
+  visits,
   worldDots,
 }) {
   const [rotation, setRotation] = useState(-112);
@@ -3045,6 +3111,7 @@ function AceternityStyleGlobe({
         routes={routes}
         searchPlaces={searchPlaces}
         session={session}
+        visits={visits}
       />
       <div className="globe-visual-pair">
       <svg

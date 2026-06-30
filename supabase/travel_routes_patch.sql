@@ -1,6 +1,6 @@
 create table if not exists public.travel_routes (
   id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references public.travel_profiles(id) on delete cascade,
+  profile_id text not null references public.travel_profiles(id) on delete cascade,
   start_place_id text not null,
   end_place_id text not null,
   traveled_at date,
@@ -8,6 +8,16 @@ create table if not exists public.travel_routes (
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
+
+alter table public.travel_routes
+  drop constraint if exists travel_routes_profile_id_fkey;
+
+alter table public.travel_routes
+  alter column profile_id type text using profile_id::text;
+
+alter table public.travel_routes
+  add constraint travel_routes_profile_id_fkey
+  foreign key (profile_id) references public.travel_profiles(id) on delete cascade;
 
 alter table public.travel_routes enable row level security;
 
