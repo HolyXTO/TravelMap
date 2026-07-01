@@ -37,6 +37,14 @@ import { supabase } from "./lib/supabase";
 
 const PHOTO_BUCKET = "travel-photos";
 const GLOBE_SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
+const routeTransportOptions = [
+  { id: "flight", label: "飞机" },
+  { id: "ship", label: "轮船" },
+  { id: "car", label: "汽车" },
+  { id: "train", label: "火车" },
+  { id: "walk", label: "步行" },
+  { id: "other", label: "其他" },
+];
 const PROFILE_ID_ORDER = new Map(profiles.map((profile, index) => [profile.id, index]));
 const PROFILE_COLOR_ORDER = new Map(
   profiles.map((profile, index) => [(profile.color || "").toLowerCase(), index]),
@@ -54,9 +62,10 @@ const WORLD_BOUNDS = [
   [81, 179],
 ];
 const WORLD_DEFAULT_VIEW = {
-  center: [10, 20],
+  center: [10, 35],
   zoom: 1.75,
 };
+const WORLD_WRAP_OFFSETS = [-360, 0, 360];
 const CHINA_SPECIAL_REGION_PARENT_IDS = {
   CN081: "CN-HK",
   CN082: "CN-MO",
@@ -850,6 +859,41 @@ function placeToFeature(place) {
   };
 }
 
+function shiftGeometryLongitudes(geometry, offset) {
+  if (!geometry || !offset) return geometry;
+  const shift = (item) => {
+    if (!Array.isArray(item)) return item;
+    if (typeof item[0] === "number" && typeof item[1] === "number") {
+      return [item[0] + offset, item[1], ...item.slice(2)];
+    }
+    return item.map(shift);
+  };
+  return {
+    ...geometry,
+    coordinates: shift(geometry.coordinates),
+  };
+}
+
+function placeToFeatureWithOffset(place, offset = 0) {
+  const feature = placeToFeature(place);
+  return {
+    ...feature,
+    id: offset ? `${place.id}:${offset}` : place.id,
+    properties: {
+      ...feature.properties,
+      wrapOffset: offset,
+    },
+    geometry: shiftGeometryLongitudes(feature.geometry, offset),
+  };
+}
+
+function placesToMapFeatures(items, wrap = false) {
+  if (!wrap) return items.map(placeToFeature);
+  return WORLD_WRAP_OFFSETS.flatMap((offset) =>
+    items.map((place) => placeToFeatureWithOffset(place, offset)),
+  );
+}
+
 function findPlace(placeId, placeLookup) {
   const canonicalId = canonicalPlaceId(placeId);
 
@@ -983,7 +1027,7 @@ function normalizeProfilesForDisplay(items = []) {
 }
 
 function parseVisitMeta(note) {
-  if (!note) return { rating: 0, text: "", datePrecision: "day", dateDisplay: "" };
+  if (!note) return { rating: 0, text: "", datePrecision: "day", dateDisplay: "", transportMode: "" };
   try {
     const parsed = JSON.parse(note);
     if (parsed && typeof parsed === "object") {
@@ -992,18 +1036,19 @@ function parseVisitMeta(note) {
         text: parsed.text || "",
         datePrecision: parsed.datePrecision || "day",
         dateDisplay: parsed.dateDisplay || "",
+        transportMode: parsed.transportMode || "",
       };
     }
   } catch {
     // Existing plain-text notes are preserved as text.
   }
-  return { rating: 0, text: note, datePrecision: "day", dateDisplay: "" };
+  return { rating: 0, text: note, datePrecision: "day", dateDisplay: "", transportMode: "" };
 }
 
-function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, text = "" } = {}) {
+function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, text = "", transportMode = "" } = {}) {
   const normalizedRating = Math.max(0, Math.min(10, Number(rating) || 0));
-  if (!normalizedRating && !text && !dateDisplay) return "";
-  return JSON.stringify({ dateDisplay, datePrecision, rating: normalizedRating, text });
+  if (!normalizedRating && !text && !dateDisplay && !transportMode) return "";
+  return JSON.stringify({ dateDisplay, datePrecision, rating: normalizedRating, text, transportMode });
 }
 
 function normalizeVisitDateInput(value) {
@@ -1197,7 +1242,12 @@ function mapRoute(row) {
     traveledAt: row.traveled_at,
     dateDisplay: meta.dateDisplay || row.traveled_at || "",
     datePrecision: meta.datePrecision || "day",
+    transportMode: meta.transportMode || "flight",
   };
+}
+
+function routeTransportLabel(mode) {
+  return routeTransportOptions.find((item) => item.id === mode)?.label || "交通";
 }
 
 function routeArcFromPlaces(route, placeLookup) {
@@ -1225,6 +1275,7 @@ function routeArcFromPlaces(route, placeLookup) {
       country: displayCountryName(resolvePlaceForLevel(endPlace.id, "country", placeLookup)),
     },
     dateDisplay: route.dateDisplay,
+    transportMode: route.transportMode,
     generated: false,
   };
 }
@@ -1497,13 +1548,6 @@ function App() {
   const [visits, setVisits] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [routeMessage, setRouteMessage] = useState("");
-  const [hiddenGeneratedRouteIds, setHiddenGeneratedRouteIds] = useState(() => {
-    try {
-      return new Set(JSON.parse(window.localStorage.getItem("travelmap-hidden-generated-routes") || "[]"));
-    } catch {
-      return new Set();
-    }
-  });
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
   const [countryModalId, setCountryModalId] = useState(null);
   const [mapPlaces, setMapPlaces] = useState({ country: [], region: [], city: [] });
@@ -1543,13 +1587,6 @@ function App() {
       setActiveProfile("all");
     }
   }, [activeProfile, appProfiles]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      "travelmap-hidden-generated-routes",
-      JSON.stringify(Array.from(hiddenGeneratedRouteIds)),
-    );
-  }, [hiddenGeneratedRouteIds]);
 
   const loadTravelData = async () => {
     try {
@@ -1982,20 +2019,12 @@ function App() {
     [placeLookup, profileScopedRoutes],
   );
 
-  const generatedRouteArcs = useMemo(
-    () =>
-      generatedJourneyVisuals.arcs
-        .map((arc, index) => ({ ...arc, id: `generated-${arc.id}`, generated: true, generatedIndex: index }))
-        .filter((arc) => !hiddenGeneratedRouteIds.has(arc.id)),
-    [generatedJourneyVisuals.arcs, hiddenGeneratedRouteIds],
-  );
-
   const journeyVisuals = useMemo(
     () => ({
       points: generatedJourneyVisuals.points,
-      arcs: [...routeArcs, ...generatedRouteArcs].slice(0, 160),
+      arcs: routeArcs,
     }),
-    [generatedJourneyVisuals.points, generatedRouteArcs, routeArcs],
+    [generatedJourneyVisuals.points, routeArcs],
   );
 
   const worldShapeDots = useMemo(
@@ -2188,7 +2217,7 @@ function App() {
     }
   }
 
-  async function saveRoute({ endPlaceId, id, profileId, startPlaceId, traveledAt }) {
+  async function saveRoute({ endPlaceId, id, profileId, startPlaceId, transportMode, traveledAt }) {
     if (!session || !isEditor) {
       setRouteMessage("请先用已授权账号登录后再保存轨迹。");
       return false;
@@ -2213,6 +2242,7 @@ function App() {
         note: buildVisitNote({
           dateDisplay: normalizedDate.display,
           datePrecision: normalizedDate.precision,
+          transportMode,
         }),
         created_by: session.user.id,
       };
@@ -2254,11 +2284,6 @@ function App() {
     } finally {
       setIsSaving(false);
     }
-  }
-
-  function hideGeneratedRoute(routeId) {
-    setHiddenGeneratedRouteIds((current) => new Set([...current, routeId]));
-    setRouteMessage("已隐藏这条自动轨迹。");
   }
 
   async function signIn(event) {
@@ -2506,11 +2531,9 @@ function App() {
         {isJourneyVisualsNear ? (
           <JourneyVisuals
             arcs={journeyVisuals.arcs}
-            generatedRoutes={generatedRouteArcs}
             isEditor={isEditor}
             isSaving={isSaving}
             onDeleteRoute={deleteRoute}
-            onHideGeneratedRoute={hideGeneratedRoute}
             onSaveRoute={saveRoute}
             points={journeyVisuals.points}
             profiles={appProfiles}
@@ -2646,11 +2669,9 @@ function ProfileNameSettings({
 
 function JourneyVisuals({
   arcs,
-  generatedRoutes,
   isEditor,
   isSaving,
   onDeleteRoute,
-  onHideGeneratedRoute,
   onSaveRoute,
   points,
   profiles,
@@ -2670,11 +2691,9 @@ function JourneyVisuals({
       <div className="journey-visual-grid">
         <AceternityStyleGlobe
           arcs={arcs}
-          generatedRoutes={generatedRoutes}
           isEditor={isEditor}
           isSaving={isSaving}
           onDeleteRoute={onDeleteRoute}
-          onHideGeneratedRoute={onHideGeneratedRoute}
           onSaveRoute={onSaveRoute}
           points={points}
           profiles={profiles}
@@ -2739,12 +2758,10 @@ function aceternityGlobeArcSegments(arc, rotation) {
 }
 
 function RoutePlanner({
-  generatedRoutes = [],
   isEditor,
   isSaving,
   message,
   onDeleteRoute,
-  onHideGeneratedRoute,
   onSaveRoute,
   profiles = [],
   routes = [],
@@ -2758,6 +2775,7 @@ function RoutePlanner({
   const [startPlace, setStartPlace] = useState(null);
   const [endPlace, setEndPlace] = useState(null);
   const [traveledAt, setTraveledAt] = useState("");
+  const [transportMode, setTransportMode] = useState("flight");
   const plannerRef = useRef(null);
 
   const placeLookup = useMemo(() => {
@@ -2814,6 +2832,7 @@ function RoutePlanner({
     setStartPlace(null);
     setEndPlace(null);
     setTraveledAt("");
+    setTransportMode("flight");
   }
 
   function startEdit(route) {
@@ -2822,6 +2841,7 @@ function RoutePlanner({
     setStartPlace(placeLookup.get(route.startPlaceId) || null);
     setEndPlace(placeLookup.get(route.endPlaceId) || null);
     setTraveledAt(route.dateDisplay || route.traveledAt || "");
+    setTransportMode(route.transportMode || "flight");
     setOpen(true);
   }
 
@@ -2832,12 +2852,11 @@ function RoutePlanner({
       profileId,
       startPlaceId: startPlace?.id,
       endPlaceId: endPlace?.id,
+      transportMode,
       traveledAt,
     });
     if (ok) resetForm();
   }
-
-  const shownGeneratedRoutes = generatedRoutes.slice(0, 26);
 
   return (
     <div className={`route-planner ${open ? "open" : ""}`} ref={plannerRef}>
@@ -2882,6 +2901,17 @@ function RoutePlanner({
               places={routeSearchPlaces}
               selected={endPlace}
             />
+            <select
+              disabled={!session || !isEditor}
+              onChange={(event) => setTransportMode(event.target.value)}
+              value={transportMode}
+            >
+              {routeTransportOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
             <DatePrecisionInput disabled={!session || !isEditor} onChange={setTraveledAt} value={traveledAt} />
             <div className="route-form-actions">
               {editingRoute && (
@@ -2907,34 +2937,19 @@ function RoutePlanner({
                     <strong>
                       {start ? displayPlaceName(start) : route.startPlaceId} → {end ? displayPlaceName(end) : route.endPlaceId}
                     </strong>
-                    <small>{route.dateDisplay || "未填写日期"}</small>
+                    <small>{routeTransportLabel(route.transportMode)} · {route.dateDisplay || "未填写日期"}</small>
                   </span>
-                  <button disabled={isSaving} onClick={() => startEdit(route)} type="button">
-                    <Pencil size={13} />
-                  </button>
-                  <button disabled={isSaving} onClick={() => onDeleteRoute?.(route.id)} type="button">
-                    <X size={14} />
-                  </button>
+                  <span className="route-list-actions">
+                    <button disabled={isSaving} onClick={() => startEdit(route)} type="button">
+                      <Pencil size={13} />
+                    </button>
+                    <button disabled={isSaving} onClick={() => onDeleteRoute?.(route.id)} type="button">
+                      <X size={14} />
+                    </button>
+                  </span>
                 </div>
               );
             })}
-          </div>
-          <div className="route-list generated">
-            <p>自动生成轨迹</p>
-            {shownGeneratedRoutes.length === 0 && <small>自动轨迹已隐藏或暂无可生成轨迹。</small>}
-            {shownGeneratedRoutes.map((route) => (
-              <div className="route-list-item" key={route.id}>
-                <span>
-                  <strong>
-                    {route.start.name} → {route.end.name}
-                  </strong>
-                  <small>由足迹顺序自动生成</small>
-                </span>
-                <button disabled={isSaving} onClick={() => onHideGeneratedRoute?.(route.id)} type="button">
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -2994,11 +3009,9 @@ function RoutePlacePicker({ disabled, label, onSelect, places, selected }) {
 
 function AceternityStyleGlobe({
   arcs,
-  generatedRoutes,
   isEditor,
   isSaving,
   onDeleteRoute,
-  onHideGeneratedRoute,
   onSaveRoute,
   points,
   profiles,
@@ -3150,12 +3163,10 @@ function AceternityStyleGlobe({
         </div>
       </div>
       <RoutePlanner
-        generatedRoutes={generatedRoutes}
         isEditor={isEditor}
         isSaving={isSaving}
         message={routeMessage}
         onDeleteRoute={onDeleteRoute}
-        onHideGeneratedRoute={onHideGeneratedRoute}
         onSaveRoute={onSaveRoute}
         profiles={profiles}
         routes={routes}
@@ -3322,6 +3333,10 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
     earthTexture.anisotropy = 16;
     bumpTexture.anisotropy = 8;
 
+    const globeRoot = new THREE.Group();
+    globeRoot.rotation.y = THREE.MathUtils.degToRad(-110);
+    scene.add(globeRoot);
+
     const earth = new THREE.Mesh(
       new THREE.SphereGeometry(2, 96, 96),
       new THREE.MeshStandardMaterial({
@@ -3332,7 +3347,7 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
         metalness: 0,
       }),
     );
-    scene.add(earth);
+    globeRoot.add(earth);
 
     const atmosphere = new THREE.Mesh(
       new THREE.SphereGeometry(2.08, 96, 96),
@@ -3345,7 +3360,7 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
       }),
     );
     atmosphere.visible = false;
-    scene.add(atmosphere);
+    globeRoot.add(atmosphere);
 
     scene.add(new THREE.AmbientLight("#d8f4ff", 0.9));
     const keyLight = new THREE.DirectionalLight("#ffffff", 2.4);
@@ -3383,7 +3398,7 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
       pin.add(stem, head);
       markerGroup.add(pin);
     });
-    scene.add(markerGroup);
+    globeRoot.add(markerGroup);
 
     const handleWheel = (event) => {
       event.preventDefault();
@@ -3412,8 +3427,10 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
     const renderScene = () => {
       controls.update();
       markerGroup.children.forEach((pin) => {
-        const toCamera = camera.position.clone().sub(pin.userData.surfacePosition).normalize();
-        pin.visible = pin.userData.normal.dot(toCamera) > 0.08;
+        const worldNormal = pin.userData.normal.clone().applyQuaternion(globeRoot.quaternion);
+        const worldSurface = pin.userData.surfacePosition.clone().applyQuaternion(globeRoot.quaternion);
+        const toCamera = camera.position.clone().sub(worldSurface).normalize();
+        pin.visible = worldNormal.dot(toCamera) > 0.08;
       });
       renderer.render(scene, camera);
     };
@@ -3627,7 +3644,7 @@ function AceternityStyleWorldMap({ arcs, points, worldDots }) {
             );
           })}
         </g>
-        {arcs.slice(0, 34).map((arc, index) => (
+        {arcs.map((arc, index) => (
           <path
             className="world-route-line"
             d={aceternityWorldRoutePath(arc.start, arc.end)}
@@ -3801,7 +3818,7 @@ function DotWorldJourneyMap({ arcs, points, worldDots }) {
             />
           );
         })}
-        {arcs.slice(0, 70).map((arc, index) => (
+        {arcs.map((arc, index) => (
           <path
             d={arcPath(arc.start, arc.end)}
             fill="none"
@@ -3945,12 +3962,12 @@ function MapView({
       minZoom: 1,
       maxZoom: 12,
       scrollWheelZoom: true,
-      worldCopyJump: false,
+      worldCopyJump: true,
       zoomControl: false,
     });
     map.setMaxBounds([
-      [-64, -180],
-      [84, 180],
+      [-64, -540],
+      [84, 540],
     ]);
     L.control.zoom({ position: "bottomleft" }).addTo(map);
     map.on("click", () => setActiveVisitPreview(null));
@@ -3972,7 +3989,7 @@ function MapView({
     tileLayerRef.current = L.tileLayer(mapTheme.tile, {
       attribution: MAP_TILE_ATTRIBUTION,
       maxZoom: 20,
-      noWrap: true,
+      noWrap: false,
       keepBuffer: 4,
       subdomains: "abcd",
     }).addTo(map);
@@ -3990,7 +4007,7 @@ function MapView({
     const countryLayer = L.geoJSON(
       {
         type: "FeatureCollection",
-        features: countryPlaces.map(placeToFeature),
+        features: placesToMapFeatures(countryPlaces, activeLevel === "country"),
       },
       {
         style: (feature) => {
@@ -4083,6 +4100,7 @@ function MapView({
       activeLevel === "city"
         ? visitedPlaces.filter((place) => place.level === "city")
         : visitedPlaces.filter((place) => place.level === "city");
+    const markerOffsets = activeLevel === "country" ? WORLD_WRAP_OFFSETS : [0];
     for (const city of markerPlaces) {
       const id = city.mapId || city.id;
       const cityMapId = resolveMapIdForLevel(id, "city", placeLookup);
@@ -4097,20 +4115,23 @@ function MapView({
       const tone = visitTone(markerInfo, profiles, mapTheme, activeProfile);
       const [lon, lat] = city.center;
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
-      L.circleMarker([lat, lon], {
-        radius: activeLevel === "city" ? 5 : 3.5,
-        color: mapTheme.markerStroke,
-        weight: 1.5,
-        fillColor: tone ? tone.marker : mapTheme.emptyStroke,
-        fillOpacity: visitInfo.length > 0 ? 0.9 : 0.45,
-      })
-        .bindTooltip(city.localName, { sticky: true })
-        .on("click", (event) => {
-          L.DomEvent.stopPropagation(event);
-          onPlaceFocus?.(canonicalPlaceId(city.mapId || city.id));
-          setActiveVisitPreview({ place: city, visits: visitInfo });
+      for (const offset of markerOffsets) {
+        L.circleMarker([lat, lon + offset], {
+          radius: activeLevel === "city" ? 5 : 3.5,
+          color: mapTheme.markerStroke,
+          weight: 1.5,
+          fillColor: tone ? tone.marker : mapTheme.emptyStroke,
+          fillOpacity: visitInfo.length > 0 ? 0.9 : 0.45,
+          bubblingMouseEvents: false,
         })
-        .addTo(layer);
+          .bindTooltip(city.localName, { sticky: true })
+          .on("click", (event) => {
+            L.DomEvent.stopPropagation(event);
+            onPlaceFocus?.(canonicalPlaceId(city.mapId || city.id));
+            setActiveVisitPreview({ place: city, visits: visitInfo });
+          })
+          .addTo(layer);
+      }
     }
 
     layerRef.current = layer;
@@ -4145,7 +4166,9 @@ function MapView({
   return (
     <div
       className="map-surface"
-      onClick={() => setActiveVisitPreview(null)}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) setActiveVisitPreview(null);
+      }}
       style={{ "--map-bg": mapTheme.background }}
     >
       <div className="map-head">
@@ -5099,6 +5122,7 @@ function MiniCountryMap({
         weight: 1.2,
         fillColor: tone ? tone.marker : "#16361f",
         fillOpacity: 0.92,
+        bubblingMouseEvents: false,
       })
         .bindTooltip(place.localName || place.name, {
           className: "mini-map-label",
@@ -5124,7 +5148,12 @@ function MiniCountryMap({
   }, [activeProfile, cityPlaces, country, detailLevel, onPlaceFocus, profiles, regionPlaces, showLabels, visitedByLevel, visitedCityVisits, visitedPlaces]);
 
   return (
-    <div className="mini-country-map-shell" onClick={() => setActiveVisitPreview(null)}>
+    <div
+      className="mini-country-map-shell"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) setActiveVisitPreview(null);
+      }}
+    >
       <div className="mini-country-map" ref={miniRef} />
       <button
         aria-label="恢复初始视野"
@@ -5230,6 +5259,7 @@ function PlaceSearchPanel({
   const [profileId, setProfileId] = useState(profiles[0]?.id || "");
   const [visitedAt, setVisitedAt] = useState("");
   const [type, setType] = useState("旅行");
+  const [visitChoice, setVisitChoice] = useState(null);
   const addedItemRefs = useRef(new Map());
   const addedListRef = useRef(null);
 
@@ -5272,11 +5302,22 @@ function PlaceSearchPanel({
       .filter(Boolean)
       .sort((a, b) => (b.visit.visitedAt || "").localeCompare(a.visit.visitedAt || ""))
       .forEach((item) => {
-        const key = `${item.visit.profileId}:${canonicalPlaceId(item.place.mapId || item.place.id)}`;
-        if (!byPlace.has(key)) byPlace.set(key, item);
+        const placeKey = canonicalPlaceId(item.place.mapId || item.place.id);
+        const key = activeProfile === "all" ? placeKey : `${item.visit.profileId}:${placeKey}`;
+        const existing = byPlace.get(key);
+        if (existing) {
+          existing.visits.push(item.visit);
+          existing.visits.sort(
+            (a, b) =>
+              (PROFILE_ID_ORDER.get(a.profileId) ?? 99) - (PROFILE_ID_ORDER.get(b.profileId) ?? 99) ||
+              (b.visitedAt || "").localeCompare(a.visitedAt || ""),
+          );
+        } else {
+          byPlace.set(key, { ...item, visits: [item.visit] });
+        }
       });
     return Array.from(byPlace.values());
-  }, [compact, places, visits]);
+  }, [activeProfile, compact, places, visits]);
 
   useEffect(() => {
     const targetId = typeof focusRequest === "string" ? focusRequest : focusRequest?.placeId;
@@ -5304,6 +5345,28 @@ function PlaceSearchPanel({
     }
     const ok = await addPlace(place, { profileId, type, visitedAt });
     if (ok) setQuery("");
+  }
+
+  function profileLabel(profileIdValue) {
+    return profiles.find((profile) => profile.id === profileIdValue)?.name || profileIdValue;
+  }
+
+  function chooseVisitAction(item, action) {
+    const itemVisits = item.visits?.length ? item.visits : [item.visit];
+    if (activeProfile === "all" && itemVisits.length > 1) {
+      setVisitChoice({ action, place: item.place, visits: itemVisits });
+      return;
+    }
+    const visit = itemVisits.find((entry) => entry.profileId === profileId) || itemVisits[0];
+    if (action === "delete") onDeleteVisit?.(visit.id);
+    else onEditVisit?.(visit);
+  }
+
+  function runVisitChoice(visit) {
+    if (!visitChoice) return;
+    if (visitChoice.action === "delete") onDeleteVisit?.(visit.id);
+    else onEditVisit?.(visit);
+    setVisitChoice(null);
   }
 
   return (
@@ -5375,9 +5438,12 @@ function PlaceSearchPanel({
       </div>
       {authMessage && session && <p className="dock-message">{authMessage}</p>}
       <div className="added-list" ref={addedListRef}>
-        <p>你去过的地方</p>
+        <p>{activeProfile === "all" ? "去过的地方" : "你去过的地方"}</p>
         {addedPlaces.length === 0 && <small>尚未标记地点。</small>}
-        {addedPlaces.map(({ place, visit }) => (
+        {addedPlaces.map((item) => {
+          const { place, visit } = item;
+          const itemVisits = item.visits?.length ? item.visits : [visit];
+          return (
           <div
             key={visit.id}
             ref={(node) => {
@@ -5389,14 +5455,16 @@ function PlaceSearchPanel({
             <FlagIcon place={place} />
             <span>
               <strong>{displayPlaceName(place)}</strong>
-              <small>{displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName })}</small>
+              <small>
+                {displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName })}
+              </small>
             </span>
             <span className="visit-actions">
               {onEditVisit && (
                 <button
                   aria-label={`编辑 ${displayPlaceName(place)}`}
                   disabled={isSaving}
-                  onClick={() => onEditVisit(visit)}
+                  onClick={() => chooseVisitAction(item, "edit")}
                   title="编辑"
                   type="button"
                 >
@@ -5407,7 +5475,7 @@ function PlaceSearchPanel({
                 <button
                   aria-label={`删除 ${displayPlaceName(place)}`}
                   disabled={isSaving}
-                  onClick={() => onDeleteVisit(visit.id)}
+                  onClick={() => chooseVisitAction(item, "delete")}
                   title="删除"
                   type="button"
                 >
@@ -5416,8 +5484,28 @@ function PlaceSearchPanel({
               )}
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
+      {visitChoice && (
+        <div className="visit-choice-popover" role="dialog" aria-modal="false">
+          <div>
+            <strong>{visitChoice.action === "delete" ? "选择要删除的记录" : "选择要编辑的记录"}</strong>
+            <small>{displayPlaceName(visitChoice.place)}</small>
+          </div>
+          {visitChoice.visits.map((visit) => (
+            <button key={visit.id} onClick={() => runVisitChoice(visit)} type="button">
+              <span>{profileLabel(visit.profileId)}</span>
+              <small>
+                {displayVisitDate(visit) || "未填写日期"} · {visit.type || "旅行"}
+              </small>
+            </button>
+          ))}
+          <button className="ghost" onClick={() => setVisitChoice(null)} type="button">
+            取消
+          </button>
+        </div>
+      )}
     </div>
   );
 }

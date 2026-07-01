@@ -1373,6 +1373,57 @@ h2 {
   color: #245a38;
 }
 
+.visit-choice-popover {
+  position: fixed;
+  z-index: 22000;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: min(320px, calc(100vw - 32px));
+  gap: 8px;
+  transform: translate(-50%, -50%);
+  border: 1px solid #cbd8d0;
+  border-radius: 10px;
+  background: #fffffff7;
+  padding: 12px;
+  box-shadow: 0 22px 70px #0f172a30;
+  backdrop-filter: blur(14px);
+}
+
+.visit-choice-popover > div {
+  display: grid;
+  gap: 2px;
+}
+
+.visit-choice-popover strong {
+  color: #12201a;
+  font-size: 0.92rem;
+}
+
+.visit-choice-popover small {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.visit-choice-popover button {
+  width: 100%;
+  height: auto;
+  justify-content: start;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.visit-choice-popover button span,
+.visit-choice-popover button small {
+  display: block;
+}
+
+.visit-choice-popover button.ghost {
+  justify-content: center;
+  color: #64748b;
+}
+
 .auth-mini {
   display: grid;
   gap: 8px;
@@ -1833,7 +1884,7 @@ h2 {
 }
 
 .overview-section {
-  width: min(1120px, 100%);
+  width: min(1240px, 100%);
   padding: 14px 0 48px;
 }
 
@@ -3033,17 +3084,29 @@ h2 {
 }
 
 .route-list-item {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
+  width: 100%;
   border: 1px solid #e1e9e4;
   border-radius: 8px;
   background: #fbfdfb;
   padding: 8px;
 }
 
-.route-list-item > span {
+.route-list-item > span:not(.route-list-actions) {
+  flex: 1 1 auto;
   min-width: 0;
   color: #203129;
+}
+
+.route-list-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .route-list-item strong,
