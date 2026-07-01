@@ -3853,7 +3853,6 @@ function MapView({
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const tileLayerRef = useRef(null);
-  const vectorRendererRef = useRef(null);
   const countryLabelRef = useRef(null);
   const lastLevelRef = useRef(null);
   const [activeVisitPreview, setActiveVisitPreview] = useState(null);
@@ -3866,19 +3865,17 @@ function MapView({
       zoom: 2,
       minZoom: 1,
       maxZoom: 12,
-      zoomSnap: 0.25,
-      zoomDelta: 0.5,
       scrollWheelZoom: true,
       worldCopyJump: false,
       zoomControl: false,
-      preferCanvas: true,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
       zoomAnimation: false,
       fadeAnimation: false,
       markerZoomAnimation: false,
       wheelDebounceTime: 35,
       wheelPxPerZoomLevel: 80,
     });
-    vectorRendererRef.current = L.canvas({ padding: 0.45 });
     map.setMaxBounds([
       [-64, -180],
       [84, 180],
@@ -3892,7 +3889,6 @@ function MapView({
     return () => {
       map.remove();
       mapRef.current = null;
-      vectorRendererRef.current = null;
     };
   }, []);
 
@@ -3923,9 +3919,9 @@ function MapView({
       attribution: MAP_TILE_ATTRIBUTION,
       maxZoom: 20,
       noWrap: false,
-      keepBuffer: 4,
-      updateWhenZooming: true,
-      updateWhenIdle: false,
+      keepBuffer: 8,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
       subdomains: "abcd",
     }).addTo(map);
   }, [mapTheme]);
@@ -3943,7 +3939,6 @@ function MapView({
     }
 
     const layer = L.featureGroup().addTo(map);
-    const vectorRenderer = vectorRendererRef.current || undefined;
     const hideCountryLabel = () => {
       if (countryLabelRef.current) {
         countryLabelRef.current.remove();
@@ -3972,7 +3967,6 @@ function MapView({
         features: countryPlaces.map(placeToFeature),
       },
       {
-        renderer: vectorRenderer,
         style: (feature) => {
           const id = feature.properties.id;
           const visitInfo = visitedByCountry.get(id);
@@ -4021,7 +4015,6 @@ function MapView({
           features: displayPlaces.map(placeToFeature),
         },
         {
-          renderer: vectorRenderer,
           style: (feature) => {
             const id = feature.properties.id;
             const visitInfo = visitedByLevel.get(id);
@@ -4056,7 +4049,6 @@ function MapView({
           features: regionPlaces.map(placeToFeature),
         },
         {
-          renderer: vectorRenderer,
           interactive: false,
           style: {
             color: "#536579",
@@ -4087,7 +4079,6 @@ function MapView({
       const [lon, lat] = city.center;
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
       L.circleMarker([lat, lon], {
-        renderer: vectorRenderer,
         radius: activeLevel === "city" ? 5 : 3.5,
         color: mapTheme.markerStroke,
         weight: 1.5,
@@ -4948,11 +4939,21 @@ function MiniCountryMap({
       dragging: true,
       scrollWheelZoom: true,
       zoomControl: false,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      zoomAnimation: false,
+      fadeAnimation: false,
+      markerZoomAnimation: false,
+      wheelDebounceTime: 35,
+      wheelPxPerZoomLevel: 80,
     });
     L.control.zoom({ position: "bottomleft" }).addTo(map);
     map.on("click", () => setActiveVisitPreview(null));
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 20,
+      keepBuffer: 8,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
       subdomains: "abcd",
     }).addTo(map);
     mapRef.current = map;
