@@ -370,10 +370,10 @@ h2 {
 .map-surface {
   position: relative;
   z-index: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 730px;
+  align-self: start;
+  min-height: 720px;
   overflow: hidden;
+  background: var(--map-bg, #d6dee0);
 }
 
 .map-head {
@@ -386,7 +386,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px 18px 28px;
+  padding: 18px 18px 34px;
   background: linear-gradient(180deg, #ffffffee 0%, #ffffffb8 58%, #ffffff00 100%);
   pointer-events: none;
 }
@@ -399,14 +399,13 @@ h2 {
 
 .leaflet-map {
   display: block;
-  flex: 1 1 auto;
   width: 100%;
-  height: auto;
-  min-height: 760px;
+  height: min(78vh, 760px);
+  min-height: 720px;
 }
 
 .leaflet-container {
-  background: #d6dee0;
+  background: var(--map-bg, #d6dee0);
   font-family:
     Inter, "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
 }
@@ -470,7 +469,7 @@ h2 {
 
 .leaflet-control-zoom {
   margin-left: 12px !important;
-  margin-bottom: 50px !important;
+  margin-bottom: 64px !important;
 }
 
 .country-hover-label {
@@ -499,8 +498,8 @@ h2 {
 .map-reset-button {
   position: absolute;
   z-index: 900;
-  bottom: 12px;
-  left: 12px;
+  bottom: 18px;
+  left: 13px;
   display: grid;
   place-items: center;
   width: 34px;
@@ -1315,9 +1314,21 @@ h2 {
 }
 
 @media (min-width: 1021px) {
+  .quick-add-dock {
+    align-self: start;
+    height: min(78vh, 760px);
+    min-height: 720px;
+  }
+
+  .quick-add-dock .place-search {
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
   .added-list {
-    min-height: 360px;
-    max-height: clamp(520px, 62vh, 760px);
+    min-height: 0;
+    max-height: none;
   }
 }
 
@@ -2483,6 +2494,31 @@ h2 {
   font-weight: 850;
 }
 
+.journey-visual-gate {
+  width: min(1240px, 100%);
+  margin: 0 auto;
+}
+
+.journey-visual-placeholder {
+  min-height: 520px;
+  border: 1px dashed #cfdae6;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at top right, #dbeafe 0, transparent 34%),
+    linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  padding: 28px;
+  color: #64748b;
+  box-shadow: 0 14px 36px #0f172a0d;
+}
+
+.journey-visual-placeholder h2 {
+  margin-bottom: 8px;
+}
+
+.journey-visual-placeholder span {
+  font-weight: 800;
+}
+
 .journey-visual-section {
   width: min(1240px, 100%);
   margin: 0 auto;
@@ -3078,6 +3114,13 @@ h2 {
 
 .world-map-pulse {
   animation: mapPulse 1.45s ease-out infinite;
+}
+
+.visual-paused .globe-ring,
+.visual-paused .world-route-line,
+.visual-paused .world-map-pulse,
+.aceternity-world-card.visual-paused::before {
+  animation-play-state: paused !important;
 }
 
 @keyframes aurora {

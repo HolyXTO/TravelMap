@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import * as THREE from "three";
@@ -145,6 +145,31 @@ function visitTone(visitInfo, profiles = [], mapTheme, activeProfile = "all") {
 
 const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+function useNearViewport(rootMargin = "320px") {
+  const ref = useRef(null);
+  const [isNear, setIsNear] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setIsNear(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsNear(entry.isIntersecting);
+      },
+      { root: null, rootMargin, threshold: 0.01 },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [rootMargin]);
+
+  return [ref, isNear];
+}
 
 const MAP_THEMES = [
   {
@@ -1824,6 +1849,15 @@ function App() {
     [filteredVisits],
   );
 
+  const visibleVisitedPlaces = useMemo(
+    () => searchPlaces.filter((place) => visibleVisitedPlaceIds.has(canonicalPlaceId(place.id))),
+    [searchPlaces, visibleVisitedPlaceIds],
+  );
+
+  const handleMapPlaceFocus = useCallback((placeId) => {
+    setQuickAddFocusRequest({ placeId, token: Date.now() });
+  }, []);
+
   const profileScopedVisits = useMemo(
     () =>
       activeProfile === "all"
@@ -1968,6 +2002,7 @@ function App() {
     () => buildWorldShapeDots(mapPlaces.country),
     [mapPlaces.country],
   );
+  const [journeyVisualGateRef, isJourneyVisualsNear] = useNearViewport("260px");
 
   function changeLevel(levelId) {
     setActiveLevel(levelId);
@@ -2407,7 +2442,6 @@ function App() {
         <MapView
           activeLevel={activeLevel}
           activeProfile={activeProfile}
-          cityPlaces={cityPlaces}
           countryPlaces={mapPlaces.country}
           displayPlaces={displayPlaces}
           mapStatus={mapStatus}
@@ -2423,10 +2457,8 @@ function App() {
           visitedByLevel={visitedByLevel}
           visitedByCountry={visitedByCountry}
           visitedCityVisits={visitedCityVisits}
-          visitedPlaces={searchPlaces.filter((place) => visibleVisitedPlaceIds.has(canonicalPlaceId(place.id)))}
-          onPlaceFocus={(placeId) =>
-            setQuickAddFocusRequest({ placeId, token: Date.now() })
-          }
+          visitedPlaces={visibleVisitedPlaces}
+          onPlaceFocus={handleMapPlaceFocus}
         />
       </section>
 
@@ -2467,23 +2499,36 @@ function App() {
         placeLookup={placeLookup}
         profileSummaries={profileContinentSummaries}
       />
-      <JourneyVisuals
-        arcs={journeyVisuals.arcs}
-        generatedRoutes={generatedRouteArcs}
-        isEditor={isEditor}
-        isSaving={isSaving}
-        onDeleteRoute={deleteRoute}
-        onHideGeneratedRoute={hideGeneratedRoute}
-        onSaveRoute={saveRoute}
-        points={journeyVisuals.points}
-        profiles={appProfiles}
-        routeMessage={routeMessage}
-        routes={profileScopedRoutes}
-        searchPlaces={searchPlaces}
-        session={session}
-        visits={visits}
-        worldDots={worldShapeDots}
-      />
+      <div
+        className={`journey-visual-gate ${isJourneyVisualsNear ? "active" : "idle"}`}
+        ref={journeyVisualGateRef}
+      >
+        {isJourneyVisualsNear ? (
+          <JourneyVisuals
+            arcs={journeyVisuals.arcs}
+            generatedRoutes={generatedRouteArcs}
+            isEditor={isEditor}
+            isSaving={isSaving}
+            onDeleteRoute={deleteRoute}
+            onHideGeneratedRoute={hideGeneratedRoute}
+            onSaveRoute={saveRoute}
+            points={journeyVisuals.points}
+            profiles={appProfiles}
+            routeMessage={routeMessage}
+            routes={profileScopedRoutes}
+            searchPlaces={searchPlaces}
+            session={session}
+            visits={visits}
+            worldDots={worldShapeDots}
+          />
+        ) : (
+          <section className="journey-visual-placeholder" aria-label="足迹视觉展示">
+            <p className="eyebrow">Visual Journey</p>
+            <h2>足迹可视化</h2>
+            <span>继续向下滚动时加载球形足迹与点阵轨迹</span>
+          </section>
+        )}
+      </div>
       {editingVisit && (
         <VisitEditDialog
           authMessage={editMessage}
@@ -2970,16 +3015,18 @@ function AceternityStyleGlobe({
   const [resetTick, setResetTick] = useState(0);
   const globeSvgRef = useRef(null);
   const dragRef = useRef({ active: false, x: 0 });
+  const [cardRef, isVisualActive] = useNearViewport("420px");
   const speed = GLOBE_SPEEDS[speedIndex];
 
   useEffect(() => {
+    if (!isVisualActive) return undefined;
     const timer = window.setInterval(() => {
       if (!dragRef.current.active) {
         setRotation((value) => (value + 0.42 * speed * 2) % 360);
       }
     }, 70);
     return () => window.clearInterval(timer);
-  }, [speed]);
+  }, [isVisualActive, speed]);
 
   useEffect(() => {
     const globe = globeSvgRef.current;
@@ -3067,7 +3114,10 @@ function AceternityStyleGlobe({
   );
 
   return (
-    <article className="journey-card globe-card aceternity-globe-card">
+    <article
+      className={`journey-card globe-card aceternity-globe-card ${isVisualActive ? "visual-active" : "visual-paused"}`}
+      ref={cardRef}
+    >
       <div>
         <div>
           <p className="eyebrow">Globe</p>
@@ -3174,7 +3224,7 @@ function AceternityStyleGlobe({
         <circle cx="50" cy="50" r="42.8" fill="url(#aceternityGlobeShade)" />
         <circle cx="50" cy="50" r="42.8" fill="none" stroke="#cbeeff" strokeOpacity="0.58" strokeWidth="0.72" />
       </svg>
-        <SatellitePinGlobe points={points} resetTick={resetTick} speed={speed} />
+        <SatellitePinGlobe active={isVisualActive} points={points} resetTick={resetTick} speed={speed} />
       </div>
     </article>
   );
@@ -3208,11 +3258,17 @@ function latLngToVector3(lat, lng, radius) {
   );
 }
 
-function SatellitePinGlobe({ points, resetTick, speed }) {
+function SatellitePinGlobe({ active, points, resetTick, speed }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
+  const activeRef = useRef(active);
   const satelliteZoomRef = useRef(1.08);
+
+  useEffect(() => {
+    activeRef.current = active;
+    if (controlsRef.current) controlsRef.current.autoRotate = active;
+  }, [active]);
 
   useEffect(() => {
     if (controlsRef.current) controlsRef.current.autoRotateSpeed = 2 * speed;
@@ -3351,8 +3407,9 @@ function SatellitePinGlobe({ points, resetTick, speed }) {
     resizeObserver.observe(mount);
 
     let frame = 0;
-    const animate = () => {
-      frame = window.requestAnimationFrame(animate);
+    let idleTimer = 0;
+    let disposed = false;
+    const renderScene = () => {
       controls.update();
       markerGroup.children.forEach((pin) => {
         const toCamera = camera.position.clone().sub(pin.userData.surfacePosition).normalize();
@@ -3360,10 +3417,29 @@ function SatellitePinGlobe({ points, resetTick, speed }) {
       });
       renderer.render(scene, camera);
     };
-    animate();
+    const schedule = () => {
+      if (disposed) return;
+      if (activeRef.current) {
+        frame = window.requestAnimationFrame(animate);
+      } else {
+        idleTimer = window.setTimeout(animate, 500);
+      }
+    };
+    const animate = () => {
+      frame = 0;
+      idleTimer = 0;
+      if (activeRef.current) {
+        renderScene();
+      }
+      schedule();
+    };
+    renderScene();
+    schedule();
 
     return () => {
+      disposed = true;
       window.cancelAnimationFrame(frame);
+      window.clearTimeout(idleTimer);
       cameraRef.current = null;
       controlsRef.current = null;
       resizeObserver.disconnect();
@@ -3502,8 +3578,13 @@ function aceternityWorldRoutePath(start, end) {
 }
 
 function AceternityStyleWorldMap({ arcs, points, worldDots }) {
+  const [cardRef, isVisualActive] = useNearViewport("420px");
+
   return (
-    <article className="journey-card dot-map-card aceternity-world-card">
+    <article
+      className={`journey-card dot-map-card aceternity-world-card ${isVisualActive ? "visual-active" : "visual-paused"}`}
+      ref={cardRef}
+    >
       <div>
         <p className="eyebrow">World Map</p>
         <h3>点阵轨迹</h3>
@@ -3830,7 +3911,6 @@ function countryFeatureLabel(feature) {
 function MapView({
   activeLevel,
   activeProfile,
-  cityPlaces,
   countryPlaces,
   displayPlaces,
   mapStatus,
@@ -3853,7 +3933,6 @@ function MapView({
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const tileLayerRef = useRef(null);
-  const countryLabelRef = useRef(null);
   const lastLevelRef = useRef(null);
   const [activeVisitPreview, setActiveVisitPreview] = useState(null);
 
@@ -3868,13 +3947,6 @@ function MapView({
       scrollWheelZoom: true,
       worldCopyJump: false,
       zoomControl: false,
-      zoomSnap: 0.5,
-      zoomDelta: 0.5,
-      zoomAnimation: false,
-      fadeAnimation: false,
-      markerZoomAnimation: false,
-      wheelDebounceTime: 35,
-      wheelPxPerZoomLevel: 80,
     });
     map.setMaxBounds([
       [-64, -180],
@@ -3884,28 +3956,10 @@ function MapView({
     map.on("click", () => setActiveVisitPreview(null));
 
     mapRef.current = map;
-    window.setTimeout(() => map.invalidateSize(false), 0);
 
     return () => {
       map.remove();
       mapRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    const container = containerRef.current;
-    if (!map || !container || typeof ResizeObserver === "undefined") return undefined;
-    let frame = 0;
-    const observer = new ResizeObserver(() => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => map.invalidateSize(false));
-    });
-    observer.observe(container);
-    if (container.parentElement) observer.observe(container.parentElement);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      observer.disconnect();
     };
   }, []);
 
@@ -3918,10 +3972,8 @@ function MapView({
     tileLayerRef.current = L.tileLayer(mapTheme.tile, {
       attribution: MAP_TILE_ATTRIBUTION,
       maxZoom: 20,
-      noWrap: false,
-      keepBuffer: 8,
-      updateWhenZooming: false,
-      updateWhenIdle: true,
+      noWrap: true,
+      keepBuffer: 4,
       subdomains: "abcd",
     }).addTo(map);
   }, [mapTheme]);
@@ -3933,34 +3985,8 @@ function MapView({
     if (layerRef.current) {
       layerRef.current.remove();
     }
-    if (countryLabelRef.current) {
-      countryLabelRef.current.remove();
-      countryLabelRef.current = null;
-    }
 
     const layer = L.featureGroup().addTo(map);
-    const hideCountryLabel = () => {
-      if (countryLabelRef.current) {
-        countryLabelRef.current.remove();
-        countryLabelRef.current = null;
-      }
-    };
-    const showCountryLabel = (feature) => {
-      const label = countryFeatureLabel(feature);
-      const latLng = countryTooltipLatLng(feature);
-      if (!latLng) return;
-      hideCountryLabel();
-      countryLabelRef.current = L.marker(latLng, {
-        interactive: false,
-        keyboard: false,
-        icon: L.divIcon({
-          className: "country-hover-label",
-          html: `<span>${escapeHtml(label)}</span>`,
-          iconAnchor: [0, 0],
-          iconSize: [0, 0],
-        }),
-      }).addTo(map);
-    };
     const countryLayer = L.geoJSON(
       {
         type: "FeatureCollection",
@@ -3990,19 +4016,12 @@ function MapView({
           };
         },
         onEachFeature: (feature, leafletLayer) => {
+          leafletLayer.bindTooltip(countryFeatureLabel(feature), {
+            sticky: true,
+          });
           leafletLayer.on("click", () => {
             setSelectedPlaceId(feature.properties.id);
-            showCountryLabel(feature);
             onCountryOpen(feature.properties.id);
-          });
-          leafletLayer.on("mouseover", () => {
-            showCountryLabel(feature);
-          });
-          leafletLayer.on("mousemove", () => {
-            showCountryLabel(feature);
-          });
-          leafletLayer.on("mouseout", () => {
-            hideCountryLabel();
           });
         },
       },
@@ -4107,7 +4126,6 @@ function MapView({
   }, [
     activeLevel,
     activeProfile,
-    cityPlaces,
     displayPlaces,
     placeLookup,
     profiles,
@@ -4430,6 +4448,13 @@ function CountryModal({
     () => new Set(visits.map((visit) => canonicalPlaceId(visit.placeId))),
     [visits],
   );
+  const modalVisitedPlaces = useMemo(
+    () => countryPlaces.filter((place) => modalVisitedPlaceIds.has(canonicalPlaceId(place.id))),
+    [countryPlaces, modalVisitedPlaceIds],
+  );
+  const handleModalPlaceFocus = useCallback((placeId) => {
+    setFocusedModalPlaceRequest({ placeId, token: Date.now() });
+  }, []);
   const modalVisitedByLevel = useMemo(() => {
     const result = new Map();
     const add = (id, profileId) => {
@@ -4702,10 +4727,8 @@ function CountryModal({
               showLabels={showMapLabels}
               visitedByLevel={modalVisitedByLevel}
               visitedCityVisits={modalVisitedCityVisits}
-              visitedPlaces={countryPlaces.filter((place) => modalVisitedPlaceIds.has(canonicalPlaceId(place.id)))}
-              onPlaceFocus={(placeId) =>
-                setFocusedModalPlaceRequest({ placeId, token: Date.now() })
-              }
+              visitedPlaces={modalVisitedPlaces}
+              onPlaceFocus={handleModalPlaceFocus}
             />
           </div>
           {comparisonMode ? (
@@ -4939,21 +4962,11 @@ function MiniCountryMap({
       dragging: true,
       scrollWheelZoom: true,
       zoomControl: false,
-      zoomSnap: 0.5,
-      zoomDelta: 0.5,
-      zoomAnimation: false,
-      fadeAnimation: false,
-      markerZoomAnimation: false,
-      wheelDebounceTime: 35,
-      wheelPxPerZoomLevel: 80,
     });
     L.control.zoom({ position: "bottomleft" }).addTo(map);
     map.on("click", () => setActiveVisitPreview(null));
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 20,
-      keepBuffer: 8,
-      updateWhenZooming: false,
-      updateWhenIdle: true,
       subdomains: "abcd",
     }).addTo(map);
     mapRef.current = map;
