@@ -23,6 +23,7 @@ import {
   SlidersHorizontal,
   Star,
   Trash2,
+  User,
   X,
   Users,
 } from "lucide-react";
@@ -521,6 +522,20 @@ const COUNTRY_GLOBE_ANCHORS = {
   MYS: [102.25, 4.05],
   RUS: [90.0, 61.5],
 };
+
+function antarcticaGlobePoint() {
+  const basePath = import.meta.env.BASE_URL || "/";
+  return {
+    id: "ATA-SOUTH-POLE",
+    lat: -90,
+    lng: 0,
+    name: "南极洲",
+    flag: "AQ",
+    flagIconUrls: [`${basePath}flags/circle-195/${encodeURIComponent("南极")}.png`],
+    isoA2: "AQ",
+    count: 0,
+  };
+}
 
 function geometryCenter(geometry) {
   const points = [];
@@ -2188,7 +2203,14 @@ function App() {
     () => buildWorldShapeDots(mapPlaces.country),
     [mapPlaces.country],
   );
-  const [journeyVisualGateRef, isJourneyVisualsNear] = useNearViewport("260px");
+  const [journeyVisualGateRef, isJourneyVisualsNear] = useNearViewport("900px");
+  const [journeyVisualsLoaded, setJourneyVisualsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (isJourneyVisualsNear) {
+      setJourneyVisualsLoaded(true);
+    }
+  }, [isJourneyVisualsNear]);
 
   function changeLevel(levelId) {
     setActiveLevel(levelId);
@@ -2499,7 +2521,7 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">TravelMapX</p>
+          <p className="eyebrow">TravelMap X</p>
           <h1>足迹地图</h1>
         </div>
         <div
@@ -2530,24 +2552,27 @@ function App() {
               onClick={() => setActiveProfile(profile.id)}
               type="button"
             >
-              <Users size={16} />
+              {profile.id === "all" ? <Users size={16} /> : <User size={16} />}
               {profile.label}
             </button>
           ))}
         </div>
         <div className="segmented">
-          {placeLevels.map((level) => (
-            <button
-              className={activeLevel === level.id ? "active" : ""}
-              key={level.id}
-              onClick={() => changeLevel(level.id)}
-              title={level.description}
-              type="button"
-            >
-              <Layers3 size={16} />
-              {level.label}
-            </button>
-          ))}
+          {placeLevels.map((level) => {
+            const LevelIcon = level.id === "country" ? Globe2 : level.id === "city" ? MapPinned : Layers3;
+            return (
+              <button
+                className={activeLevel === level.id ? "active" : ""}
+                key={level.id}
+                onClick={() => changeLevel(level.id)}
+                title={level.description}
+                type="button"
+              >
+                <LevelIcon size={16} />
+                {level.label}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -2682,10 +2707,10 @@ function App() {
         profileSummaries={profileContinentSummaries}
       />
       <div
-        className={`journey-visual-gate ${isJourneyVisualsNear ? "active" : "idle"}`}
+        className={`journey-visual-gate ${journeyVisualsLoaded ? "active" : "idle"}`}
         ref={journeyVisualGateRef}
       >
-        {isJourneyVisualsNear ? (
+        {journeyVisualsLoaded ? (
           <JourneyVisuals
             activeProfile={activeProfile}
             arcs={journeyVisuals.arcs}
@@ -3186,7 +3211,7 @@ function RoutePlacePicker({ disabled, label, onSelect, places, selected }) {
 function AceternityStyleGlobeV2({
   activeProfile,
   allCountryPoints = [],
-  countryPoints,
+  countryPoints = [],
   isEditor,
   isSaving,
   onDeleteRoute,
@@ -3204,7 +3229,11 @@ function AceternityStyleGlobeV2({
   const [showAllCountries, setShowAllCountries] = useState(false);
   const [cardRef, isVisualActive] = useNearViewport("420px");
   const speed = GLOBE_SPEEDS[speedIndex];
-  const displayedCountryPoints = showAllCountries ? allCountryPoints : countryPoints;
+  const displayedCountryPoints = useMemo(() => {
+    const source = showAllCountries ? allCountryPoints : countryPoints;
+    const withoutAntarctica = source.filter((point) => point.id !== "ATA" && point.id !== "ATA-SOUTH-POLE");
+    return [...withoutAntarctica, antarcticaGlobePoint()];
+  }, [allCountryPoints, countryPoints, showAllCountries]);
 
   function changeSpeed(direction) {
     setSpeedIndex((value) => Math.max(0, Math.min(GLOBE_SPEEDS.length - 1, value + direction)));
@@ -3576,6 +3605,9 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
     renderer.setSize(width, height);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     mount.appendChild(renderer.domElement);
+    const tooltip = document.createElement("div");
+    tooltip.className = "globe-flag-tooltip";
+    mount.appendChild(tooltip);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -3653,6 +3685,9 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
     const flagTextures = [];
     const flagMaterials = [];
     const flagBadgeMaterials = [];
+    const flagSprites = [];
+    const pointer = new THREE.Vector2();
+    const raycaster = new THREE.Raycaster();
     const localUp = new THREE.Vector3(0, 1, 0);
     let disposed = false;
     points.forEach((point) => {
@@ -3688,6 +3723,8 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
         sprite.position.set(0, 2.31, 0.012);
         sprite.scale.set(0.18, 0.18, 1);
         sprite.renderOrder = 30;
+        sprite.userData.label = point.name || point.country || point.id || "";
+        flagSprites.push(sprite);
         loadTextureFromCandidates(textureLoader, point.flagIconUrls, (texture) => {
           if (disposed) {
             texture.dispose();
@@ -3725,6 +3762,31 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
       mount.style.setProperty("--satellite-zoom", satelliteZoomRef.current.toFixed(2));
     };
     renderer.domElement.addEventListener("wheel", handleWheel, { passive: false });
+    const hideTooltip = () => {
+      tooltip.classList.remove("visible");
+    };
+    const handlePointerMove = (event) => {
+      if (!isFlagMode || flagSprites.length === 0) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(
+        flagSprites.filter((sprite) => sprite.visible && sprite.material.opacity > 0.05),
+        false,
+      );
+      if (hits.length === 0) {
+        hideTooltip();
+        return;
+      }
+      const mountRect = mount.getBoundingClientRect();
+      tooltip.textContent = hits[0].object.userData.label;
+      tooltip.style.left = `${event.clientX - mountRect.left + 14}px`;
+      tooltip.style.top = `${event.clientY - mountRect.top + 14}px`;
+      tooltip.classList.add("visible");
+    };
+    renderer.domElement.addEventListener("pointermove", handlePointerMove);
+    renderer.domElement.addEventListener("pointerleave", hideTooltip);
 
     const resizeObserver = new ResizeObserver(([entry]) => {
       const nextWidth = entry.contentRect.width || width;
@@ -3774,6 +3836,8 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
       controlsRef.current = null;
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener("wheel", handleWheel);
+      renderer.domElement.removeEventListener("pointermove", handlePointerMove);
+      renderer.domElement.removeEventListener("pointerleave", hideTooltip);
       controls.dispose();
       earth.geometry.dispose();
       earth.material.dispose();
@@ -4586,7 +4650,6 @@ function MapView({
           <p className="eyebrow">Layer</p>
           <h2>{placeLevels.find((level) => level.id === activeLevel)?.label}层级</h2>
         </div>
-        <p>{mapStatus}</p>
       </div>
       <MapThemePicker
         activeThemeId={mapTheme.id}

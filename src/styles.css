@@ -71,6 +71,10 @@ button {
   text-transform: uppercase;
 }
 
+.topbar .eyebrow {
+  text-transform: none;
+}
+
 h1,
 h2,
 p {
@@ -1970,7 +1974,7 @@ h2 {
   display: inline-grid;
   place-items: center;
   width: auto;
-  height: 0.92em;
+  height: 1.06em;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1984,7 +1988,7 @@ h2 {
 
 .continent-icon img {
   width: auto;
-  height: 0.92em;
+  height: 1.06em;
   object-fit: contain;
   border-radius: 0;
 }
@@ -2751,6 +2755,38 @@ h2 {
   color: #0f172a;
 }
 
+.aceternity-world-card > div:first-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "eyebrow count"
+    "title controls";
+  align-items: start;
+  gap: 6px 16px;
+}
+
+.aceternity-world-card > div:first-child .eyebrow {
+  grid-area: eyebrow;
+}
+
+.aceternity-world-card > div:first-child h3 {
+  grid-area: title;
+  justify-self: start;
+  text-align: left;
+}
+
+.aceternity-world-card > div:first-child > span {
+  grid-area: count;
+  justify-self: end;
+  color: #52647b;
+  text-align: right;
+}
+
+.aceternity-world-card .world-map-actions {
+  grid-area: controls;
+  justify-self: end;
+}
+
 .globe-visual-pair {
   position: absolute;
   inset: 94px 24px 24px;
@@ -2771,8 +2807,8 @@ h2 {
 
 .country-globe-toggle {
   position: absolute;
-  left: clamp(6px, 4%, 28px);
-  bottom: clamp(8px, 5%, 34px);
+  left: clamp(-6px, 1.5%, 12px);
+  bottom: clamp(-6px, 2%, 14px);
   z-index: 6;
   border: 1px solid #c7d8e7;
   border-radius: 999px;
@@ -2839,6 +2875,29 @@ h2 {
   height: 100% !important;
 }
 
+.globe-flag-tooltip {
+  position: absolute;
+  z-index: 12;
+  pointer-events: none;
+  max-width: 160px;
+  border: 1px solid #d8e7f2;
+  border-radius: 10px;
+  background: #fffffff2;
+  color: #0f172a;
+  box-shadow: 0 14px 30px #0f172a1f;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0;
+  padding: 8px 10px;
+  transition: opacity 120ms ease;
+  white-space: nowrap;
+}
+
+.globe-flag-tooltip.visible {
+  opacity: 1;
+}
+
 .satellite-land {
   filter: saturate(118%) contrast(105%);
 }
@@ -2855,6 +2914,10 @@ h2 {
   display: grid;
   justify-items: end;
   gap: 8px;
+}
+
+.globe-card-actions > span {
+  color: #1596d2;
 }
 
 .globe-reset-button {
