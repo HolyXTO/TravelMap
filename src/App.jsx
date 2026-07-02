@@ -496,7 +496,13 @@ const COUNTRY_NAME_ZH_OVERRIDES = {
 const CIRCLE_FLAG_ICON_ALIASES = {
   ARE: ["阿联酋"],
   BIH: ["波斯尼亚和黑塞哥维那"],
+  CAF: ["中非"],
+  COD: ["刚果(金)"],
+  COG: ["刚果(布)"],
   CZE: ["捷克共和国"],
+  DOM: ["多米尼加"],
+  FSM: ["密克罗尼西亚联邦"],
+  MKD: ["马其顿"],
   VAT: ["梵蒂冈"],
 };
 
@@ -504,6 +510,16 @@ const COUNTRY_LABEL_CENTERS = {
   PRK: [40.25, 127.35],
   KOR: [36.35, 127.85],
   JPN: [38.1, 138.15],
+};
+
+const COUNTRY_GLOBE_ANCHORS = {
+  // Country display anchors are [lng, lat]. Denmark's country geometry includes
+  // Greenland, so the automatic representative point lands far from Denmark proper.
+  AUS: [134.5, -25.6],
+  CAN: [-96.8, 55.2],
+  DNK: [10.0, 56.15],
+  MYS: [102.25, 4.05],
+  RUS: [90.0, 61.5],
 };
 
 function geometryCenter(geometry) {
@@ -1009,9 +1025,10 @@ function circularFlagIconUrls(country) {
     .filter(Boolean)
     .map((name) => cleanPlaceName(name))
     .filter(Boolean);
-  return Array.from(new Set(names)).map(
-    (name) => `${basePath}flags/circle/${encodeURIComponent(name)}.png`,
-  );
+  return Array.from(new Set(names)).flatMap((name) => [
+    `${basePath}flags/circle-195/${encodeURIComponent(name)}.png`,
+    `${basePath}flags/circle/${encodeURIComponent(name)}.png`,
+  ]);
 }
 
 function displayProfileName(name) {
@@ -1307,11 +1324,14 @@ function buildCountryGlobePoints(targetVisits, placeLookup) {
   for (const visit of targetVisits) {
     const country = resolvePlaceForLevel(visit.placeId, "country", placeLookup);
     if (!country || country.id === "ATA") continue;
+    const id = canonicalPlaceId(country.mapId || country.id);
     const fallback = country.center || null;
-    const center = representativePointForGeometry(country.geometry, fallback);
+    const center =
+      COUNTRY_GLOBE_ANCHORS[id] ||
+      COUNTRY_GLOBE_ANCHORS[country.id] ||
+      representativePointForGeometry(country.geometry, fallback);
     const latLng = placeLatLng({ center });
     if (!latLng) continue;
-    const id = canonicalPlaceId(country.mapId || country.id);
     const existing = countries.get(id);
     countries.set(id, {
       id,
@@ -1327,6 +1347,33 @@ function buildCountryGlobePoints(targetVisits, placeLookup) {
   return Array.from(countries.values()).sort(
     (a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"),
   );
+}
+
+function buildAllCountryGlobePoints(countryPlaces = []) {
+  return countryPlaces
+    .filter((country) => country && country.id !== "ATA")
+    .map((country) => {
+      const id = canonicalPlaceId(country.mapId || country.id);
+      const fallback = country.center || null;
+      const center =
+        COUNTRY_GLOBE_ANCHORS[id] ||
+        COUNTRY_GLOBE_ANCHORS[country.id] ||
+        representativePointForGeometry(country.geometry, fallback);
+      const latLng = placeLatLng({ center });
+      if (!latLng) return null;
+      return {
+        id,
+        lat: latLng.lat,
+        lng: latLng.lng,
+        name: displayCountryName(country),
+        flag: country.flag || flagEmoji(country.isoA2),
+        flagIconUrls: circularFlagIconUrls(country),
+        isoA2: country.isoA2,
+        count: 0,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
 }
 
 function mapRoute(row) {
@@ -2111,6 +2158,11 @@ function App() {
     [filteredVisits, placeLookup],
   );
 
+  const allCountryGlobePoints = useMemo(
+    () => buildAllCountryGlobePoints(mapPlaces.country),
+    [mapPlaces.country],
+  );
+
   const profileScopedRoutes = useMemo(
     () =>
       activeProfile === "all"
@@ -2637,6 +2689,7 @@ function App() {
           <JourneyVisuals
             activeProfile={activeProfile}
             arcs={journeyVisuals.arcs}
+            allCountryPoints={allCountryGlobePoints}
             countryPoints={countryGlobePoints}
             isEditor={isEditor}
             isSaving={isSaving}
@@ -2776,6 +2829,7 @@ function ProfileNameSettings({
 
 function JourneyVisuals({
   activeProfile,
+  allCountryPoints,
   arcs,
   countryPoints,
   isEditor,
@@ -2800,6 +2854,7 @@ function JourneyVisuals({
       <div className="journey-visual-grid">
         <AceternityStyleGlobeV2
           activeProfile={activeProfile}
+          allCountryPoints={allCountryPoints}
           arcs={arcs}
           countryPoints={countryPoints}
           isEditor={isEditor}
@@ -3130,6 +3185,7 @@ function RoutePlacePicker({ disabled, label, onSelect, places, selected }) {
 
 function AceternityStyleGlobeV2({
   activeProfile,
+  allCountryPoints = [],
   countryPoints,
   isEditor,
   isSaving,
@@ -3145,8 +3201,10 @@ function AceternityStyleGlobeV2({
 }) {
   const [speedIndex, setSpeedIndex] = useState(2);
   const [resetTick, setResetTick] = useState(0);
+  const [showAllCountries, setShowAllCountries] = useState(false);
   const [cardRef, isVisualActive] = useNearViewport("420px");
   const speed = GLOBE_SPEEDS[speedIndex];
+  const displayedCountryPoints = showAllCountries ? allCountryPoints : countryPoints;
 
   function changeSpeed(direction) {
     setSpeedIndex((value) => Math.max(0, Math.min(GLOBE_SPEEDS.length - 1, value + direction)));
@@ -3207,14 +3265,23 @@ function AceternityStyleGlobeV2({
         visits={visits}
       />
       <div className="globe-visual-pair">
-        <SatellitePinGlobe
+        <div className="country-globe-stage">
+          <SatellitePinGlobe
           active={isVisualActive}
           ariaLabel="国家国旗地球足迹"
           markerMode="flag"
-          points={countryPoints}
+          points={displayedCountryPoints}
           resetTick={resetTick}
           speed={speed}
-        />
+          />
+          <button
+            className={`country-globe-toggle ${showAllCountries ? "active" : ""}`}
+            onClick={() => setShowAllCountries((value) => !value)}
+            type="button"
+          >
+            {showAllCountries ? "只看去过国家" : "显示全部国家"}
+          </button>
+        </div>
         <SatellitePinGlobe
           active={isVisualActive}
           ariaLabel="城市图钉地球足迹"
