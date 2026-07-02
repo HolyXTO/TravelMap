@@ -1586,6 +1586,17 @@ h2 {
   overflow: auto;
 }
 
+.modal-grid > .place-search.compact {
+  height: auto;
+  max-height: 100%;
+}
+
+.modal-grid > .place-search.compact .added-list {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(330px, 42vh);
+}
+
 .modal-map-wrap {
   position: relative;
   min-height: 520px;
@@ -3167,6 +3178,38 @@ h2 {
   z-index: 1;
   width: calc(100% - 68px);
   height: calc(100% - 112px);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.aceternity-world-map:active {
+  cursor: grabbing;
+}
+
+.world-map-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: 6px;
+}
+
+.world-map-actions button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d3e4ee;
+  border-radius: 999px;
+  background: #ffffffde;
+  color: #0f5e85;
+  font-size: 0.92rem;
+  font-weight: 950;
+  box-shadow: 0 8px 18px #0f172a12;
+}
+
+.world-map-actions button:hover {
+  background: #f3fbff;
 }
 
 .world-route-line {

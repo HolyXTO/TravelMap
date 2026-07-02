@@ -493,6 +493,13 @@ const COUNTRY_NAME_ZH_OVERRIDES = {
   ATA: "南极洲",
 };
 
+const CIRCLE_FLAG_ICON_ALIASES = {
+  ARE: ["阿联酋"],
+  BIH: ["波斯尼亚和黑塞哥维那"],
+  CZE: ["捷克共和国"],
+  VAT: ["梵蒂冈"],
+};
+
 const COUNTRY_LABEL_CENTERS = {
   PRK: [40.25, 127.35],
   KOR: [36.35, 127.85],
@@ -987,6 +994,26 @@ function displayCountryName(place) {
   );
 }
 
+function circularFlagIconUrls(country) {
+  const basePath = import.meta.env.BASE_URL || "/";
+  const code = country?.id || country?.countryCode;
+  const names = [
+    displayCountryName(country),
+    ...(CIRCLE_FLAG_ICON_ALIASES[code] || []),
+    country?.localName,
+    country?.countryName,
+    country?.name,
+    code,
+    country?.isoA2,
+  ]
+    .filter(Boolean)
+    .map((name) => cleanPlaceName(name))
+    .filter(Boolean);
+  return Array.from(new Set(names)).map(
+    (name) => `${basePath}flags/circle/${encodeURIComponent(name)}.png`,
+  );
+}
+
 function displayProfileName(name) {
   if (name === "Person A") return "Bobo";
   if (name === "Person B" || name === "Person") return "Yier";
@@ -1232,6 +1259,76 @@ function buildJourneyPoints(targetVisits, placeLookup) {
   return { points, arcs };
 }
 
+function polygonSignedArea(ring) {
+  if (!ring?.length) return 0;
+  let area = 0;
+  for (let index = 0, prev = ring.length - 1; index < ring.length; prev = index, index += 1) {
+    area += (ring[prev][0] * ring[index][1]) - (ring[index][0] * ring[prev][1]);
+  }
+  return area / 2;
+}
+
+function representativePointForGeometry(geometry, fallback) {
+  const polygons = geometryPolygons(geometry)
+    .filter((rings) => rings?.[0]?.length)
+    .map((rings) => ({
+      bounds: ringBounds(rings[0]),
+      rings,
+      area: Math.abs(polygonSignedArea(rings[0])),
+    }))
+    .sort((a, b) => b.area - a.area);
+  if (polygons.length === 0) return fallback;
+
+  const isInside = ([lng, lat], polygon) => isPointInPolygon(lng, lat, polygon);
+  if (fallback && polygons.some((polygon) => isInside(fallback, polygon))) return fallback;
+
+  for (const polygon of polygons) {
+    const { bounds, rings } = polygon;
+    const candidates = [
+      [(bounds.minLng + bounds.maxLng) / 2, (bounds.minLat + bounds.maxLat) / 2],
+      [
+        rings[0].reduce((sum, point) => sum + point[0], 0) / rings[0].length,
+        rings[0].reduce((sum, point) => sum + point[1], 0) / rings[0].length,
+      ],
+      ...rings[0].filter((_, index) => index % Math.max(1, Math.floor(rings[0].length / 18)) === 0),
+    ];
+    const match = candidates.find((candidate) => isInside(candidate, polygon));
+    if (match) return match;
+  }
+
+  return fallback || [
+    (polygons[0].bounds.minLng + polygons[0].bounds.maxLng) / 2,
+    (polygons[0].bounds.minLat + polygons[0].bounds.maxLat) / 2,
+  ];
+}
+
+function buildCountryGlobePoints(targetVisits, placeLookup) {
+  const countries = new Map();
+  for (const visit of targetVisits) {
+    const country = resolvePlaceForLevel(visit.placeId, "country", placeLookup);
+    if (!country || country.id === "ATA") continue;
+    const fallback = country.center || null;
+    const center = representativePointForGeometry(country.geometry, fallback);
+    const latLng = placeLatLng({ center });
+    if (!latLng) continue;
+    const id = canonicalPlaceId(country.mapId || country.id);
+    const existing = countries.get(id);
+    countries.set(id, {
+      id,
+      lat: latLng.lat,
+      lng: latLng.lng,
+      name: displayCountryName(country),
+      flag: country.flag || flagEmoji(country.isoA2),
+      flagIconUrls: circularFlagIconUrls(country),
+      isoA2: country.isoA2,
+      count: (existing?.count || 0) + 1,
+    });
+  }
+  return Array.from(countries.values()).sort(
+    (a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"),
+  );
+}
+
 function mapRoute(row) {
   const meta = parseVisitMeta(row.note);
   return {
@@ -1283,8 +1380,7 @@ function routeArcFromPlaces(route, placeLookup) {
 function buildRouteArcs(routes, placeLookup) {
   return routes
     .map((route) => routeArcFromPlaces(route, placeLookup))
-    .filter(Boolean)
-    .slice(0, 160);
+    .filter(Boolean);
 }
 
 function collectGeometryCoordinates(geometry, output = []) {
@@ -1587,6 +1683,10 @@ function App() {
       setActiveProfile("all");
     }
   }, [activeProfile, appProfiles]);
+
+  useEffect(() => {
+    setRouteMessage("");
+  }, [activeProfile]);
 
   const loadTravelData = async () => {
     try {
@@ -2003,6 +2103,11 @@ function App() {
 
   const generatedJourneyVisuals = useMemo(
     () => buildJourneyPoints(filteredVisits, placeLookup),
+    [filteredVisits, placeLookup],
+  );
+
+  const countryGlobePoints = useMemo(
+    () => buildCountryGlobePoints(filteredVisits, placeLookup),
     [filteredVisits, placeLookup],
   );
 
@@ -2530,7 +2635,9 @@ function App() {
       >
         {isJourneyVisualsNear ? (
           <JourneyVisuals
+            activeProfile={activeProfile}
             arcs={journeyVisuals.arcs}
+            countryPoints={countryGlobePoints}
             isEditor={isEditor}
             isSaving={isSaving}
             onDeleteRoute={deleteRoute}
@@ -2668,7 +2775,9 @@ function ProfileNameSettings({
 }
 
 function JourneyVisuals({
+  activeProfile,
   arcs,
+  countryPoints,
   isEditor,
   isSaving,
   onDeleteRoute,
@@ -2689,8 +2798,10 @@ function JourneyVisuals({
         <h2>足迹可视化</h2>
       </div>
       <div className="journey-visual-grid">
-        <AceternityStyleGlobe
+        <AceternityStyleGlobeV2
+          activeProfile={activeProfile}
           arcs={arcs}
+          countryPoints={countryPoints}
           isEditor={isEditor}
           isSaving={isSaving}
           onDeleteRoute={onDeleteRoute}
@@ -2758,6 +2869,7 @@ function aceternityGlobeArcSegments(arc, rotation) {
 }
 
 function RoutePlanner({
+  activeProfile,
   isEditor,
   isSaving,
   message,
@@ -2777,6 +2889,10 @@ function RoutePlanner({
   const [traveledAt, setTraveledAt] = useState("");
   const [transportMode, setTransportMode] = useState("flight");
   const plannerRef = useRef(null);
+  const preferredProfileId =
+    activeProfile && activeProfile !== "all" && profiles.some((profile) => profile.id === activeProfile)
+      ? activeProfile
+      : profiles[0]?.id || "";
 
   const placeLookup = useMemo(() => {
     const lookup = new Map();
@@ -2801,8 +2917,13 @@ function RoutePlanner({
   }, [profileId, searchPlaces, visits]);
 
   useEffect(() => {
-    if (!profileId && profiles[0]) setProfileId(profiles[0].id);
-  }, [profileId, profiles]);
+    if (preferredProfileId && profileId !== preferredProfileId) setProfileId(preferredProfileId);
+    if (!preferredProfileId && !profileId && profiles[0]) setProfileId(profiles[0].id);
+  }, [preferredProfileId, profileId, profiles]);
+
+  useEffect(() => {
+    resetForm();
+  }, [activeProfile]);
 
   useEffect(() => {
     const allowedIds = new Set(routeSearchPlaces.map((place) => canonicalPlaceId(place.id)));
@@ -3007,8 +3128,110 @@ function RoutePlacePicker({ disabled, label, onSelect, places, selected }) {
   );
 }
 
+function AceternityStyleGlobeV2({
+  activeProfile,
+  countryPoints,
+  isEditor,
+  isSaving,
+  onDeleteRoute,
+  onSaveRoute,
+  points,
+  profiles,
+  routeMessage,
+  routes,
+  searchPlaces,
+  session,
+  visits,
+}) {
+  const [speedIndex, setSpeedIndex] = useState(2);
+  const [resetTick, setResetTick] = useState(0);
+  const [cardRef, isVisualActive] = useNearViewport("420px");
+  const speed = GLOBE_SPEEDS[speedIndex];
+
+  function changeSpeed(direction) {
+    setSpeedIndex((value) => Math.max(0, Math.min(GLOBE_SPEEDS.length - 1, value + direction)));
+  }
+
+  function resetGlobes() {
+    setSpeedIndex(2);
+    setResetTick((value) => value + 1);
+  }
+
+  return (
+    <article
+      className={`journey-card globe-card aceternity-globe-card ${isVisualActive ? "visual-active" : "visual-paused"}`}
+      ref={cardRef}
+    >
+      <div>
+        <div>
+          <p className="eyebrow">Globe</p>
+          <h3>球形足迹</h3>
+        </div>
+        <div className="globe-card-actions">
+          <span>{points.length} 个地点</span>
+          <button className="globe-reset-button" type="button" onClick={resetGlobes} aria-label="重置两个球体">
+            <RotateCcw size={15} />
+          </button>
+          <div className="globe-speed-control" aria-label="调整球体转速">
+            <button
+              aria-label="减慢地球转速"
+              disabled={speedIndex === 0}
+              onClick={() => changeSpeed(-1)}
+              type="button"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <strong>{speed.toFixed(1)}x</strong>
+            <button
+              aria-label="加快地球转速"
+              disabled={speedIndex === GLOBE_SPEEDS.length - 1}
+              onClick={() => changeSpeed(1)}
+              type="button"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+      <RoutePlanner
+        activeProfile={activeProfile}
+        isEditor={isEditor}
+        isSaving={isSaving}
+        message={routeMessage}
+        onDeleteRoute={onDeleteRoute}
+        onSaveRoute={onSaveRoute}
+        profiles={profiles}
+        routes={routes}
+        searchPlaces={searchPlaces}
+        session={session}
+        visits={visits}
+      />
+      <div className="globe-visual-pair">
+        <SatellitePinGlobe
+          active={isVisualActive}
+          ariaLabel="国家国旗地球足迹"
+          markerMode="flag"
+          points={countryPoints}
+          resetTick={resetTick}
+          speed={speed}
+        />
+        <SatellitePinGlobe
+          active={isVisualActive}
+          ariaLabel="城市图钉地球足迹"
+          markerMode="pin"
+          points={points}
+          resetTick={resetTick}
+          speed={speed}
+        />
+      </div>
+    </article>
+  );
+}
+
 function AceternityStyleGlobe({
+  activeProfile,
   arcs,
+  countryPoints,
   isEditor,
   isSaving,
   onDeleteRoute,
@@ -3022,109 +3245,19 @@ function AceternityStyleGlobe({
   visits,
   worldDots,
 }) {
-  const [rotation, setRotation] = useState(-112);
-  const [zoom, setZoom] = useState(0.88);
   const [speedIndex, setSpeedIndex] = useState(2);
   const [resetTick, setResetTick] = useState(0);
-  const globeSvgRef = useRef(null);
-  const dragRef = useRef({ active: false, x: 0 });
   const [cardRef, isVisualActive] = useNearViewport("420px");
   const speed = GLOBE_SPEEDS[speedIndex];
-
-  useEffect(() => {
-    if (!isVisualActive) return undefined;
-    const timer = window.setInterval(() => {
-      if (!dragRef.current.active) {
-        setRotation((value) => (value + 0.42 * speed * 2) % 360);
-      }
-    }, 70);
-    return () => window.clearInterval(timer);
-  }, [isVisualActive, speed]);
-
-  useEffect(() => {
-    const globe = globeSvgRef.current;
-    if (!globe) return undefined;
-    const handleNativeWheel = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setZoom((value) => Math.max(0.72, Math.min(1.28, value + (event.deltaY < 0 ? 0.06 : -0.06))));
-    };
-    globe.addEventListener("wheel", handleNativeWheel, { passive: false });
-    return () => globe.removeEventListener("wheel", handleNativeWheel);
-  }, []);
-
-  useEffect(() => {
-    const handleWindowPointerMove = (event) => {
-      if (!dragRef.current.active) return;
-      event.preventDefault();
-      const dx = event.clientX - dragRef.current.x;
-      dragRef.current.x = event.clientX;
-      setRotation((value) => (value + dx * 0.55 + 360) % 360);
-    };
-    const handleWindowPointerUp = () => {
-      dragRef.current.active = false;
-    };
-    window.addEventListener("pointermove", handleWindowPointerMove);
-    window.addEventListener("pointerup", handleWindowPointerUp);
-    window.addEventListener("pointercancel", handleWindowPointerUp);
-    return () => {
-      window.removeEventListener("pointermove", handleWindowPointerMove);
-      window.removeEventListener("pointerup", handleWindowPointerUp);
-      window.removeEventListener("pointercancel", handleWindowPointerUp);
-    };
-  }, []);
 
   function changeSpeed(direction) {
     setSpeedIndex((value) => Math.max(0, Math.min(GLOBE_SPEEDS.length - 1, value + direction)));
   }
 
   function resetGlobes() {
-    dragRef.current.active = false;
-    setRotation(-112);
-    setZoom(0.88);
     setSpeedIndex(2);
     setResetTick((value) => value + 1);
   }
-
-  function handlePointerDown(event) {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    dragRef.current = { active: true, x: event.clientX };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-  }
-
-  function finishDrag(event) {
-    dragRef.current.active = false;
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-  }
-
-  const landDots = useMemo(
-    () =>
-      worldDots
-        .filter((_, index) => index % 2 === 0)
-        .map((point) => ({ ...point, ...projectAceternityGlobePoint(point, rotation, 42.7) }))
-        .filter((point) => point.visible),
-    [rotation, worldDots],
-  );
-
-  const projectedPoints = useMemo(
-    () =>
-      points
-        .slice(0, 150)
-        .map((point) => ({ ...point, ...projectAceternityGlobePoint(point, rotation, 44) }))
-        .filter((point) => point.visible),
-    [points, rotation],
-  );
-
-  const routeSegments = useMemo(
-    () =>
-      arcs
-        .slice(0, 22)
-        .flatMap((arc) => aceternityGlobeArcSegments(arc, rotation))
-        .slice(0, 30),
-    [arcs, rotation],
-  );
 
   return (
     <article
@@ -3259,6 +3392,69 @@ function createPinTexture() {
   return texture;
 }
 
+function createFlagTexture(flag, fallbackLabel) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.shadowColor = "rgba(15, 23, 42, 0.28)";
+  context.shadowBlur = 12;
+  context.shadowOffsetY = 5;
+  context.fillStyle = "rgba(255,255,255,0.96)";
+  context.beginPath();
+  context.arc(64, 64, 41, 0, Math.PI * 2);
+  context.fill();
+  context.shadowColor = "transparent";
+  context.lineWidth = 3;
+  context.strokeStyle = "rgba(203, 213, 225, 0.92)";
+  context.stroke();
+  context.font = "54px 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(flag || fallbackLabel?.slice(0, 2) || "•", 64, 66);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createFlagBadgeTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.shadowColor = "rgba(15, 23, 42, 0.28)";
+  context.shadowBlur = 12;
+  context.shadowOffsetY = 5;
+  context.fillStyle = "rgba(255,255,255,0.96)";
+  context.beginPath();
+  context.arc(64, 64, 42, 0, Math.PI * 2);
+  context.fill();
+  context.shadowColor = "transparent";
+  context.lineWidth = 3;
+  context.strokeStyle = "rgba(203, 213, 225, 0.92)";
+  context.stroke();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function loadTextureFromCandidates(loader, urls, onLoad, onFail) {
+  const candidates = Array.from(new Set((urls || []).filter(Boolean)));
+  let index = 0;
+  const tryNext = () => {
+    if (index >= candidates.length) {
+      onFail?.();
+      return;
+    }
+    const url = candidates[index];
+    index += 1;
+    loader.load(url, onLoad, undefined, tryNext);
+  };
+  tryNext();
+}
+
 function latLngToVector3(lat, lng, radius) {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lng + 180) * (Math.PI / 180);
@@ -3269,7 +3465,7 @@ function latLngToVector3(lat, lng, radius) {
   );
 }
 
-function SatellitePinGlobe({ active, points, resetTick, speed }) {
+function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹", markerMode = "pin", points = [], resetTick, speed }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
@@ -3327,6 +3523,7 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
 
     const basePath = import.meta.env.BASE_URL || "/";
     const textureLoader = new THREE.TextureLoader();
+    textureLoader.setCrossOrigin("anonymous");
     const earthTexture = textureLoader.load(`${basePath}textures/earth-blue-marble.jpg`);
     const bumpTexture = textureLoader.load(`${basePath}textures/earth-topology.png`);
     earthTexture.colorSpace = THREE.SRGBColorSpace;
@@ -3371,8 +3568,11 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
     scene.add(rimLight);
 
     const markerGroup = new THREE.Group();
+    const isFlagMode = markerMode === "flag";
     const pinHeadGeometry = new THREE.SphereGeometry(0.026, 18, 18);
     const pinStemGeometry = new THREE.CylinderGeometry(0.0032, 0.0032, 0.08, 8);
+    const flagStemGeometry = new THREE.CylinderGeometry(0.0024, 0.0024, 0.26, 8);
+    const flagBadgeTexture = createFlagBadgeTexture();
     const pinHeadMaterial = new THREE.MeshPhongMaterial({
       color: "#f43f72",
       emissive: "#7f1232",
@@ -3383,7 +3583,11 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
       color: "#d6d3d1",
       shininess: 28,
     });
+    const flagTextures = [];
+    const flagMaterials = [];
+    const flagBadgeMaterials = [];
     const localUp = new THREE.Vector3(0, 1, 0);
+    let disposed = false;
     points.forEach((point) => {
       const normal = latLngToVector3(point.lat, point.lng, 1).normalize();
       const pin = new THREE.Group();
@@ -3391,11 +3595,54 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
       pin.userData.normal = normal;
       pin.userData.surfacePosition = normal.clone().multiplyScalar(2);
 
-      const stem = new THREE.Mesh(pinStemGeometry, pinStemMaterial);
-      stem.position.set(0, 2.05, 0);
-      const head = new THREE.Mesh(pinHeadGeometry, pinHeadMaterial);
-      head.position.set(0, 2.11, 0);
-      pin.add(stem, head);
+      if (isFlagMode) {
+        const stem = new THREE.Mesh(flagStemGeometry, pinStemMaterial);
+        stem.position.set(0, 2.13, 0);
+        const badgeMaterial = new THREE.SpriteMaterial({
+          depthTest: false,
+          depthWrite: false,
+          map: flagBadgeTexture,
+          opacity: 0.82,
+          transparent: true,
+        });
+        flagBadgeMaterials.push(badgeMaterial);
+        const badge = new THREE.Sprite(badgeMaterial);
+        badge.position.set(0, 2.31, -0.006);
+        badge.scale.set(0.18, 0.18, 1);
+        badge.renderOrder = 20;
+        const flagMaterial = new THREE.SpriteMaterial({
+          depthTest: false,
+          depthWrite: false,
+          opacity: 0,
+          transparent: true,
+        });
+        flagMaterials.push(flagMaterial);
+        const sprite = new THREE.Sprite(flagMaterial);
+        sprite.position.set(0, 2.31, 0.012);
+        sprite.scale.set(0.18, 0.18, 1);
+        sprite.renderOrder = 30;
+        loadTextureFromCandidates(textureLoader, point.flagIconUrls, (texture) => {
+          if (disposed) {
+            texture.dispose();
+            return;
+          }
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.anisotropy = 16;
+          flagTextures.push(texture);
+          flagMaterial.map = texture;
+          flagMaterial.opacity = 1;
+          flagMaterial.needsUpdate = true;
+          badgeMaterial.opacity = 0;
+          badgeMaterial.needsUpdate = true;
+        });
+        pin.add(stem, badge, sprite);
+      } else {
+        const stem = new THREE.Mesh(pinStemGeometry, pinStemMaterial);
+        stem.position.set(0, 2.05, 0);
+        const head = new THREE.Mesh(pinHeadGeometry, pinHeadMaterial);
+        head.position.set(0, 2.11, 0);
+        pin.add(stem, head);
+      }
       markerGroup.add(pin);
     });
     globeRoot.add(markerGroup);
@@ -3423,7 +3670,6 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
 
     let frame = 0;
     let idleTimer = 0;
-    let disposed = false;
     const renderScene = () => {
       controls.update();
       markerGroup.children.forEach((pin) => {
@@ -3468,19 +3714,24 @@ function SatellitePinGlobe({ active, points, resetTick, speed }) {
       atmosphere.material.dispose();
       pinHeadGeometry.dispose();
       pinStemGeometry.dispose();
+      flagStemGeometry.dispose();
       pinHeadMaterial.dispose();
       pinStemMaterial.dispose();
+      flagBadgeTexture.dispose();
+      flagBadgeMaterials.forEach((material) => material.dispose());
+      flagTextures.forEach((texture) => texture.dispose());
+      flagMaterials.forEach((material) => material.dispose());
       earthTexture.dispose();
       bumpTexture.dispose();
       renderer.dispose();
       mount.replaceChildren();
     };
-  }, [points]);
+  }, [markerMode, points]);
 
   return (
     <div
-      aria-label="真实纹理 3D 地球足迹"
-      className="satellite-globe satellite-globe-mount"
+      aria-label={ariaLabel}
+      className={`satellite-globe satellite-globe-mount ${markerMode === "flag" ? "flag-globe" : "pin-globe"}`}
       ref={mountRef}
       role="img"
     />
@@ -3596,6 +3847,79 @@ function aceternityWorldRoutePath(start, end) {
 
 function AceternityStyleWorldMap({ arcs, points, worldDots }) {
   const [cardRef, isVisualActive] = useNearViewport("420px");
+  const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
+  const svgRef = useRef(null);
+  const dragRef = useRef({ active: false, x: 0, y: 0 });
+
+  function clampWorldView(next) {
+    const scale = Math.max(1, Math.min(5, next.scale));
+    const maxX = 800 * (scale - 1);
+    const maxY = 400 * (scale - 1);
+    return {
+      scale,
+      x: Math.max(-maxX, Math.min(0, next.x)),
+      y: Math.max(-maxY, Math.min(0, next.y)),
+    };
+  }
+
+  function zoomWorldMap(nextScale, origin = { x: 400, y: 200 }) {
+    setView((current) => {
+      const scale = Math.max(1, Math.min(5, nextScale));
+      if (scale === current.scale) return current;
+      const ratio = scale / current.scale;
+      return clampWorldView({
+        scale,
+        x: origin.x - (origin.x - current.x) * ratio,
+        y: origin.y - (origin.y - current.y) * ratio,
+      });
+    });
+  }
+
+  function handleWorldWheel(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = svgRef.current?.getBoundingClientRect();
+    const origin = rect
+      ? {
+          x: ((event.clientX - rect.left) / rect.width) * 800,
+          y: ((event.clientY - rect.top) / rect.height) * 400,
+        }
+      : { x: 400, y: 200 };
+    zoomWorldMap(view.scale * (event.deltaY < 0 ? 1.18 : 0.84), origin);
+  }
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    const card = cardRef.current;
+    if (!svg && !card) return undefined;
+    card?.addEventListener("wheel", handleWorldWheel, { passive: false });
+    svg?.addEventListener("wheel", handleWorldWheel, { passive: false });
+    return () => {
+      card?.removeEventListener("wheel", handleWorldWheel);
+      svg?.removeEventListener("wheel", handleWorldWheel);
+    };
+  }, [view.scale, view.x, view.y]);
+
+  function handleWorldPointerDown(event) {
+    if (event.button !== 0) return;
+    dragRef.current = { active: true, x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function handleWorldPointerMove(event) {
+    if (!dragRef.current.active) return;
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const dx = ((event.clientX - dragRef.current.x) / rect.width) * 800;
+    const dy = ((event.clientY - dragRef.current.y) / rect.height) * 400;
+    dragRef.current = { active: true, x: event.clientX, y: event.clientY };
+    setView((current) => clampWorldView({ ...current, x: current.x + dx, y: current.y + dy }));
+  }
+
+  function handleWorldPointerUp(event) {
+    dragRef.current.active = false;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  }
 
   return (
     <article
@@ -3606,8 +3930,25 @@ function AceternityStyleWorldMap({ arcs, points, worldDots }) {
         <p className="eyebrow">World Map</p>
         <h3>点阵轨迹</h3>
         <span>{arcs.length} 条轨迹</span>
+        <div className="world-map-actions" aria-label="调整点阵地图">
+          <button onClick={() => zoomWorldMap(view.scale * 1.22)} type="button">+</button>
+          <button onClick={() => zoomWorldMap(view.scale / 1.22)} type="button">−</button>
+          <button onClick={() => setView({ scale: 1, x: 0, y: 0 })} type="button" aria-label="复位点阵地图">
+            <RotateCcw size={14} />
+          </button>
+        </div>
       </div>
-      <svg className="aceternity-world-map" viewBox="0 0 800 400" role="img" aria-label="点阵世界地图轨迹">
+      <svg
+        className="aceternity-world-map"
+        onPointerCancel={handleWorldPointerUp}
+        onPointerDown={handleWorldPointerDown}
+        onPointerMove={handleWorldPointerMove}
+        onPointerUp={handleWorldPointerUp}
+        ref={svgRef}
+        viewBox="0 0 800 400"
+        role="img"
+        aria-label="点阵世界地图轨迹"
+      >
         <defs>
           <linearGradient id="aceternityRouteGradient" x1="0%" x2="100%" y1="0%" y2="0%">
             <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
@@ -3629,43 +3970,45 @@ function AceternityStyleWorldMap({ arcs, points, worldDots }) {
           </filter>
         </defs>
         <rect width="800" height="400" rx="20" fill="#ffffff00" />
-        <g mask="url(#aceternityWorldMask)">
-          {worldDots.map((dot) => {
-            const projected = projectAceternityFlatWorld(dot);
+        <g transform={`translate(${view.x.toFixed(2)} ${view.y.toFixed(2)}) scale(${view.scale.toFixed(3)})`}>
+          <g mask="url(#aceternityWorldMask)">
+            {worldDots.map((dot) => {
+              const projected = projectAceternityFlatWorld(dot);
+              return (
+                <circle
+                  cx={projected.x}
+                  cy={projected.y}
+                  fill="#a8adb7"
+                  key={dot.id}
+                  opacity="0.82"
+                  r="0.98"
+                />
+              );
+            })}
+          </g>
+          {arcs.map((arc, index) => (
+            <path
+              className="world-route-line"
+              d={aceternityWorldRoutePath(arc.start, arc.end)}
+              fill="none"
+              key={arc.id}
+              stroke="url(#aceternityRouteGradient)"
+              strokeLinecap="round"
+              strokeWidth="1.35"
+              style={{ animationDelay: `${index * 0.055}s` }}
+            />
+          ))}
+          {points.slice(0, 170).map((point, index) => {
+            const projected = projectAceternityFlatWorld(point);
             return (
-              <circle
-                cx={projected.x}
-                cy={projected.y}
-                fill="#a8adb7"
-                key={dot.id}
-                opacity="0.82"
-                r="0.98"
-              />
+              <g className="world-visit-point" key={point.id}>
+                <circle cx={projected.x} cy={projected.y} fill="#38bdf8" filter="url(#aceternityMapGlow)" opacity="0.38" r="7" />
+                <circle cx={projected.x} cy={projected.y} fill="#0ea5e9" r="3" />
+                {index % 2 === 0 && <circle className="world-map-pulse" cx={projected.x} cy={projected.y} fill="#0ea5e9" opacity="0.5" r="3" />}
+              </g>
             );
           })}
         </g>
-        {arcs.map((arc, index) => (
-          <path
-            className="world-route-line"
-            d={aceternityWorldRoutePath(arc.start, arc.end)}
-            fill="none"
-            key={arc.id}
-            stroke="url(#aceternityRouteGradient)"
-            strokeLinecap="round"
-            strokeWidth="1.35"
-            style={{ animationDelay: `${index * 0.055}s` }}
-          />
-        ))}
-        {points.slice(0, 170).map((point, index) => {
-          const projected = projectAceternityFlatWorld(point);
-          return (
-            <g className="world-visit-point" key={point.id}>
-              <circle cx={projected.x} cy={projected.y} fill="#38bdf8" filter="url(#aceternityMapGlow)" opacity="0.38" r="7" />
-              <circle cx={projected.x} cy={projected.y} fill="#0ea5e9" r="3" />
-              {index % 2 === 0 && <circle className="world-map-pulse" cx={projected.x} cy={projected.y} fill="#0ea5e9" opacity="0.5" r="3" />}
-            </g>
-          );
-        })}
       </svg>
     </article>
   );
@@ -4545,7 +4888,7 @@ function CountryModal({
     ? `覆盖 ${visitedRegions.size} 省 / 自治区`
     : country.id === "CHN"
       ? "尚未覆盖省 / 自治区"
-      : `覆盖 ${grouped.length || 0} 个分组`;
+      : "当前国家暂无省级边界数据";
 
   const comparisonMode = activeProfile === "all" && profiles.length >= 2;
   const comparisonGroupOrder = useMemo(() => {
@@ -4579,7 +4922,7 @@ function CountryModal({
         ? `覆盖 ${targetRegions.size} 省 / 自治区`
         : country.id === "CHN"
           ? "尚未覆盖省 / 自治区"
-          : `覆盖 ${targetGrouped.length || 0} 个分组`,
+          : "当前国家暂无省级边界数据",
       grouped: targetGrouped,
       regionProgress: targetRegionProgress,
       cityProgress: targetCityProgress,
@@ -4611,7 +4954,7 @@ function CountryModal({
           <article className="modal-stat-card">
             <p>州 / 省 / 行政区</p>
             <strong>
-              {regionTotal ? targetVisitedRegions.size : targetGroups.length || "-"}
+              {regionTotal ? targetVisitedRegions.size : "-"}
               {regionTotal && <span> / {regionTotal}</span>}
             </strong>
             <div className="modal-progress">
@@ -4762,7 +5105,7 @@ function CountryModal({
               <article className="modal-stat-card">
                 <p>州 / 省 / 行政区</p>
                 <strong>
-                  {regionTotal ? visitedRegions.size : grouped.length || "-"}
+                  {regionTotal ? visitedRegions.size : "-"}
                   {regionTotal && <span> / {regionTotal}</span>}
                 </strong>
                 <div className="modal-progress">
