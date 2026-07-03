@@ -45,6 +45,7 @@ button {
 .workspace,
 .list-view,
 .admin-view,
+.country-gallery-section,
 .overview-section {
   width: min(1240px, 100%);
   margin: 0 auto;
@@ -110,7 +111,6 @@ h2 {
   cursor: pointer;
 }
 
-.status-strip span,
 .detail-stats span,
 .visit-item small {
   display: inline-flex;
@@ -125,9 +125,84 @@ h2 {
   font-weight: 700;
 }
 
-.status-strip:hover span {
-  border-color: #b9c7d3;
-  background: #ffffff;
+.status-strip span,
+.route-planner-trigger,
+.country-globe-toggle {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    url("https://assets.aceternity.com/noise.webp") border-box,
+    radial-gradient(circle at 22% 38%, rgb(255 100 150 / 34%) 0%, transparent 36%) border-box,
+    radial-gradient(circle at 72% 46%, rgb(100 150 255 / 34%) 0%, transparent 40%) border-box,
+    radial-gradient(circle at 48% 12%, rgb(255 200 100 / 24%) 0%, transparent 34%) border-box,
+    #d9dde3 border-box;
+  background-blend-mode: normal, overlay, normal, normal, normal, normal;
+  background-size: auto, 220px 220px, 140% 140%, 150% 150%, 130% 130%, auto;
+  color: #111827;
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px #e5e7eb,
+    0 1px 1px #4755691f,
+    0 14px 32px #0f172a12;
+  animation: noise-button-drift 12s ease-in-out infinite alternate;
+}
+
+.status-strip span {
+  padding: 7px 11px;
+  font-size: 0.82rem;
+  font-weight: 860;
+}
+
+.status-strip:hover span,
+.route-planner-trigger:hover,
+.country-globe-toggle:hover,
+.country-globe-toggle.active {
+  color: #020617;
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px #dbe2ea,
+    0 1px 1px #47556924,
+    0 16px 38px #0f172a18;
+}
+
+@keyframes noise-button-drift {
+  0% {
+    background-position:
+      0 0,
+      0 0,
+      0% 48%,
+      100% 50%,
+      42% 0,
+      0 0;
+  }
+
+  50% {
+    background-position:
+      0 0,
+      34px -18px,
+      18% 42%,
+      82% 58%,
+      55% 12%,
+      0 0;
+  }
+
+  100% {
+    background-position:
+      0 0,
+      -22px 30px,
+      34% 52%,
+      66% 44%,
+      38% 18%,
+      0 0;
+  }
 }
 
 .control-band {
@@ -1903,6 +1978,153 @@ h2 {
   padding: 14px 0 48px;
 }
 
+.country-gallery-section {
+  padding: 36px 0 54px;
+}
+
+.country-gallery-title {
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.country-gallery-title h2 {
+  margin: 0;
+  color: #4f7d3d;
+  font-family: "STZhongsong", "华文中宋", "SimSun", serif;
+  font-size: clamp(2.1rem, 3.2vw, 3.25rem);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.country-gallery-stack {
+  display: grid;
+  gap: 44px;
+}
+
+.country-gallery-continent h3 {
+  margin: 0 0 22px;
+  color: #4478d1;
+  font-size: clamp(1.25rem, 2vw, 1.85rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.country-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
+  gap: 24px 22px;
+}
+
+.country-gallery-card {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.country-gallery-card-copy {
+  display: grid;
+  min-height: 46px;
+  gap: 3px;
+  color: #4778d1;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.country-gallery-card-copy strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 3px;
+  font-size: 0.96rem;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.country-gallery-card-copy strong.long-name {
+  font-size: 0.84rem;
+}
+
+.country-gallery-card-copy strong span {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.country-gallery-card-copy .flag,
+.country-gallery-card-copy .flag-icon {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 13px;
+  border-radius: 2px;
+  font-size: 0.72rem;
+}
+
+.country-gallery-card-copy .flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.country-gallery-card-copy small {
+  display: block;
+  overflow: hidden;
+  color: #4778d1;
+  font-size: 0.84rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-gallery-photo-frame {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  border-radius: 4px;
+  background: #eef4fb;
+  box-shadow: 0 10px 24px #0f172a12;
+}
+
+.country-gallery-photo-frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  opacity: 0;
+  transform: scale(1.012);
+  transition:
+    opacity 520ms ease,
+    transform 650ms ease;
+  will-change: opacity, transform;
+}
+
+.country-gallery-photo-frame img.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.overview-title {
+  margin: 12px 0 28px;
+  text-align: center;
+}
+
+.overview-title h2 {
+  margin: 0;
+  color: #4f7d3d;
+  font-family: "STZhongsong", "华文中宋", "SimSun", serif;
+  font-size: clamp(1.9rem, 2.8vw, 2.7rem);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.journey-title {
+  margin: 0 0 26px;
+}
+
 .continent-stack {
   display: grid;
   gap: 26px;
@@ -2810,21 +3032,9 @@ h2 {
   left: clamp(-6px, 1.5%, 12px);
   bottom: clamp(-6px, 2%, 14px);
   z-index: 6;
-  border: 1px solid #c7d8e7;
-  border-radius: 999px;
-  background: #ffffffde;
-  color: #0f5e85;
   padding: 8px 12px;
   font-size: 0.76rem;
   font-weight: 900;
-  box-shadow: 0 12px 28px #0f172a14;
-}
-
-.country-globe-toggle:hover,
-.country-globe-toggle.active {
-  border-color: #38bdf8;
-  background: #ecfeff;
-  color: #075985;
 }
 
 .aceternity-globe {
@@ -2979,17 +3189,9 @@ h2 {
 }
 
 .route-planner-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid #c8d8e7;
-  border-radius: 999px;
-  background: #ffffffdf;
   padding: 8px 12px;
-  color: #0f5e85;
   font-size: 0.84rem;
   font-weight: 950;
-  box-shadow: 0 12px 26px #0f172a14;
 }
 
 .route-planner-popover {
@@ -3322,6 +3524,12 @@ h2 {
   animation-play-state: paused !important;
 }
 
+@media (max-width: 1180px) {
+  .country-gallery-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @keyframes aurora {
   from {
     background-position: 50% 50%, 50% 50%;
@@ -3474,6 +3682,37 @@ h2 {
   .country-summary-detail {
     max-height: 300px;
     padding: 12px 14px 15px;
+  }
+
+  .country-gallery-section {
+    padding: 28px 0 42px;
+  }
+
+  .country-gallery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 14px;
+  }
+
+  .country-gallery-card-copy {
+    min-height: 44px;
+  }
+
+  .country-gallery-card-copy strong {
+    font-size: 0.9rem;
+  }
+
+  .country-gallery-card-copy strong.long-name {
+    font-size: 0.78rem;
+  }
+
+  .country-gallery-card-copy .flag,
+  .country-gallery-card-copy .flag-icon {
+    width: 18px;
+    height: 12px;
+  }
+
+  .country-gallery-card-copy small {
+    font-size: 0.78rem;
   }
 
   .country-name-wrap strong {

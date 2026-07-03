@@ -34,6 +34,7 @@ import {
   profiles,
   tripTypes,
 } from "./data/mockData";
+import countryGalleryImages from "./data/countryGallery";
 import { supabase } from "./lib/supabase";
 
 const PHOTO_BUCKET = "travel-photos";
@@ -302,6 +303,76 @@ const CONTINENT_ICON_IMAGES = {
   [CONTINENT_LABELS["North America"]]: "continent-icons/north-america.png",
   [CONTINENT_LABELS["South America"]]: "continent-icons/south-america.png",
   [CONTINENT_LABELS.Antarctica]: "continent-icons/antarctica.png",
+};
+
+const CONTINENT_ENGLISH_LABELS = {
+  亚洲: "Asia",
+  欧洲: "Europe",
+  非洲: "Africa",
+  大洋洲: "Oceania",
+  北美洲: "North America",
+  南美洲: "South America",
+  南极洲: "Antarctica",
+};
+
+const COUNTRY_GALLERY_ALIASES = {
+  阿拉伯联合酋长国: "阿联酋",
+  波斯尼亚和黑塞哥维那: "波黑",
+  捷克共和国: "捷克",
+  大韩民国: "韩国",
+  梵蒂冈城国: "梵蒂冈",
+  教廷: "梵蒂冈",
+  黑山共和国: "黑山",
+  圣马力诺共和国: "圣马力诺",
+  斯洛伐克共和国: "斯洛伐克",
+};
+
+const COUNTRY_GALLERY_META = {
+  中国: { english: "China", native: "中国" },
+  丹麦: { english: "Denmark", native: "Danmark" },
+  保加利亚: { english: "Bulgaria", native: "България" },
+  克罗地亚: { english: "Croatia", native: "Hrvatska" },
+  冰岛: { english: "Iceland", native: "Ísland" },
+  列支敦士登: { english: "Liechtenstein", native: "Liechtenstein" },
+  匈牙利: { english: "Hungary", native: "Magyarország" },
+  南非: { english: "South Africa", native: "South Africa" },
+  卡塔尔: { english: "Qatar", native: "قطر" },
+  卢森堡: { english: "Luxembourg", native: "Lëtzebuerg" },
+  圣马力诺: { english: "San Marino", native: "San Marino" },
+  塞尔维亚: { english: "Serbia", native: "Србија" },
+  塞浦路斯: { english: "Cyprus", native: "Κύπρος" },
+  奥地利: { english: "Austria", native: "Österreich" },
+  安道尔: { english: "Andorra", native: "Andorra" },
+  希腊: { english: "Greece", native: "Ελλάδα" },
+  德国: { english: "Germany", native: "Deutschland" },
+  意大利: { english: "Italy", native: "Italia" },
+  拉脱维亚: { english: "Latvia", native: "Latvija" },
+  挪威: { english: "Norway", native: "Norge" },
+  捷克: { english: "Czechia", native: "Česko" },
+  摩纳哥: { english: "Monaco", native: "Monaco" },
+  斯洛伐克: { english: "Slovakia", native: "Slovensko" },
+  斯洛文尼亚: { english: "Slovenia", native: "Slovenija" },
+  新加坡: { english: "Singapore", native: "Singapore" },
+  新西兰: { english: "New Zealand", native: "Aotearoa" },
+  梵蒂冈: { english: "Vatican City", native: "Città del Vaticano" },
+  比利时: { english: "Belgium", native: "België" },
+  波兰: { english: "Poland", native: "Polska" },
+  法国: { english: "France", native: "France" },
+  瑞典: { english: "Sweden", native: "Sverige" },
+  瑞士: { english: "Switzerland", native: "Schweiz" },
+  爱沙尼亚: { english: "Estonia", native: "Eesti" },
+  罗马尼亚: { english: "Romania", native: "România" },
+  芬兰: { english: "Finland", native: "Suomi" },
+  荷兰: { english: "Netherlands", native: "Nederland" },
+  葡萄牙: { english: "Portugal", native: "Portugal" },
+  西班牙: { english: "Spain", native: "España" },
+  马耳他: { english: "Malta", native: "Malta" },
+  阿尔巴尼亚: { english: "Albania", native: "Shqipëria" },
+  阿联酋: { english: "United Arab Emirates", native: "الإمارات العربية المتحدة" },
+  波黑: { english: "Bosnia and Herzegovina", native: "Bosna i Hercegovina" },
+  黑山: { english: "Montenegro", native: "Crna Gora" },
+  韩国: { english: "South Korea", native: "한국" },
+  立陶宛: { english: "Lithuania", native: "Lietuva" },
 };
 
 const PLACE_NAME_OVERRIDES = {
@@ -1023,6 +1094,30 @@ function displayCountryName(place) {
     place.isoA2,
     place.localName || place.countryName || place.name,
   );
+}
+
+function countryGalleryKey(country) {
+  const candidates = [
+    country?.name,
+    displayCountryName(country?.place),
+    country?.place?.localName,
+    country?.place?.countryName,
+    country?.place?.name,
+  ]
+    .filter(Boolean)
+    .flatMap((name) => [name, cleanPlaceName(name), COUNTRY_GALLERY_ALIASES[name], COUNTRY_GALLERY_ALIASES[cleanPlaceName(name)]])
+    .filter(Boolean);
+
+  return candidates.find((name) => countryGalleryImages[name]) || null;
+}
+
+function countryGallerySubtitle(country, galleryKey) {
+  const meta = COUNTRY_GALLERY_META[galleryKey] || {};
+  const english = meta.english || country?.place?.name || country?.name || galleryKey;
+  const native = meta.native;
+  if (!native || native === english) return english;
+  const full = `${english} · ${native}`;
+  return full.length > 32 ? english : full;
 }
 
 function circularFlagIconUrls(country) {
@@ -2700,6 +2795,8 @@ function App() {
         />
       )}
 
+      <CountryGallery continentSummary={continentSummary} />
+
       <TravelOverview
         activeProfile={activeProfile}
         continentSummary={continentSummary}
@@ -2731,8 +2828,9 @@ function App() {
           />
         ) : (
           <section className="journey-visual-placeholder" aria-label="足迹视觉展示">
-            <p className="eyebrow">Visual Journey</p>
-            <h2>足迹可视化</h2>
+            <div className="section-title overview-title journey-title">
+              <h2>Visual Journey · 足迹可视化</h2>
+            </div>
             <span>继续向下滚动时加载球形足迹与点阵轨迹</span>
           </section>
         )}
@@ -2872,9 +2970,8 @@ function JourneyVisuals({
 }) {
   return (
     <section className="journey-visual-section" aria-label="足迹视觉展示">
-      <div className="section-title">
-        <p className="eyebrow">Visual Journey</p>
-        <h2>足迹可视化</h2>
+      <div className="section-title overview-title journey-title">
+        <h2>Visual Journey · 足迹可视化</h2>
       </div>
       <div className="journey-visual-grid">
         <AceternityStyleGlobeV2
@@ -6186,6 +6283,98 @@ function VisitList({ placeLookup, profiles, visits }) {
   );
 }
 
+function CountryGalleryCard({ country }) {
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [wasHovered, setWasHovered] = useState(false);
+  const images = country.images || [];
+  const basePath = import.meta.env.BASE_URL || "/";
+
+  function handlePhotoLeave() {
+    if (!wasHovered || images.length <= 1) return;
+    setActiveImageIndex((current) => (current + 1) % images.length);
+    setWasHovered(false);
+  }
+
+  return (
+    <article className="country-gallery-card">
+      <div className="country-gallery-card-copy">
+        <strong className={country.name.length >= 9 ? "long-name" : ""}>
+          <span>{country.name}</span>
+          <FlagIcon place={country.place} />
+        </strong>
+        <small>{country.subtitle}</small>
+      </div>
+      <div
+        className="country-gallery-photo-frame"
+        onMouseEnter={() => setWasHovered(true)}
+        onMouseLeave={handlePhotoLeave}
+      >
+        {images.map((src, index) => (
+          <img
+            alt={`${country.name} ${index + 1}`}
+            className={index === activeImageIndex ? "active" : ""}
+            decoding="async"
+            draggable={false}
+            key={src}
+            loading="lazy"
+            src={`${basePath}${src}`}
+          />
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function CountryGallery({ continentSummary = [] }) {
+  const groups = useMemo(
+    () =>
+      continentSummary
+        .map((continent) => ({
+          ...continent,
+          englishLabel: CONTINENT_ENGLISH_LABELS[continent.label] || continent.label,
+          countries: (continent.countries || [])
+            .map((country) => {
+              const galleryKey = countryGalleryKey(country);
+              const images = galleryKey ? countryGalleryImages[galleryKey] : null;
+              if (!images?.length) return null;
+              return {
+                ...country,
+                galleryKey,
+                images,
+                subtitle: countryGallerySubtitle(country, galleryKey),
+              };
+            })
+            .filter(Boolean),
+        }))
+        .filter((continent) => continent.countries.length > 0),
+    [continentSummary],
+  );
+
+  if (!groups.length) return null;
+
+  return (
+    <section className="country-gallery-section" aria-label="国家图鉴">
+      <div className="country-gallery-title">
+        <h2>国家图鉴</h2>
+      </div>
+      <div className="country-gallery-stack">
+        {groups.map((continent) => (
+          <article className="country-gallery-continent" key={continent.label}>
+            <h3>
+              {continent.label} · {continent.englishLabel}
+            </h3>
+            <div className="country-gallery-grid">
+              {continent.countries.map((country) => (
+                <CountryGalleryCard country={country} key={country.id} />
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function TravelOverview({ activeProfile, continentSummary, profileSummaries = [] }) {
   const defaultContinents = ["亚洲", "欧洲", "北美洲", "南美洲", "非洲", "大洋洲", "南极洲"];
   const [expandedCountries, setExpandedCountries] = useState(new Set());
@@ -6405,9 +6594,8 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
       });
     return (
       <section className="overview-section comparison-overview" aria-label="足迹对比总览">
-        <div className="section-title">
-          <p className="eyebrow">Overview</p>
-          <h2>按大洲对比足迹</h2>
+        <div className="section-title overview-title">
+          <h2>Overview / 统计数据</h2>
         </div>
         <div className="comparison-head">
           {normalized.slice(0, 2).map(({ profile }) => (
@@ -6506,9 +6694,8 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
   const items = normalizeSummary(continentSummary);
   return (
     <section className="overview-section" aria-label="足迹总览">
-      <div className="section-title">
-        <p className="eyebrow">Overview</p>
-        <h2>按大洲浏览足迹</h2>
+      <div className="section-title overview-title">
+        <h2>Overview / 统计数据</h2>
       </div>
       <div className="continent-stack">
         {items.map((continent) => (
