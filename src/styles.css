@@ -127,7 +127,8 @@ h2 {
 
 .status-strip span,
 .route-planner-trigger,
-.country-globe-toggle {
+.country-globe-toggle,
+.country-gallery-toggle {
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -164,7 +165,9 @@ h2 {
 .status-strip:hover span,
 .route-planner-trigger:hover,
 .country-globe-toggle:hover,
-.country-globe-toggle.active {
+.country-globe-toggle.active,
+.country-gallery-toggle:hover,
+.country-gallery-toggle.active {
   color: #020617;
   box-shadow:
     inset 0 1px 0 #ffffff,
@@ -1983,11 +1986,17 @@ h2 {
 }
 
 .country-gallery-title {
+  display: grid;
+  grid-template-columns: minmax(132px, 1fr) auto minmax(132px, 1fr);
+  align-items: center;
+  gap: 18px;
   margin-bottom: 28px;
   text-align: center;
 }
 
 .country-gallery-title h2 {
+  grid-column: 2;
+  justify-self: center;
   margin: 0;
   color: #4f7d3d;
   font-family: "STZhongsong", "华文中宋", "SimSun", serif;
@@ -1996,18 +2005,77 @@ h2 {
   letter-spacing: 0;
 }
 
+.major-title-en,
+.major-title-number {
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
+  font-stretch: normal;
+  font-weight: 700;
+}
+
+.major-title-number {
+  font-variant-numeric: tabular-nums;
+}
+
+.country-gallery-title > .country-gallery-toggle {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.country-gallery-title.locked-title {
+  grid-template-columns: 1fr;
+  margin-bottom: 28px;
+}
+
+.country-gallery-title.locked-title h2 {
+  grid-column: 1;
+}
+
+.country-gallery-locked-block {
+  margin-top: 54px;
+  padding-top: 42px;
+  border-top: 1px solid rgba(129, 153, 177, 0.22);
+}
+
 .country-gallery-stack {
   display: grid;
   gap: 44px;
 }
 
-.country-gallery-continent h3 {
+.country-gallery-continent-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
   margin: 0 0 22px;
+}
+
+.country-gallery-continent h3 {
+  margin: 0;
   color: #4478d1;
   font-size: clamp(1.25rem, 2vw, 1.85rem);
   font-weight: 900;
   letter-spacing: 0;
   text-align: center;
+}
+
+.country-gallery-toggle {
+  min-height: 38px;
+  padding: 5px 14px;
+  color: #185b82;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.country-gallery-toggle span {
+  display: inline-grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: #ffffffd9;
+  color: #e589a6;
+  font-size: 0.72rem;
+  line-height: 1;
 }
 
 .country-gallery-grid {
@@ -2076,6 +2144,15 @@ h2 {
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.country-gallery-card.locked .country-gallery-card-copy,
+.country-gallery-card.locked .country-gallery-card-copy small {
+  color: #e99ab1;
+}
+
+.country-gallery-card.locked .country-gallery-photo-frame {
+  box-shadow: 0 10px 24px #b86c8218;
 }
 
 .country-gallery-photo-frame {
@@ -3686,6 +3763,25 @@ h2 {
 
   .country-gallery-section {
     padding: 28px 0 42px;
+  }
+
+  .country-gallery-title {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .country-gallery-title h2,
+  .country-gallery-title > .country-gallery-toggle {
+    grid-column: 1;
+    justify-self: center;
+  }
+
+  .country-gallery-continent-heading {
+    gap: 10px;
+  }
+
+  .country-gallery-toggle {
+    justify-self: center;
   }
 
   .country-gallery-grid {
