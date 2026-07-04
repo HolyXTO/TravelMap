@@ -615,6 +615,366 @@ const countryGalleryImages = {
     "country-gallery/country-extra-078-1.webp",
     "country-gallery/country-extra-078-2.webp",
     "country-gallery/country-extra-078-3.webp"
+  ],
+  "乍得": [
+    "country-gallery/country-extra-079-1.webp",
+    "country-gallery/country-extra-079-2.webp",
+    "country-gallery/country-extra-079-3.webp"
+  ],
+  "伯利兹": [
+    "country-gallery/country-extra-080-1.webp",
+    "country-gallery/country-extra-080-2.webp",
+    "country-gallery/country-extra-080-3.webp"
+  ],
+  "利比亚": [
+    "country-gallery/country-extra-081-1.webp",
+    "country-gallery/country-extra-081-2.webp",
+    "country-gallery/country-extra-081-3.webp"
+  ],
+  "利比里亚": [
+    "country-gallery/country-extra-082-1.webp",
+    "country-gallery/country-extra-082-2.webp",
+    "country-gallery/country-extra-082-3.webp"
+  ],
+  "南苏丹": [
+    "country-gallery/country-extra-083-1.webp",
+    "country-gallery/country-extra-083-2.webp",
+    "country-gallery/country-extra-083-3.webp"
+  ],
+  "危地马拉": [
+    "country-gallery/country-extra-084-1.webp",
+    "country-gallery/country-extra-084-2.webp",
+    "country-gallery/country-extra-084-3.webp"
+  ],
+  "厄立特里亚": [
+    "country-gallery/country-extra-085-1.webp",
+    "country-gallery/country-extra-085-2.webp",
+    "country-gallery/country-extra-085-3.webp"
+  ],
+  "古巴": [
+    "country-gallery/country-extra-086-1.webp",
+    "country-gallery/country-extra-086-2.webp",
+    "country-gallery/country-extra-086-3.webp"
+  ],
+  "吉布提": [
+    "country-gallery/country-extra-087-1.webp",
+    "country-gallery/country-extra-087-2.webp",
+    "country-gallery/country-extra-087-3.webp"
+  ],
+  "哥斯达黎加": [
+    "country-gallery/country-extra-088-1.webp",
+    "country-gallery/country-extra-088-2.webp",
+    "country-gallery/country-extra-088-3.webp"
+  ],
+  "圣卢西亚": [
+    "country-gallery/country-extra-089-1.webp",
+    "country-gallery/country-extra-089-2.webp",
+    "country-gallery/country-extra-089-3.webp"
+  ],
+  "圣基茨和尼维斯": [
+    "country-gallery/country-extra-090-1.webp",
+    "country-gallery/country-extra-090-2.webp",
+    "country-gallery/country-extra-090-3.webp"
+  ],
+  "坦桑尼亚": [
+    "country-gallery/country-extra-091-1.webp",
+    "country-gallery/country-extra-091-2.webp",
+    "country-gallery/country-extra-091-3.webp"
+  ],
+  "埃塞俄比亚": [
+    "country-gallery/country-extra-092-1.webp",
+    "country-gallery/country-extra-092-2.webp",
+    "country-gallery/country-extra-092-3.webp"
+  ],
+  "多米尼克": [
+    "country-gallery/country-extra-093-1.webp",
+    "country-gallery/country-extra-093-2.webp",
+    "country-gallery/country-extra-093-3.webp"
+  ],
+  "多米尼加": [
+    "country-gallery/country-extra-094-1.webp",
+    "country-gallery/country-extra-094-2.webp",
+    "country-gallery/country-extra-094-3.webp"
+  ],
+  "安提瓜和巴布达": [
+    "country-gallery/country-extra-095-1.webp",
+    "country-gallery/country-extra-095-2.webp",
+    "country-gallery/country-extra-095-3.webp"
+  ],
+  "尼加拉瓜": [
+    "country-gallery/country-extra-096-1.webp",
+    "country-gallery/country-extra-096-2.webp",
+    "country-gallery/country-extra-096-3.webp"
+  ],
+  "尼日尔": [
+    "country-gallery/country-extra-097-1.webp",
+    "country-gallery/country-extra-097-2.webp",
+    "country-gallery/country-extra-097-3.webp"
+  ],
+  "巴哈马": [
+    "country-gallery/country-extra-098-1.webp",
+    "country-gallery/country-extra-098-2.webp",
+    "country-gallery/country-extra-098-3.webp"
+  ],
+  "巴拿马": [
+    "country-gallery/country-extra-099-1.webp",
+    "country-gallery/country-extra-099-2.webp",
+    "country-gallery/country-extra-099-3.webp"
+  ],
+  "摩洛哥": [
+    "country-gallery/country-extra-100-1.webp",
+    "country-gallery/country-extra-100-2.webp",
+    "country-gallery/country-extra-100-3.webp"
+  ],
+  "格林纳达": [
+    "country-gallery/country-extra-101-1.webp",
+    "country-gallery/country-extra-101-2.webp",
+    "country-gallery/country-extra-101-3.webp"
+  ],
+  "毛里塔尼亚": [
+    "country-gallery/country-extra-102-1.webp",
+    "country-gallery/country-extra-102-2.webp",
+    "country-gallery/country-extra-102-3.webp"
+  ],
+  "洪都拉斯": [
+    "country-gallery/country-extra-103-1.webp",
+    "country-gallery/country-extra-103-2.webp",
+    "country-gallery/country-extra-103-3.webp"
+  ],
+  "海地": [
+    "country-gallery/country-extra-104-1.webp",
+    "country-gallery/country-extra-104-2.webp",
+    "country-gallery/country-extra-104-3.webp"
+  ],
+  "牙买加": [
+    "country-gallery/country-extra-105-1.webp",
+    "country-gallery/country-extra-105-2.webp",
+    "country-gallery/country-extra-105-3.webp"
+  ],
+  "索马里": [
+    "country-gallery/country-extra-106-1.webp",
+    "country-gallery/country-extra-106-2.webp",
+    "country-gallery/country-extra-106-3.webp"
+  ],
+  "肯尼亚": [
+    "country-gallery/country-extra-107-1.webp",
+    "country-gallery/country-extra-107-2.webp",
+    "country-gallery/country-extra-107-3.webp"
+  ],
+  "苏丹": [
+    "country-gallery/country-extra-108-1.webp",
+    "country-gallery/country-extra-108-2.webp",
+    "country-gallery/country-extra-108-3.webp"
+  ],
+  "萨尔瓦多": [
+    "country-gallery/country-extra-109-1.webp",
+    "country-gallery/country-extra-109-2.webp",
+    "country-gallery/country-extra-109-3.webp"
+  ],
+  "阿尔及利亚": [
+    "country-gallery/country-extra-110-1.webp",
+    "country-gallery/country-extra-110-2.webp",
+    "country-gallery/country-extra-110-3.webp"
+  ],
+  "马里": [
+    "country-gallery/country-extra-111-1.webp",
+    "country-gallery/country-extra-111-2.webp",
+    "country-gallery/country-extra-111-3.webp"
+  ],
+  "中非": [
+    "country-gallery/country-extra-112-1.webp",
+    "country-gallery/country-extra-112-2.webp",
+    "country-gallery/country-extra-112-3.webp"
+  ],
+  "冈比亚": [
+    "country-gallery/country-extra-113-1.webp",
+    "country-gallery/country-extra-113-2.webp",
+    "country-gallery/country-extra-113-3.webp"
+  ],
+  "几内亚比绍": [
+    "country-gallery/country-extra-114-1.webp",
+    "country-gallery/country-extra-114-2.webp",
+    "country-gallery/country-extra-114-3.webp"
+  ],
+  "刚果(布)": [
+    "country-gallery/country-extra-115-1.webp",
+    "country-gallery/country-extra-115-2.webp",
+    "country-gallery/country-extra-115-3.webp"
+  ],
+  "刚果(金)": [
+    "country-gallery/country-extra-116-1.webp",
+    "country-gallery/country-extra-116-2.webp",
+    "country-gallery/country-extra-116-3.webp"
+  ],
+  "卢旺达": [
+    "country-gallery/country-extra-117-1.webp",
+    "country-gallery/country-extra-117-2.webp",
+    "country-gallery/country-extra-117-3.webp"
+  ],
+  "喀麦隆": [
+    "country-gallery/country-extra-118-1.webp",
+    "country-gallery/country-extra-118-2.webp",
+    "country-gallery/country-extra-118-3.webp"
+  ],
+  "塞内加尔": [
+    "country-gallery/country-extra-119-1.webp",
+    "country-gallery/country-extra-119-2.webp",
+    "country-gallery/country-extra-119-3.webp"
+  ],
+  "塞拉利昂": [
+    "country-gallery/country-extra-120-1.webp",
+    "country-gallery/country-extra-120-2.webp",
+    "country-gallery/country-extra-120-3.webp"
+  ],
+  "多哥": [
+    "country-gallery/country-extra-121-1.webp",
+    "country-gallery/country-extra-121-2.webp",
+    "country-gallery/country-extra-121-3.webp"
+  ],
+  "安哥拉": [
+    "country-gallery/country-extra-122-1.webp",
+    "country-gallery/country-extra-122-2.webp",
+    "country-gallery/country-extra-122-3.webp"
+  ],
+  "尼日利亚": [
+    "country-gallery/country-extra-123-1.webp",
+    "country-gallery/country-extra-123-2.webp",
+    "country-gallery/country-extra-123-3.webp"
+  ],
+  "布基纳法索": [
+    "country-gallery/country-extra-124-1.webp",
+    "country-gallery/country-extra-124-2.webp",
+    "country-gallery/country-extra-124-3.webp"
+  ],
+  "布隆迪": [
+    "country-gallery/country-extra-125-1.webp",
+    "country-gallery/country-extra-125-2.webp",
+    "country-gallery/country-extra-125-3.webp"
+  ],
+  "科特迪瓦": [
+    "country-gallery/country-extra-126-1.webp",
+    "country-gallery/country-extra-126-2.webp",
+    "country-gallery/country-extra-126-3.webp"
+  ],
+  "突尼斯": [
+    "country-gallery/country-extra-127-1.webp",
+    "country-gallery/country-extra-127-2.webp",
+    "country-gallery/country-extra-127-3.webp"
+  ],
+  "莫桑比克": [
+    "country-gallery/country-extra-128-1.webp",
+    "country-gallery/country-extra-128-2.webp",
+    "country-gallery/country-extra-128-3.webp"
+  ],
+  "贝宁": [
+    "country-gallery/country-extra-129-1.webp",
+    "country-gallery/country-extra-129-2.webp",
+    "country-gallery/country-extra-129-3.webp"
+  ],
+  "赞比亚": [
+    "country-gallery/country-extra-130-1.webp",
+    "country-gallery/country-extra-130-2.webp",
+    "country-gallery/country-extra-130-3.webp"
+  ],
+  "乌干达": [
+    "country-gallery/country-extra-131-1.webp",
+    "country-gallery/country-extra-131-2.webp",
+    "country-gallery/country-extra-131-3.webp"
+  ],
+  "几内亚": [
+    "country-gallery/country-extra-132-1.webp",
+    "country-gallery/country-extra-132-2.webp",
+    "country-gallery/country-extra-132-3.webp"
+  ],
+  "加纳": [
+    "country-gallery/country-extra-133-1.webp",
+    "country-gallery/country-extra-133-2.webp",
+    "country-gallery/country-extra-133-3.webp"
+  ],
+  "加蓬": [
+    "country-gallery/country-extra-134-1.webp",
+    "country-gallery/country-extra-134-2.webp",
+    "country-gallery/country-extra-134-3.webp"
+  ],
+  "博茨瓦纳": [
+    "country-gallery/country-extra-135-1.webp",
+    "country-gallery/country-extra-135-2.webp",
+    "country-gallery/country-extra-135-3.webp"
+  ],
+  "图瓦卢": [
+    "country-gallery/country-extra-136-1.webp",
+    "country-gallery/country-extra-136-2.webp",
+    "country-gallery/country-extra-136-3.webp"
+  ],
+  "基里巴斯": [
+    "country-gallery/country-extra-137-1.webp",
+    "country-gallery/country-extra-137-2.webp",
+    "country-gallery/country-extra-137-3.webp"
+  ],
+  "帕劳": [
+    "country-gallery/country-extra-138-1.webp",
+    "country-gallery/country-extra-138-2.webp",
+    "country-gallery/country-extra-138-3.webp"
+  ],
+  "所罗门群岛": [
+    "country-gallery/country-extra-139-1.webp",
+    "country-gallery/country-extra-139-2.webp",
+    "country-gallery/country-extra-139-3.webp"
+  ],
+  "斯威士兰": [
+    "country-gallery/country-extra-140-1.webp",
+    "country-gallery/country-extra-140-2.webp",
+    "country-gallery/country-extra-140-3.webp"
+  ],
+  "汤加": [
+    "country-gallery/country-extra-141-1.webp",
+    "country-gallery/country-extra-141-2.webp",
+    "country-gallery/country-extra-141-3.webp"
+  ],
+  "津巴布韦": [
+    "country-gallery/country-extra-142-1.webp",
+    "country-gallery/country-extra-142-2.webp",
+    "country-gallery/country-extra-142-3.webp"
+  ],
+  "瑙鲁": [
+    "country-gallery/country-extra-143-1.webp",
+    "country-gallery/country-extra-143-2.webp",
+    "country-gallery/country-extra-143-3.webp"
+  ],
+  "瓦努阿图": [
+    "country-gallery/country-extra-144-1.webp",
+    "country-gallery/country-extra-144-2.webp",
+    "country-gallery/country-extra-144-3.webp"
+  ],
+  "纳米比亚": [
+    "country-gallery/country-extra-145-1.webp",
+    "country-gallery/country-extra-145-2.webp",
+    "country-gallery/country-extra-145-3.webp"
+  ],
+  "莱索托": [
+    "country-gallery/country-extra-146-1.webp",
+    "country-gallery/country-extra-146-2.webp",
+    "country-gallery/country-extra-146-3.webp"
+  ],
+  "萨摩亚": [
+    "country-gallery/country-extra-147-1.webp",
+    "country-gallery/country-extra-147-2.webp",
+    "country-gallery/country-extra-147-3.webp"
+  ],
+  "赤道几内亚": [
+    "country-gallery/country-extra-148-1.webp",
+    "country-gallery/country-extra-148-2.webp",
+    "country-gallery/country-extra-148-3.webp"
+  ],
+  "马拉维": [
+    "country-gallery/country-extra-149-1.webp",
+    "country-gallery/country-extra-149-2.webp",
+    "country-gallery/country-extra-149-3.webp"
+  ],
+  "马绍尔群岛": [
+    "country-gallery/country-extra-150-1.webp",
+    "country-gallery/country-extra-150-2.webp",
+    "country-gallery/country-extra-150-3.webp"
   ]
 };
 

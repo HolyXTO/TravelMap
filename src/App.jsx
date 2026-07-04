@@ -3874,9 +3874,11 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
     const flagMaterials = [];
     const flagBadgeMaterials = [];
     const flagSprites = [];
-    const pointer = new THREE.Vector2();
-    const raycaster = new THREE.Raycaster();
     const localUp = new THREE.Vector3(0, 1, 0);
+    const worldNormal = new THREE.Vector3();
+    const worldSurface = new THREE.Vector3();
+    const toCamera = new THREE.Vector3();
+    const screenPosition = new THREE.Vector3();
     let disposed = false;
     points.forEach((point) => {
       const normal = latLngToVector3(point.lat, point.lng, 1).normalize();
@@ -3912,6 +3914,7 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
         sprite.scale.set(0.18, 0.18, 1);
         sprite.renderOrder = 30;
         sprite.userData.label = point.name || point.country || point.id || "";
+        sprite.userData.pin = pin;
         flagSprites.push(sprite);
         loadTextureFromCandidates(textureLoader, point.flagIconUrls, (texture) => {
           if (disposed) {
@@ -3953,22 +3956,50 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
     const hideTooltip = () => {
       tooltip.classList.remove("visible");
     };
+    const isPinFacingCamera = (pin) => {
+      if (!pin?.userData?.normal || !pin.userData.surfacePosition) return false;
+      worldNormal.copy(pin.userData.normal).applyQuaternion(globeRoot.quaternion);
+      worldSurface.copy(pin.userData.surfacePosition).applyQuaternion(globeRoot.quaternion);
+      toCamera.copy(camera.position).sub(worldSurface).normalize();
+      return worldNormal.dot(toCamera) > 0.08;
+    };
     const handlePointerMove = (event) => {
       if (!isFlagMode || flagSprites.length === 0) return;
+      controls.update();
+      globeRoot.updateMatrixWorld(true);
+      camera.updateMatrixWorld(true);
       const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObjects(
-        flagSprites.filter((sprite) => sprite.visible && sprite.material.opacity > 0.05),
-        false,
-      );
-      if (hits.length === 0) {
+      const pointerX = event.clientX - rect.left;
+      const pointerY = event.clientY - rect.top;
+      const hitRadius = 18 * satelliteZoomRef.current;
+      let closest = null;
+      flagSprites.forEach((sprite) => {
+        const pin = sprite.userData.pin;
+        if (
+          !pin ||
+          !pin.visible ||
+          !sprite.visible ||
+          sprite.material.opacity <= 0.05 ||
+          !isPinFacingCamera(pin)
+        ) {
+          return;
+        }
+        sprite.getWorldPosition(screenPosition);
+        screenPosition.project(camera);
+        if (screenPosition.z < -1 || screenPosition.z > 1) return;
+        const x = (screenPosition.x * 0.5 + 0.5) * rect.width;
+        const y = (-screenPosition.y * 0.5 + 0.5) * rect.height;
+        const distance = Math.hypot(pointerX - x, pointerY - y);
+        if (distance <= hitRadius && (!closest || distance < closest.distance)) {
+          closest = { sprite, distance };
+        }
+      });
+      if (!closest) {
         hideTooltip();
         return;
       }
       const mountRect = mount.getBoundingClientRect();
-      tooltip.textContent = hits[0].object.userData.label;
+      tooltip.textContent = closest.sprite.userData.label;
       tooltip.style.left = `${event.clientX - mountRect.left + 14}px`;
       tooltip.style.top = `${event.clientY - mountRect.top + 14}px`;
       tooltip.classList.add("visible");
@@ -3990,10 +4021,13 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
     const renderScene = () => {
       controls.update();
       markerGroup.children.forEach((pin) => {
-        const worldNormal = pin.userData.normal.clone().applyQuaternion(globeRoot.quaternion);
-        const worldSurface = pin.userData.surfacePosition.clone().applyQuaternion(globeRoot.quaternion);
-        const toCamera = camera.position.clone().sub(worldSurface).normalize();
-        pin.visible = worldNormal.dot(toCamera) > 0.08;
+        const visible = isPinFacingCamera(pin);
+        pin.visible = visible;
+        if (isFlagMode) {
+          pin.children.forEach((child) => {
+            if (child.isSprite) child.visible = visible;
+          });
+        }
       });
       renderer.render(scene, camera);
     };

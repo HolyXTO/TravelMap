@@ -13,6 +13,9 @@ SOURCE_DIRS = [
     Path(r"C:\Users\HolyX\Desktop\足迹地图\195国家图片"),
     Path(r"C:\Users\HolyX\Desktop\足迹地图\195国家图片2"),
     Path(r"C:\Users\HolyX\Desktop\足迹地图\195国家图片3"),
+    Path(r"C:\Users\HolyX\Desktop\足迹地图\195国家图片4"),
+    Path(r"C:\Users\HolyX\Desktop\足迹地图\195国家图片5"),
+    Path(r"C:\Users\HolyX\Desktop\足迹地图\195国家图片6"),
 ]
 OUTPUT_DIR = ROOT / "public" / "country-gallery"
 MANIFEST_PATH = ROOT / "src" / "data" / "countryGallery.js"
