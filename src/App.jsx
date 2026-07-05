@@ -428,6 +428,115 @@ const COUNTRY_GALLERY_META = {
   马尔代夫: { english: "Maldives", native: "ދިވެހި" },
   马来西亚: { english: "Malaysia", native: "Malaysia" },
   黎巴嫩: { english: "Lebanon", native: "لبنان" },
+  阿尔及利亚: { english: "Algeria", native: "الجزائر" },
+  阿塞拜疆: { english: "Azerbaijan", native: "Azərbaycan" },
+  埃塞俄比亚: { english: "Ethiopia", native: "ኢትዮጵያ" },
+  安哥拉: { english: "Angola", native: "Angola" },
+  安提瓜和巴布达: { english: "Antigua and Barbuda", native: "Antigua and Barbuda" },
+  巴哈马: { english: "Bahamas", native: "The Bahamas" },
+  巴拉圭: { english: "Paraguay", native: "Paraguái" },
+  巴拿马: { english: "Panama", native: "Panamá" },
+  巴西: { english: "Brazil", native: "Brasil" },
+  贝宁: { english: "Benin", native: "Bénin" },
+  玻利维亚: { english: "Bolivia", native: "Bolivia" },
+  伯利兹: { english: "Belize", native: "Belize" },
+  博茨瓦纳: { english: "Botswana", native: "Botswana" },
+  不丹: { english: "Bhutan", native: "འབྲུག་ཡུལ" },
+  布基纳法索: { english: "Burkina Faso", native: "Burkina Faso" },
+  布隆迪: { english: "Burundi", native: "Burundi" },
+  赤道几内亚: { english: "Equatorial Guinea", native: "Guinea Ecuatorial" },
+  东帝汶: { english: "Timor-Leste", native: "Timor-Leste" },
+  多哥: { english: "Togo", native: "Togo" },
+  多米尼加: { english: "Dominican Republic", native: "República Dominicana" },
+  多米尼克: { english: "Dominica", native: "Dominica" },
+  厄瓜多尔: { english: "Ecuador", native: "Ecuador" },
+  厄立特里亚: { english: "Eritrea", native: "ኤርትራ" },
+  佛得角: { english: "Cabo Verde", native: "Cabo Verde" },
+  冈比亚: { english: "The Gambia", native: "The Gambia" },
+  "刚果(布)": { english: "Republic of the Congo", native: "République du Congo" },
+  "刚果(金)": { english: "Democratic Republic of the Congo", native: "République démocratique du Congo" },
+  哥伦比亚: { english: "Colombia", native: "Colombia" },
+  哥斯达黎加: { english: "Costa Rica", native: "Costa Rica" },
+  格林纳达: { english: "Grenada", native: "Grenada" },
+  格鲁吉亚: { english: "Georgia", native: "საქართველო" },
+  古巴: { english: "Cuba", native: "Cuba" },
+  圭亚那: { english: "Guyana", native: "Guyana" },
+  哈萨克斯坦: { english: "Kazakhstan", native: "Қазақстан" },
+  海地: { english: "Haiti", native: "Haïti" },
+  洪都拉斯: { english: "Honduras", native: "Honduras" },
+  基里巴斯: { english: "Kiribati", native: "Kiribati" },
+  吉布提: { english: "Djibouti", native: "Djibouti" },
+  吉尔吉斯斯坦: { english: "Kyrgyzstan", native: "Кыргызстан" },
+  几内亚: { english: "Guinea", native: "Guinée" },
+  几内亚比绍: { english: "Guinea-Bissau", native: "Guiné-Bissau" },
+  加拿大: { english: "Canada", native: "Canada" },
+  加纳: { english: "Ghana", native: "Ghana" },
+  加蓬: { english: "Gabon", native: "Gabon" },
+  柬埔寨: { english: "Cambodia", native: "កម្ពុជា" },
+  津巴布韦: { english: "Zimbabwe", native: "Zimbabwe" },
+  喀麦隆: { english: "Cameroon", native: "Cameroun" },
+  科摩罗: { english: "Comoros", native: "Comores" },
+  科特迪瓦: { english: "Cote d'Ivoire", native: "Côte d'Ivoire" },
+  肯尼亚: { english: "Kenya", native: "Kenya" },
+  莱索托: { english: "Lesotho", native: "Lesotho" },
+  老挝: { english: "Laos", native: "ລາວ" },
+  利比里亚: { english: "Liberia", native: "Liberia" },
+  利比亚: { english: "Libya", native: "ليبيا" },
+  卢旺达: { english: "Rwanda", native: "Rwanda" },
+  马达加斯加: { english: "Madagascar", native: "Madagasikara" },
+  马拉维: { english: "Malawi", native: "Malawi" },
+  马里: { english: "Mali", native: "Mali" },
+  马绍尔群岛: { english: "Marshall Islands", native: "Aelōn̄ in M̧ajeļ" },
+  毛里求斯: { english: "Mauritius", native: "Moris" },
+  毛里塔尼亚: { english: "Mauritania", native: "موريتانيا" },
+  美国: { english: "United States", native: "United States" },
+  孟加拉国: { english: "Bangladesh", native: "বাংলাদেশ" },
+  秘鲁: { english: "Peru", native: "Perú" },
+  缅甸: { english: "Myanmar", native: "မြန်မာ" },
+  摩洛哥: { english: "Morocco", native: "المغرب" },
+  莫桑比克: { english: "Mozambique", native: "Moçambique" },
+  纳米比亚: { english: "Namibia", native: "Namibia" },
+  南苏丹: { english: "South Sudan", native: "South Sudan" },
+  瑙鲁: { english: "Nauru", native: "Naoero" },
+  尼加拉瓜: { english: "Nicaragua", native: "Nicaragua" },
+  尼泊尔: { english: "Nepal", native: "नेपाल" },
+  尼日尔: { english: "Niger", native: "Niger" },
+  尼日利亚: { english: "Nigeria", native: "Nigeria" },
+  帕劳: { english: "Palau", native: "Belau" },
+  萨尔瓦多: { english: "El Salvador", native: "El Salvador" },
+  萨摩亚: { english: "Samoa", native: "Sāmoa" },
+  塞拉利昂: { english: "Sierra Leone", native: "Sierra Leone" },
+  塞内加尔: { english: "Senegal", native: "Sénégal" },
+  塞舌尔: { english: "Seychelles", native: "Sesel" },
+  圣多美和普林西比: { english: "Sao Tome and Principe", native: "São Tomé e Príncipe" },
+  圣基茨和尼维斯: { english: "Saint Kitts and Nevis", native: "Saint Kitts and Nevis" },
+  圣卢西亚: { english: "Saint Lucia", native: "Saint Lucia" },
+  斯威士兰: { english: "Eswatini", native: "Eswatini" },
+  苏丹: { english: "Sudan", native: "السودان" },
+  苏里南: { english: "Suriname", native: "Suriname" },
+  所罗门群岛: { english: "Solomon Islands", native: "Solomon Islands" },
+  索马里: { english: "Somalia", native: "Soomaaliya" },
+  塔吉克斯坦: { english: "Tajikistan", native: "Тоҷикистон" },
+  泰国: { english: "Thailand", native: "ประเทศไทย" },
+  坦桑尼亚: { english: "Tanzania", native: "Tanzania" },
+  汤加: { english: "Tonga", native: "Tonga" },
+  突尼斯: { english: "Tunisia", native: "تونس" },
+  图瓦卢: { english: "Tuvalu", native: "Tuvalu" },
+  土库曼斯坦: { english: "Turkmenistan", native: "Türkmenistan" },
+  瓦努阿图: { english: "Vanuatu", native: "Vanuatu" },
+  危地马拉: { english: "Guatemala", native: "Guatemala" },
+  委内瑞拉: { english: "Venezuela", native: "Venezuela" },
+  文莱: { english: "Brunei", native: "Brunei" },
+  乌干达: { english: "Uganda", native: "Uganda" },
+  乌拉圭: { english: "Uruguay", native: "Uruguay" },
+  乌兹别克斯坦: { english: "Uzbekistan", native: "Oʻzbekiston" },
+  牙买加: { english: "Jamaica", native: "Jamaica" },
+  亚美尼亚: { english: "Armenia", native: "Հայաստան" },
+  越南: { english: "Vietnam", native: "Việt Nam" },
+  赞比亚: { english: "Zambia", native: "Zambia" },
+  乍得: { english: "Chad", native: "Tchad" },
+  智利: { english: "Chile", native: "Chile" },
+  中非: { english: "Central African Republic", native: "République centrafricaine" },
 };
 
 const PLACE_NAME_OVERRIDES = {
@@ -2699,15 +2808,51 @@ function App() {
     }
   }
 
+  function scrollToPageSection(sectionId) {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+    const offset = 102;
+    const top = target.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div>
-          <p className="eyebrow">TravelMap X</p>
-          <h1>足迹地图</h1>
+        <div className="prophet-brand">
+          <span className="prophet-brand-icon" aria-hidden="true">
+            <img src={`${import.meta.env.BASE_URL}brand/travelmap-icon.png`} alt="" />
+          </span>
+          <div>
+            <h1>足迹地图</h1>
+            <p className="eyebrow">TravelMap X</p>
+          </div>
         </div>
+        <nav className="prophet-nav" aria-label="页面导航">
+          <button onClick={() => scrollToPageSection("map-section")} type="button">
+            地图
+          </button>
+          <button onClick={() => scrollToPageSection("country-gallery-section")} type="button">
+            国家图鉴
+          </button>
+          <button onClick={() => scrollToPageSection("overview-section")} type="button">
+            统计数据
+          </button>
+          <button onClick={() => scrollToPageSection("visual-journey-section")} type="button">
+            足迹可视化
+          </button>
+          <div className="prophet-theme-nav">
+            <button type="button">地图主题</button>
+            <MapThemePicker
+              activeThemeId={activeMapThemeId}
+              onChange={setActiveMapThemeId}
+              themes={ORDERED_MAP_THEMES}
+              variant="nav"
+            />
+          </div>
+        </nav>
         <div
-          className="status-strip"
+          className="status-strip prophet-status"
           aria-label="项目状态"
           onClick={() => setAuthPanelOpen(true)}
           onKeyDown={(event) => {
@@ -2717,10 +2862,7 @@ function App() {
           tabIndex={0}
         >
           <span>
-            <Database size={16} /> {session ? "已登录" : "未登录"}
-          </span>
-          <span>
-            <ShieldCheck size={16} /> {session && isEditor ? "可编辑" : dataStatus}
+            <Database size={16} /> {session ? "数据库已连接" : "未登录"}
           </span>
         </div>
       </header>
@@ -2809,7 +2951,7 @@ function App() {
         )}
       </section>
 
-      <section className="workspace">
+      <section className="workspace" id="map-section">
         <QuickAddDock
           activeProfile={activeProfile}
           addPlace={addPlace}
@@ -2892,6 +3034,7 @@ function App() {
       />
       <div
         className={`journey-visual-gate ${journeyVisualsLoaded ? "active" : "idle"}`}
+        id="visual-journey-section"
         ref={journeyVisualGateRef}
       >
         {journeyVisualsLoaded ? (
@@ -4900,9 +5043,12 @@ function MapView({
   );
 }
 
-function MapThemePicker({ activeThemeId, onChange, themes }) {
+function MapThemePicker({ activeThemeId, onChange, themes, variant = "map" }) {
   return (
-    <div className="map-theme-picker" aria-label="地图配色方案">
+    <div
+      className={`map-theme-picker${variant === "nav" ? " nav-theme-picker" : ""}`}
+      aria-label="地图配色方案"
+    >
       {themes.map((theme) => (
         <button
           aria-label={`切换到${theme.label}配色`}
@@ -6540,7 +6686,7 @@ function CountryGallery({ continentSummary = [], countryPlaces = [] }) {
   if (!visitedGroups.length && !lockedGroups.length) return null;
 
   return (
-    <section className="country-gallery-section" aria-label="国家图鉴">
+    <section className="country-gallery-section" id="country-gallery-section" aria-label="国家图鉴">
       <div className="country-gallery-title">
         <h2>
           国家图鉴·<span className="major-title-en">Unlocked Countries</span>·<span className="major-title-number">{visitedCount}</span>
@@ -6819,7 +6965,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
         return defaultContinents.indexOf(a) - defaultContinents.indexOf(b);
       });
     return (
-      <section className="overview-section comparison-overview" aria-label="足迹对比总览">
+      <section className="overview-section comparison-overview" id="overview-section" aria-label="足迹对比总览">
         <div className="section-title overview-title">
           <h2>
             统计数据·<span className="major-title-en">Overview</span>
@@ -6921,7 +7067,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
 
   const items = normalizeSummary(continentSummary);
   return (
-    <section className="overview-section" aria-label="足迹总览">
+    <section className="overview-section" id="overview-section" aria-label="足迹总览">
       <div className="section-title overview-title">
         <h2>
           统计数据·<span className="major-title-en">Overview</span>
