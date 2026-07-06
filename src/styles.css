@@ -143,6 +143,17 @@ button {
   position: relative;
   display: inline-flex;
   align-items: center;
+  margin-bottom: -18px;
+  padding-bottom: 18px;
+}
+
+.prophet-theme-nav::after {
+  position: absolute;
+  top: calc(100% - 18px);
+  right: -16px;
+  left: -16px;
+  height: 22px;
+  content: "";
 }
 
 .prophet-nav > button,
@@ -725,7 +736,7 @@ h2 {
 }
 
 .prophet-theme-nav .nav-theme-picker {
-  top: calc(100% + 12px);
+  top: calc(100% - 2px);
   right: auto;
   left: 50%;
   display: flex;
@@ -741,8 +752,7 @@ h2 {
     transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.prophet-theme-nav:hover .nav-theme-picker,
-.prophet-theme-nav:focus-within .nav-theme-picker {
+.prophet-theme-nav:hover .nav-theme-picker {
   opacity: 1;
   pointer-events: auto;
   transform: translate(-50%, 0) scale(1);

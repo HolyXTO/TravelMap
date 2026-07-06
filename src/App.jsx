@@ -1985,6 +1985,12 @@ function safeStorageName(name) {
   return name.replace(/[^\w.-]+/g, "_").slice(-100) || "photo";
 }
 
+function getPhotoFilesFromForm(formElement, fieldName = "photo") {
+  const input = formElement?.elements?.[fieldName];
+  if (!input?.files) return [];
+  return Array.from(input.files).filter((file) => file && file.size);
+}
+
 function App() {
   const [activeProfile, setActiveProfile] = useState("all");
   const [activeLevel, setActiveLevel] = useState("country");
@@ -2510,7 +2516,27 @@ function App() {
     }
   }
 
-  async function saveVisit({ file, placeId, profileId, resetTarget, type, visitedAt }) {
+  async function uploadVisitPhotos(visitId, photoFiles = []) {
+    for (const [index, file] of photoFiles.entries()) {
+      const storagePath = `${session.user.id}/${visitId}/${Date.now()}-${index}-${safeStorageName(file.name)}`;
+      const { error: uploadError } = await supabase.storage
+        .from(PHOTO_BUCKET)
+        .upload(storagePath, file, {
+          contentType: file.type || "application/octet-stream",
+          upsert: false,
+        });
+      if (uploadError) throw uploadError;
+
+      const { error: photoError } = await supabase.from("visit_photos").insert({
+        visit_id: visitId,
+        storage_path: storagePath,
+        created_by: session.user.id,
+      });
+      if (photoError) throw photoError;
+    }
+  }
+
+  async function saveVisit({ file, files, placeId, profileId, resetTarget, type, visitedAt }) {
     if (!session || !isEditor) {
       setAuthMessage("请先用已授权账号登录。");
       return false;
@@ -2548,23 +2574,8 @@ function App() {
 
       if (visitError) throw visitError;
 
-      if (file && file.size) {
-        const storagePath = `${session.user.id}/${createdVisit.id}/${Date.now()}-${safeStorageName(file.name)}`;
-        const { error: uploadError } = await supabase.storage
-          .from(PHOTO_BUCKET)
-          .upload(storagePath, file, {
-            contentType: file.type || "application/octet-stream",
-            upsert: false,
-          });
-        if (uploadError) throw uploadError;
-
-        const { error: photoError } = await supabase.from("visit_photos").insert({
-          visit_id: createdVisit.id,
-          storage_path: storagePath,
-          created_by: session.user.id,
-        });
-        if (photoError) throw photoError;
-      }
+      const photoFiles = files?.length ? files : file && file.size ? [file] : [];
+      await uploadVisitPhotos(createdVisit.id, photoFiles);
 
       await loadTravelData();
       setSelectedPlaceId(resolveMapIdForLevel(placeId, activeLevel, placeLookup) || placeId);
@@ -2586,6 +2597,7 @@ function App() {
     const form = new FormData(formElement);
     await saveVisit({
       file: form.get("photo"),
+      files: getPhotoFilesFromForm(formElement),
       placeId: form.get("placeId"),
       profileId: form.get("profileId"),
       resetTarget: formElement,
@@ -2633,7 +2645,7 @@ function App() {
     }
   }
 
-  async function updateVisit(visitId, { file, rating, type, visitedAt }) {
+  async function updateVisit(visitId, { file, files, rating, type, visitedAt }) {
     if (!session || !isEditor) {
       setEditMessage("请先用已授权账号登录。");
       return false;
@@ -2657,23 +2669,8 @@ function App() {
 
       if (updateError) throw updateError;
 
-      if (file && file.size) {
-        const storagePath = `${session.user.id}/${visitId}/${Date.now()}-${safeStorageName(file.name)}`;
-        const { error: uploadError } = await supabase.storage
-          .from(PHOTO_BUCKET)
-          .upload(storagePath, file, {
-            contentType: file.type || "application/octet-stream",
-            upsert: false,
-          });
-        if (uploadError) throw uploadError;
-
-        const { error: photoError } = await supabase.from("visit_photos").insert({
-          visit_id: visitId,
-          storage_path: storagePath,
-          created_by: session.user.id,
-        });
-        if (photoError) throw photoError;
-      }
+      const photoFiles = files?.length ? files : file && file.size ? [file] : [];
+      await uploadVisitPhotos(visitId, photoFiles);
 
       await loadTravelData();
       setEditMessage("已更新足迹。");
@@ -3060,7 +3057,7 @@ function App() {
           <section className="journey-visual-placeholder" aria-label="足迹视觉展示">
             <div className="section-title overview-title journey-title">
               <h2>
-                <span className="major-title-en">Visual Journey</span>·足迹可视化
+                足迹可视化·<span className="major-title-en">Visual Journey</span>
               </h2>
             </div>
             <span>继续向下滚动时加载球形足迹与点阵轨迹</span>
@@ -3204,7 +3201,7 @@ function JourneyVisuals({
     <section className="journey-visual-section" aria-label="足迹视觉展示">
       <div className="section-title overview-title journey-title">
         <h2>
-          <span className="major-title-en">Visual Journey</span>·足迹可视化
+          足迹可视化·<span className="major-title-en">Visual Journey</span>
         </h2>
       </div>
       <div className="journey-visual-grid">
@@ -5016,11 +5013,6 @@ function MapView({
           <h2>{placeLevels.find((level) => level.id === activeLevel)?.label}层级</h2>
         </div>
       </div>
-      <MapThemePicker
-        activeThemeId={mapTheme.id}
-        onChange={setMapThemeId}
-        themes={mapThemes}
-      />
       <div className="leaflet-map" ref={containerRef} />
       <button
         aria-label="复原地图视角"
@@ -6421,9 +6413,11 @@ function VisitEditDialog({
 
   async function handleSubmit(event) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     await onUpdateVisit(visit.id, {
       file: form.get("photo"),
+      files: getPhotoFilesFromForm(formElement),
       rating,
       type,
       visitedAt,
@@ -6475,7 +6469,7 @@ function VisitEditDialog({
         </div>
         <label>
           上传照片
-          <input name="photo" type="file" />
+          <input accept="image/*" multiple name="photo" type="file" />
         </label>
         {authMessage && <p className="dock-message">{authMessage}</p>}
         <div className="visit-edit-actions">
