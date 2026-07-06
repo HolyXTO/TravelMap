@@ -2165,6 +2165,18 @@ function App() {
           .map-surface .eyebrow {
             font-family: 'DynamicPanelEnglish', var(--prophet-code) !important;
           }
+          
+          /* Card eyebrows and counts typography overrides */
+          .aceternity-globe-card .eyebrow,
+          .aceternity-world-card .eyebrow {
+            font-family: 'UpperEnglish', var(--prophet-code) !important;
+            letter-spacing: 0.08em !important;
+          }
+          
+          .globe-card-actions > span,
+          .aceternity-world-card > div:first-child > span {
+            font-family: 'UpperEnglish', 'UpperNumeric', var(--prophet-code) !important;
+          }
         `);
       }
     }
@@ -3816,13 +3828,6 @@ function AceternityStyleGlobeV2({
           resetTick={resetTick}
           speed={speed}
           />
-          <button
-            className={`country-globe-toggle ${showAllCountries ? "active" : ""}`}
-            onClick={() => setShowAllCountries((value) => !value)}
-            type="button"
-          >
-            {showAllCountries ? "只看去过国家" : "显示全部国家"}
-          </button>
         </div>
         <SatellitePinGlobe
           active={isVisualActive}
@@ -3833,6 +3838,13 @@ function AceternityStyleGlobeV2({
           speed={speed}
         />
       </div>
+      <button
+        className={`country-globe-toggle ${showAllCountries ? "active" : ""}`}
+        onClick={() => setShowAllCountries((value) => !value)}
+        type="button"
+      >
+        {showAllCountries ? "只看去过国家" : "显示全部国家"}
+      </button>
     </article>
   );
 }
@@ -4525,7 +4537,7 @@ function aceternityWorldRoutePath(start, end) {
 
 function AceternityStyleWorldMap({ arcs, points, worldDots }) {
   const [cardRef, isVisualActive] = useNearViewport("420px");
-  const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
+  const [view, setView] = useState({ scale: 1.12, x: -48, y: -24 });
   const svgRef = useRef(null);
   const dragRef = useRef({ active: false, x: 0, y: 0 });
 
@@ -4611,7 +4623,7 @@ function AceternityStyleWorldMap({ arcs, points, worldDots }) {
         <div className="world-map-actions" aria-label="调整点阵地图">
           <button onClick={() => zoomWorldMap(view.scale * 1.22)} type="button">+</button>
           <button onClick={() => zoomWorldMap(view.scale / 1.22)} type="button">−</button>
-          <button onClick={() => setView({ scale: 1, x: 0, y: 0 })} type="button" aria-label="复位点阵地图">
+          <button onClick={() => setView({ scale: 1.12, x: -48, y: -24 })} type="button" aria-label="复位点阵地图">
             <RotateCcw size={14} />
           </button>
         </div>
@@ -4635,10 +4647,10 @@ function AceternityStyleWorldMap({ arcs, points, worldDots }) {
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="aceternityWorldFade" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
-            <stop offset="9%" stopColor="#ffffff" stopOpacity="1" />
-            <stop offset="89%" stopColor="#ffffff" stopOpacity="1" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.15" />
+            <stop offset="4%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="96%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.15" />
           </linearGradient>
           <mask id="aceternityWorldMask">
             <rect width="800" height="400" fill="url(#aceternityWorldFade)" />
@@ -5694,7 +5706,15 @@ function CountryModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation">
+    <div
+      className="modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      role="presentation"
+    >
       <section className="country-modal" role="dialog" aria-modal="true">
         <header className="modal-head">
           <div>
@@ -6280,6 +6300,20 @@ function PlaceSearchPanel({
   const [visitChoice, setVisitChoice] = useState(null);
   const addedItemRefs = useRef(new Map());
   const addedListRef = useRef(null);
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    if (!visitChoice) return;
+    function handleOutsideClick(e) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setVisitChoice(null);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [visitChoice]);
 
   useEffect(() => {
     const validIds = new Set(profiles.map((profile) => profile.id));
@@ -6506,7 +6540,7 @@ function PlaceSearchPanel({
         })}
       </div>
       {visitChoice && (
-        <div className="visit-choice-popover" role="dialog" aria-modal="false">
+        <div className="visit-choice-popover" ref={popoverRef} role="dialog" aria-modal="false">
           <div>
             <strong>{visitChoice.action === "delete" ? "选择要删除的记录" : "选择要编辑的记录"}</strong>
             <small>{displayPlaceName(visitChoice.place)}</small>
