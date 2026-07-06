@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color: #111827;
   background: #f5f7fb;
   --prophet-serif: "STZhongsong", "华文中宋", "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
@@ -4132,6 +4132,151 @@ h2 {
   .dot-world-map {
     height: calc(100% - 110px);
   }
+}
+
+/* ==========================================
+   自定义顶部元素与卡片字体调试功能栏样式
+   ========================================== */
+
+.font-customizer-bar {
+  width: min(1240px, 100%);
+  margin: 20px auto 0;
+  background:
+    linear-gradient(90deg, rgba(248, 251, 255, 0.84), rgba(246, 249, 253, 0.68)),
+    rgba(248, 250, 252, 0.68);
+  backdrop-filter: blur(18px) saturate(1.1);
+  border: 1px solid rgba(203, 213, 225, 0.68);
+  border-radius: 12px;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+}
+
+.font-customizer-title {
+  font-family: var(--prophet-serif);
+  font-weight: 900;
+  font-size: 1.05rem;
+  color: var(--prophet-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.font-customizer-title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--prophet-gold);
+}
+
+.font-customizer-selects {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.font-select-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.font-select-group label {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.font-select-group select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  min-width: 170px;
+  transition: all 0.2s ease;
+}
+
+.font-select-group select:focus {
+  border-color: #123c30;
+  box-shadow: 0 0 0 3px rgba(18, 60, 48, 0.15);
+}
+
+/* 数据库连接状态指示小灯样式 */
+.prophet-status span.db-connected,
+.prophet-status span.db-disconnected {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prophet-status span.db-connected::after,
+.prophet-status span.db-disconnected::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+/* 已登录状态：绿色呼吸小灯脉冲动画 */
+.prophet-status span.db-connected::after {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse-green 1.8s infinite;
+}
+
+/* 未登录状态：灰色小灯，无动画 */
+.prophet-status span.db-disconnected::after {
+  background-color: #9ca3af;
+  box-shadow: 0 0 4px #9ca3af;
+}
+
+@keyframes pulse-green {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+
+
+/* 鼠标悬停统计卡片弹出的浮窗中，Xiao 与 Tang 使用 Georgia 字体，并用高优先级选择器防止被 .metric strong 覆盖 */
+.comparison-metric .comparison-diff-popover,
+.comparison-metric .comparison-diff-popover strong,
+.comparison-metric .comparison-diff-popover span {
+  font-family: Georgia, var(--prophet-serif) !important;
+}
+
+/* “去过的地方”列表文字加粗及颜色加深效果 */
+.added-list strong {
+  font-weight: 900 !important;
+  color: #0f172a !important;
+}
+
+.added-list small {
+  font-weight: 800 !important;
+  color: #334155 !important;
 }
 
 

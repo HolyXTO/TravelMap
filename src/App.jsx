@@ -1991,7 +1991,189 @@ function getPhotoFilesFromForm(formElement, fieldName = "photo") {
   return Array.from(input.files).filter((file) => file && file.size);
 }
 
+const googleFonts = {
+  // Chinese
+  "霞鹜文楷 (LXGW WenKai)": "LXGW+WenKai",
+  "思源黑体 (Noto Sans SC)": "Noto+Sans+SC:wght@300;400;500;700",
+  "思源宋体 (Noto Serif SC)": "Noto+Serif+SC:wght@300;400;700",
+  "日式楷体 (Klee One)": "Klee+One",
+  "站酷快乐体 (ZCOOL KuaiLe)": "ZCOOL+KuaiLe",
+  "站酷黄油体 (ZCOOL HuangYou)": "ZCOOL+QingKe+HuangYou",
+  "站酷小薇体 (ZCOOL XiaoWei)": "ZCOOL+XiaoWei",
+  "芝麻星草书 (Zhi Mang Xing)": "Zhi+Mang+Xing",
+  "龙仓手写体 (Long Cang)": "Long+Cang",
+  "马善政毛笔楷书 (Ma Shan Zheng)": "Ma+Shan+Zheng",
+  "刘建毛草书 (Liu Jian Mao Cao)": "Liu+Jian+Mao+Cao",
+  
+  // English / Numeric
+  "Nunito": "Nunito:wght@400;600;700;800;900",
+  "Ubuntu": "Ubuntu:wght@400;500;700",
+  "Inter": "Inter:wght@300;400;500;700",
+  "Roboto": "Roboto:wght@300;400;500;700",
+  "Open Sans": "Open+Sans:wght@300;400;500;700",
+  "Montserrat": "Montserrat:wght@300;400;500;700",
+  "Poppins": "Poppins:wght@300;400;500;700",
+  "Raleway": "Raleway:wght@300;400;500;700",
+  "Lato": "Lato:wght@300;400;700",
+  "Playfair Display": "Playfair+Display:ital,wght@0,400;0,700;1,400",
+  "Lora": "Lora:ital,wght@0,400;0,700;1,400",
+  "Merriweather": "Merriweather:ital,wght@0,400;0,700;1,400",
+  "PT Serif": "PT+Serif:ital,wght@0,400;0,700;1,400",
+  "Cinzel": "Cinzel:wght@400;700",
+  "Cormorant Garamond": "Cormorant+Garamond:ital,wght@0,400;0,700;1,400",
+  "JetBrains Mono": "JetBrains+Mono:wght@300;400;500;700",
+  "Fira Code": "Fira+Code:wght@400;500;700",
+  "Source Code Pro": "Source+Code+Pro:wght@400;500;700",
+  "Oswald": "Oswald:wght@400;700",
+  "Pacifico": "Pacifico",
+  "Dancing Script": "Dancing+Script:wght@400;700"
+};
+
+
+
+const localFontFallbacks = {
+  // English Local Fonts
+  "sans-serif": ["Arial", "Helvetica", "Segoe UI"],
+  "Arial": ["Arial", "Helvetica"],
+  "Helvetica": ["Helvetica", "Arial"],
+  "Georgia": ["Georgia", "Times New Roman"],
+  "Times New Roman": ["Times New Roman", "Times"],
+  "Courier New": ["Courier New", "Courier"],
+  "Verdana": ["Verdana", "Geneva"],
+  "Trebuchet MS": ["Trebuchet MS", "Arial"],
+  "Impact": ["Impact", "Arial Black"],
+  "Garamond": ["Garamond", "Adobe Garamond Pro", "EB Garamond", "Georgia"],
+  "Palatino": ["Palatino Linotype", "Palatino", "Book Antiqua", "Georgia"],
+  "Bookman": ["Bookman Old Style", "Bookman", "Georgia"],
+  
+  // Chinese Local Fonts
+  "system-ui, sans-serif": ["Segoe UI", "Microsoft YaHei", "PingFang SC"],
+  "Microsoft YaHei": ["Microsoft YaHei", "PingFang SC", "Heiti SC"],
+  "PingFang SC": ["PingFang SC", "Microsoft YaHei", "Heiti SC"],
+  "STHeiti": ["STHeiti", "Heiti SC", "Microsoft YaHei"],
+  "SimHei": ["SimHei", "Heiti SC", "Microsoft YaHei"],
+  "SimSun": ["SimSun", "Songti SC", "STSong"],
+  "STZhongsong": ["STZhongsong", "SimSun", "Songti SC"],
+  "STKaiti": ["STKaiti", "Kaiti SC", "KaiTi"],
+  "FangSong": ["FangSong", "STFangsong", "FangSong SC"],
+  "YouYuan": ["YouYuan", "Microsoft YaHei"],
+  "LiSu": ["LiSu", "Microsoft YaHei"],
+  "STXingkai": ["STXingkai", "Microsoft YaHei"],
+  "STXinwei": ["STXinwei", "Microsoft YaHei"],
+  "STLiti": ["STLiti", "Microsoft YaHei"],
+  "FZShuTi": ["FZShuTi", "Microsoft YaHei"],
+  "FZYaoTi": ["FZYaoTi", "Microsoft YaHei"]
+};
+
+async function fetchAndModifyFont(fontFamilyName, aliasName, unicodeRange) {
+  const gfont = googleFonts[fontFamilyName];
+  if (!gfont) {
+    const fallbacks = localFontFallbacks[fontFamilyName] || [fontFamilyName];
+    const srcList = fallbacks.map(f => `local('${f}')`).join(", ");
+    let css = `
+      @font-face {
+        font-family: '${aliasName}';
+        src: ${srcList};
+    `;
+    if (unicodeRange) {
+      css += `\n  unicode-range: ${unicodeRange};`;
+    }
+    css += `\n}`;
+    return css;
+  }
+  
+  try {
+    const res = await fetch(`https://fonts.googleapis.com/css2?family=${gfont}&display=swap`);
+    if (!res.ok) throw new Error("Fetch failed");
+    const cssText = await res.text();
+    let modifiedCss = cssText.replace(/font-family:\s*['"]?([^'"]+)['"]?;/g, `font-family: '${aliasName}';`);
+    // Strip original unicode-range to avoid overrides
+    modifiedCss = modifiedCss.replace(/unicode-range:\s*[^;]+;/g, "");
+    if (unicodeRange) {
+      modifiedCss = modifiedCss.replace(/src:\s*[^;]+;/g, (match) => {
+        return `${match}\n  unicode-range: ${unicodeRange};`;
+      });
+    }
+    return modifiedCss;
+  } catch (err) {
+    console.error("Failed to load font " + fontFamilyName, err);
+    const fallbacks = localFontFallbacks[fontFamilyName] || [fontFamilyName];
+    const srcList = fallbacks.map(f => `local('${f}')`).join(", ");
+    let css = `
+      @font-face {
+        font-family: '${aliasName}';
+        src: ${srcList};
+    `;
+    if (unicodeRange) {
+      css += `\n  unicode-range: ${unicodeRange};`;
+    }
+    css += `\n}`;
+    return css;
+  }
+}
+
 function App() {
+  const [dynamicCss, setDynamicCss] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    async function updateFonts() {
+      const [enCss, upperEnCss, upperNumCss] = await Promise.all([
+        fetchAndModifyFont("Poppins", "DynamicPanelEnglish", "U+0041-005A, U+0061-007A"),
+        fetchAndModifyFont("Cinzel", "UpperEnglish", "U+0041-005A, U+0061-007A"),
+        fetchAndModifyFont("Lato", "UpperNumeric", "U+0030-0039")
+      ]);
+      
+      if (active) {
+        setDynamicCss(`
+          ${enCss}
+          ${upperEnCss}
+          ${upperNumCss}
+          
+          /* Upper section dynamic styles */
+          .prophet-brand h1,
+          .prophet-nav > button,
+          .prophet-theme-nav > button,
+          .prophet-status span,
+          .segmented button,
+          .metric p,
+          .comparison-metric p,
+          .metric strong,
+          .metric-comparison-rows strong em,
+          .metric-comparison-rows strong span,
+          .metric-comparison-rows strong small,
+          .metric small {
+            font-family: 'UpperEnglish', 'UpperNumeric', var(--prophet-serif) !important;
+          }
+          
+          .topbar .eyebrow {
+            font-family: 'UpperEnglish', 'UpperNumeric', var(--prophet-code) !important;
+          }
+          
+          /* Footprint panel & Map dynamic styles */
+          .quick-add-dock,
+          .quick-add-dock *,
+          .leaflet-map,
+          .leaflet-container,
+          .leaflet-popup,
+          .leaflet-tooltip,
+          .leaflet-map *,
+          .leaflet-container * {
+            font-family: 'DynamicPanelEnglish', "Microsoft YaHei", sans-serif !important;
+          }
+          
+          .map-surface .eyebrow {
+            font-family: 'DynamicPanelEnglish', var(--prophet-code) !important;
+          }
+        `);
+      }
+    }
+    updateFonts();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const [activeProfile, setActiveProfile] = useState("all");
   const [activeLevel, setActiveLevel] = useState("country");
   const [yearFilter, setYearFilter] = useState("all");
@@ -2815,6 +2997,7 @@ function App() {
 
   return (
     <main className="app-shell">
+      <style dangerouslySetInnerHTML={{ __html: dynamicCss }} />
       <header className="topbar">
         <div className="prophet-brand">
           <span className="prophet-brand-icon" aria-hidden="true">
@@ -2858,7 +3041,7 @@ function App() {
           role="button"
           tabIndex={0}
         >
-          <span>
+          <span className={session ? "db-connected" : "db-disconnected"}>
             <Database size={16} /> {session ? "数据库已连接" : "未登录"}
           </span>
         </div>
@@ -2947,6 +3130,8 @@ function App() {
           </>
         )}
       </section>
+
+
 
       <section className="workspace" id="map-section">
         <QuickAddDock
