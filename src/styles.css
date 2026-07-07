@@ -4553,8 +4553,8 @@ h2 {
 
 .journey-extremes-panel {
   width: min(1240px, 100%);
-  margin: 24px auto 0 !important;
-  padding: 24px;
+  margin: 16px auto 0 !important;
+  padding: 16px 20px !important;
   background:
     radial-gradient(circle at top left, rgba(224, 242, 254, 0.4) 0, transparent 40%),
     linear-gradient(145deg, #ffffff 0%, #fcfdfd 100%) !important;
@@ -4574,7 +4574,7 @@ h2 {
   letter-spacing: 0.08em !important;
   text-transform: uppercase;
   color: #64748b !important;
-  margin-bottom: 4px !important;
+  margin-bottom: 1px !important;
   font-weight: 700 !important;
 }
 
@@ -4583,6 +4583,7 @@ h2 {
   font-size: 1.25rem !important;
   font-weight: 800 !important;
   color: #0f172a !important;
+  margin-top: 0px !important;
 }
 
 .extremes-grid {
@@ -4609,7 +4610,7 @@ h2 {
   background: rgba(255, 255, 255, 0.75) !important;
   border: 1px solid rgba(226, 232, 240, 0.8) !important;
   border-radius: 12px !important;
-  padding: 18px !important;
+  padding: 12px !important;
   backdrop-filter: blur(8px);
   transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
@@ -4625,23 +4626,24 @@ h2 {
 .extreme-icon-title {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid rgba(241, 245, 249, 0.9);
-  padding-bottom: 10px;
+  justify-content: center !important;
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+  border-bottom: 1px solid rgba(241, 245, 249, 0.9) !important;
+  padding-bottom: 8px !important;
 }
 
 .direction-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  font-size: 0.82rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-size: 0.7rem;
   font-weight: 900;
   color: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .direction-badge.north { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
@@ -4722,6 +4724,255 @@ h2 {
   color: #94a3b8;
   font-weight: 500;
   padding-left: 4px;
+}
+
+/* 优化省份图鉴卡片中文字与图片的间距 */
+#province-gallery-section .country-gallery-card-copy {
+  min-height: unset !important;
+  gap: 0 !important;
+}
+
+#province-gallery-section .country-gallery-card {
+  gap: 10px !important;
+}
+
+/* 两个人的足迹四极样式优化：单网格一体化卡片并保留左侧行标 */
+.extremes-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+  padding-bottom: 4px !important;
+}
+
+.extremes-header-container .extremes-header {
+  margin-bottom: 0 !important;
+}
+
+/* Main 2D Grid */
+.extremes-table-layout {
+  display: grid;
+  grid-template-columns: 130px repeat(4, 1fr);
+  /* Row heights are set inline dynamically, e.g. grid-template-rows: 38px 54px 54px; */
+  gap: 16px;
+  align-items: center;
+}
+
+/* Row Label (Xiao / Tang) */
+.profile-row-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
+  font-family: 'DynamicPanelEnglish', "Microsoft YaHei", sans-serif !important;
+  font-size: 0.95rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.05em;
+  position: relative;
+  height: 46px;
+  box-sizing: border-box;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02) !important;
+}
+
+.profile-row-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.profile-row-dot.xiao {
+  background-color: #2563eb;
+  box-shadow: 0 0 6px rgba(37, 99, 235, 0.6);
+}
+
+.profile-row-dot.tang {
+  background-color: #db2777;
+  box-shadow: 0 0 6px rgba(219, 39, 119, 0.6);
+}
+
+.profile-row-bar {
+  width: 3px;
+  height: 24px;
+  border-radius: 1.5px;
+  flex-shrink: 0;
+}
+
+.profile-row-bar.xiao {
+  background-color: #2563eb;
+}
+
+.profile-row-bar.tang {
+  background-color: #db2777;
+}
+
+.profile-row-label.xiao span {
+  color: #2563eb !important;
+}
+
+.profile-row-label.tang span {
+  color: #db2777 !important;
+}
+
+/* Card Column spanning multiple rows using subgrid for perfect row alignment */
+.extreme-column-card {
+  grid-row: 1 / span 3;
+  display: grid;
+  grid-template-rows: subgrid;
+  row-gap: 0px !important; /* Managed by parent grid gap and padding! */
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02) !important;
+  box-sizing: border-box;
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.extreme-column-card:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(203, 213, 225, 1) !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05) !important;
+}
+
+.column-card-header {
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-bottom: 1px solid rgba(241, 245, 249, 0.9) !important;
+  padding: 8px 12px 4px 12px !important; /* Top padding inside first cell */
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.column-card-header h4 {
+  font-family: 'DynamicPanelEnglish', "Microsoft YaHei", sans-serif !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  margin: 0 !important;
+}
+
+.column-card-data-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 12px !important;
+  box-sizing: border-box;
+  height: 100%;
+}
+
+/* Use cell padding instead of card padding for subgrid consistency */
+.extreme-column-card .column-card-data-row:last-child {
+  padding-bottom: 10px !important; /* Bottom padding inside last cell */
+}
+
+.extreme-cell-city-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.extreme-cell-city-info .place-name {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: center;
+  width: 100%;
+}
+
+.extreme-cell-city-info .coordinates {
+  font-size: 0.74rem;
+  color: #64748b;
+  text-align: center;
+  display: block;
+}
+
+/* Profile badges - hidden on desktop but shown on mobile */
+.profile-pill-badge {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  font-size: 0.6rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  text-transform: uppercase;
+  line-height: 1;
+  flex: 0 0 auto;
+  margin-right: 4px !important;
+}
+
+.profile-pill-badge.xiao {
+  background-color: #2563eb !important;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2) !important;
+}
+
+.profile-pill-badge.tang {
+  background-color: #db2777 !important;
+  box-shadow: 0 1px 2px rgba(219, 39, 119, 0.2) !important;
+}
+
+/* Responsive Rules */
+@media (max-width: 900px) {
+  .extremes-table-layout {
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-rows: auto !important;
+    gap: 10px !important;
+  }
+  
+  .profile-row-label {
+    display: none !important;
+  }
+  
+  .extreme-column-card {
+    grid-column: span 1 !important;
+    grid-row: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+  
+  .column-card-header {
+    border-bottom: 1px solid rgba(241, 245, 249, 0.9) !important;
+    padding: 4px 0 8px 0 !important;
+  }
+  
+  .column-card-data-row {
+    padding: 4px 0 !important;
+  }
+  
+  .extreme-column-card .column-card-data-row + .column-card-data-row {
+    border-top: 1px dashed rgba(226, 232, 240, 0.7);
+    padding-top: 6px;
+    margin-top: 2px;
+  }
+  
+  .extreme-column-card .column-card-data-row:last-child {
+    padding-bottom: 0 !important;
+  }
+  
+  .profile-pill-badge {
+    display: inline-flex !important;
+  }
+}
+
+@media (max-width: 500px) {
+  .extremes-table-layout {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 

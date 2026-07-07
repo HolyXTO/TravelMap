@@ -1268,6 +1268,58 @@ function formatCoordinate(lat, lng) {
   return `${latStr}, ${lngStr}`;
 }
 
+function getExtremesForVisits(visitsList, placeLookup) {
+  let extremes = {
+    north: { country: null, city: null },
+    south: { country: null, city: null },
+    east: { country: null, city: null },
+    west: { country: null, city: null },
+  };
+
+  const uniqueCountries = new Map();
+  const uniqueCities = new Map();
+
+  for (const visit of visitsList) {
+    const country = resolvePlaceForLevel(visit.placeId, "country", placeLookup);
+    const city = resolvePlaceForLevel(visit.placeId, "city", placeLookup);
+    
+    if (country) {
+      const cKey = country.mapId || canonicalPlaceId(country.id);
+      const latLng = placeLatLng(country);
+      if (latLng) {
+        uniqueCountries.set(cKey, { place: country, ...latLng });
+      }
+    }
+    
+    if (city && city.level === "city") {
+      const cityKey = city.mapId || canonicalPlaceId(city.id);
+      const latLng = placeLatLng(city);
+      if (latLng) {
+        uniqueCities.set(cityKey, { place: city, ...latLng });
+      }
+    }
+  }
+
+  const countriesArr = Array.from(uniqueCountries.values());
+  const citiesArr = Array.from(uniqueCities.values());
+
+  if (countriesArr.length > 0) {
+    extremes.north.country = countriesArr.reduce((prev, curr) => (curr.lat > prev.lat ? curr : prev));
+    extremes.south.country = countriesArr.reduce((prev, curr) => (curr.lat < prev.lat ? curr : prev));
+    extremes.east.country = countriesArr.reduce((prev, curr) => (curr.lng > prev.lng ? curr : prev));
+    extremes.west.country = countriesArr.reduce((prev, curr) => (curr.lng < prev.lng ? curr : prev));
+  }
+
+  if (citiesArr.length > 0) {
+    extremes.north.city = citiesArr.reduce((prev, curr) => (curr.lat > prev.lat ? curr : prev));
+    extremes.south.city = citiesArr.reduce((prev, curr) => (curr.lat < prev.lat ? curr : prev));
+    extremes.east.city = citiesArr.reduce((prev, curr) => (curr.lng > prev.lng ? curr : prev));
+    extremes.west.city = citiesArr.reduce((prev, curr) => (curr.lng < prev.lng ? curr : prev));
+  }
+
+  return extremes;
+}
+
 function countryGalleryNameVariants(name) {
   if (!name) return [];
   const clean = cleanPlaceName(name);
@@ -2679,56 +2731,17 @@ function App() {
   );
 
   const journeyExtremes = useMemo(() => {
-    let extremes = {
-      north: { country: null, city: null },
-      south: { country: null, city: null },
-      east: { country: null, city: null },
-      west: { country: null, city: null },
-    };
-
-    const uniqueCountries = new Map();
-    const uniqueCities = new Map();
-
-    for (const visit of filteredVisits) {
-      const country = resolvePlaceForLevel(visit.placeId, "country", placeLookup);
-      const city = resolvePlaceForLevel(visit.placeId, "city", placeLookup);
-      
-      if (country) {
-        const cKey = country.mapId || canonicalPlaceId(country.id);
-        const latLng = placeLatLng(country);
-        if (latLng) {
-          uniqueCountries.set(cKey, { place: country, ...latLng });
-        }
-      }
-      
-      if (city && city.level === "city") {
-        const cityKey = city.mapId || canonicalPlaceId(city.id);
-        const latLng = placeLatLng(city);
-        if (latLng) {
-          uniqueCities.set(cityKey, { place: city, ...latLng });
-        }
-      }
+    if (activeProfile === "all") {
+      const result = {};
+      appProfiles.forEach((profile) => {
+        const profileVisits = filteredVisits.filter((v) => v.profileId === profile.id);
+        result[profile.id] = getExtremesForVisits(profileVisits, placeLookup);
+      });
+      return { type: "all", profiles: result };
+    } else {
+      return { type: "single", data: getExtremesForVisits(filteredVisits, placeLookup) };
     }
-
-    const countriesArr = Array.from(uniqueCountries.values());
-    const citiesArr = Array.from(uniqueCities.values());
-
-    if (countriesArr.length > 0) {
-      extremes.north.country = countriesArr.reduce((prev, curr) => (curr.lat > prev.lat ? curr : prev));
-      extremes.south.country = countriesArr.reduce((prev, curr) => (curr.lat < prev.lat ? curr : prev));
-      extremes.east.country = countriesArr.reduce((prev, curr) => (curr.lng > prev.lng ? curr : prev));
-      extremes.west.country = countriesArr.reduce((prev, curr) => (curr.lng < prev.lng ? curr : prev));
-    }
-
-    if (citiesArr.length > 0) {
-      extremes.north.city = citiesArr.reduce((prev, curr) => (curr.lat > prev.lat ? curr : prev));
-      extremes.south.city = citiesArr.reduce((prev, curr) => (curr.lat < prev.lat ? curr : prev));
-      extremes.east.city = citiesArr.reduce((prev, curr) => (curr.lng > prev.lng ? curr : prev));
-      extremes.west.city = citiesArr.reduce((prev, curr) => (curr.lng < prev.lng ? curr : prev));
-    }
-
-    return extremes;
-  }, [filteredVisits, placeLookup]);
+  }, [activeProfile, filteredVisits, placeLookup, appProfiles]);
 
   const profileScopedRoutes = useMemo(
     () =>
@@ -3075,6 +3088,44 @@ function App() {
     window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }
 
+  function getProfileAccentColor(profile) {
+    const name = (profile.name || "").toLowerCase();
+    if (name === "xiao") return "#2563eb"; // Blue
+    if (name === "tang") return "#db2777"; // Pink
+    return profile.color || "#64748b";
+  }
+
+  function renderProfileTableCellCity(cityInfo, profile) {
+    const isXiao = (profile.name || "").toLowerCase() === "xiao";
+    const isTang = (profile.name || "").toLowerCase() === "tang";
+    const badgeClass = isXiao ? "xiao" : (isTang ? "tang" : "");
+    const accentColor = isXiao ? "#2563eb" : (isTang ? "#db2777" : profile.color);
+
+    if (!cityInfo) {
+      return (
+        <div className="extreme-cell-city-info" key={profile.id}>
+          <span className="place-name">
+            <span className={`profile-pill-badge ${badgeClass}`} style={{ backgroundColor: accentColor }}>{profile.name}</span>
+            <span className="no-record">暂无记录</span>
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="extreme-cell-city-info" key={profile.id}>
+        <span className="place-name">
+          <span className={`profile-pill-badge ${badgeClass}`} style={{ backgroundColor: accentColor }}>{profile.name}</span>
+          <FlagIcon place={cityInfo.place} />
+          {displayCountryName(resolvePlaceForLevel(cityInfo.place.id, "country", placeLookup))} · {displayPlaceName(cityInfo.place)}
+        </span>
+        <span className="coordinates">
+          {formatCoordinate(cityInfo.lat, cityInfo.lng)}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <main className="app-shell">
       <style dangerouslySetInnerHTML={{ __html: dynamicCss }} />
@@ -3261,109 +3312,110 @@ function App() {
 
       {/* 极点统计长展示框 */}
       <section className="journey-extremes-panel" aria-label="足迹四极统计">
-        <div className="extremes-header">
-          <p className="eyebrow">Extremes</p>
-          <h3>足迹四极</h3>
+        <div className="extremes-header-container">
+          <div className="extremes-header">
+            <p className="eyebrow">Extremes</p>
+            <h3>足迹四极</h3>
+          </div>
         </div>
-        <div className="extremes-grid">
-          {/* 最北 */}
-          <div className="extreme-card north">
-            <div className="extreme-icon-title">
-              <span className="direction-badge north">北</span>
+        <div 
+          className="extremes-table-layout"
+          style={{ gridTemplateRows: activeProfile === "all" ? "38px 54px 54px" : "38px 54px" }}
+        >
+          {/* Left Column Labels (Xiao / Tang) */}
+          {(activeProfile === "all" ? appProfiles : appProfiles.filter(p => p.id === activeProfile)).map((profile, index) => {
+            const accentColor = getProfileAccentColor(profile);
+            const isXiao = (profile.name || "").toLowerCase() === "xiao";
+            const isTang = (profile.name || "").toLowerCase() === "tang";
+            const profileClass = isXiao ? "xiao" : (isTang ? "tang" : "");
+            
+            // In dynamic alignment: row 2 and row 3 are Xiao and Tang respectively (desktop)
+            const gridRow = index + 2; 
+
+            return (
+              <div 
+                className={`profile-row-label ${profileClass}`} 
+                key={profile.id}
+                style={{ gridColumn: 1, gridRow }}
+              >
+                <span className={`profile-row-dot ${profileClass}`} style={{ backgroundColor: accentColor }} />
+                <span>{profile.name}</span>
+                <span className={`profile-row-bar ${profileClass}`} style={{ backgroundColor: accentColor }} />
+              </div>
+            );
+          })}
+
+          {/* Unified Column Cards */}
+          {/* Card 1: 最北 */}
+          <div className="extreme-column-card north" style={{ gridColumn: 2, gridRow: activeProfile === "all" ? "1 / span 3" : "1 / span 2" }}>
+            <div className="column-card-header north">
+              <span className="direction-badge north">N</span>
               <h4>最北 · Northernmost</h4>
             </div>
-            <div className="extreme-details">
-              {journeyExtremes.north.city ? (
-                <div className="extreme-item">
-                  <div className="item-content">
-                    <span className="place-name">
-                      <FlagIcon place={journeyExtremes.north.city.place} />
-                      {displayCountryName(resolvePlaceForLevel(journeyExtremes.north.city.place.id, "country", placeLookup))} · {displayPlaceName(journeyExtremes.north.city.place)}
-                    </span>
-                    <span className="coordinates">
-                      {formatCoordinate(journeyExtremes.north.city.lat, journeyExtremes.north.city.lng)}
-                    </span>
-                  </div>
+            {(activeProfile === "all" ? appProfiles : appProfiles.filter(p => p.id === activeProfile)).map((profile) => {
+              const extremes = activeProfile === "all" 
+                ? journeyExtremes.profiles[profile.id] || {} 
+                : journeyExtremes.data;
+              return (
+                <div className="column-card-data-row" key={profile.id}>
+                  {renderProfileTableCellCity(extremes.north?.city, profile)}
                 </div>
-              ) : (
-                <span className="no-record">暂无记录</span>
-              )}
-            </div>
+              );
+            })}
           </div>
 
-          {/* 最南 */}
-          <div className="extreme-card south">
-            <div className="extreme-icon-title">
-              <span className="direction-badge south">南</span>
+          {/* Card 2: 最南 */}
+          <div className="extreme-column-card south" style={{ gridColumn: 3, gridRow: activeProfile === "all" ? "1 / span 3" : "1 / span 2" }}>
+            <div className="column-card-header south">
+              <span className="direction-badge south">S</span>
               <h4>最南 · Southernmost</h4>
             </div>
-            <div className="extreme-details">
-              {journeyExtremes.south.city ? (
-                <div className="extreme-item">
-                  <div className="item-content">
-                    <span className="place-name">
-                      <FlagIcon place={journeyExtremes.south.city.place} />
-                      {displayCountryName(resolvePlaceForLevel(journeyExtremes.south.city.place.id, "country", placeLookup))} · {displayPlaceName(journeyExtremes.south.city.place)}
-                    </span>
-                    <span className="coordinates">
-                      {formatCoordinate(journeyExtremes.south.city.lat, journeyExtremes.south.city.lng)}
-                    </span>
-                  </div>
+            {(activeProfile === "all" ? appProfiles : appProfiles.filter(p => p.id === activeProfile)).map((profile) => {
+              const extremes = activeProfile === "all" 
+                ? journeyExtremes.profiles[profile.id] || {} 
+                : journeyExtremes.data;
+              return (
+                <div className="column-card-data-row" key={profile.id}>
+                  {renderProfileTableCellCity(extremes.south?.city, profile)}
                 </div>
-              ) : (
-                <span className="no-record">暂无记录</span>
-              )}
-            </div>
+              );
+            })}
           </div>
 
-          {/* 最东 */}
-          <div className="extreme-card east">
-            <div className="extreme-icon-title">
-              <span className="direction-badge east">东</span>
+          {/* Card 3: 最东 */}
+          <div className="extreme-column-card east" style={{ gridColumn: 4, gridRow: activeProfile === "all" ? "1 / span 3" : "1 / span 2" }}>
+            <div className="column-card-header east">
+              <span className="direction-badge east">E</span>
               <h4>最东 · Easternmost</h4>
             </div>
-            <div className="extreme-details">
-              {journeyExtremes.east.city ? (
-                <div className="extreme-item">
-                  <div className="item-content">
-                    <span className="place-name">
-                      <FlagIcon place={journeyExtremes.east.city.place} />
-                      {displayCountryName(resolvePlaceForLevel(journeyExtremes.east.city.place.id, "country", placeLookup))} · {displayPlaceName(journeyExtremes.east.city.place)}
-                    </span>
-                    <span className="coordinates">
-                      {formatCoordinate(journeyExtremes.east.city.lat, journeyExtremes.east.city.lng)}
-                    </span>
-                  </div>
+            {(activeProfile === "all" ? appProfiles : appProfiles.filter(p => p.id === activeProfile)).map((profile) => {
+              const extremes = activeProfile === "all" 
+                ? journeyExtremes.profiles[profile.id] || {} 
+                : journeyExtremes.data;
+              return (
+                <div className="column-card-data-row" key={profile.id}>
+                  {renderProfileTableCellCity(extremes.east?.city, profile)}
                 </div>
-              ) : (
-                <span className="no-record">暂无记录</span>
-              )}
-            </div>
+              );
+            })}
           </div>
 
-          {/* 最西 */}
-          <div className="extreme-card west">
-            <div className="extreme-icon-title">
-              <span className="direction-badge west">西</span>
+          {/* Card 4: 最西 */}
+          <div className="extreme-column-card west" style={{ gridColumn: 5, gridRow: activeProfile === "all" ? "1 / span 3" : "1 / span 2" }}>
+            <div className="column-card-header west">
+              <span className="direction-badge west">W</span>
               <h4>最西 · Westernmost</h4>
             </div>
-            <div className="extreme-details">
-              {journeyExtremes.west.city ? (
-                <div className="extreme-item">
-                  <div className="item-content">
-                    <span className="place-name">
-                      <FlagIcon place={journeyExtremes.west.city.place} />
-                      {displayCountryName(resolvePlaceForLevel(journeyExtremes.west.city.place.id, "country", placeLookup))} · {displayPlaceName(journeyExtremes.west.city.place)}
-                    </span>
-                    <span className="coordinates">
-                      {formatCoordinate(journeyExtremes.west.city.lat, journeyExtremes.west.city.lng)}
-                    </span>
-                  </div>
+            {(activeProfile === "all" ? appProfiles : appProfiles.filter(p => p.id === activeProfile)).map((profile) => {
+              const extremes = activeProfile === "all" 
+                ? journeyExtremes.profiles[profile.id] || {} 
+                : journeyExtremes.data;
+              return (
+                <div className="column-card-data-row" key={profile.id}>
+                  {renderProfileTableCellCity(extremes.west?.city, profile)}
                 </div>
-              ) : (
-                <span className="no-record">暂无记录</span>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -7671,7 +7723,7 @@ function ProvinceGalleryCard({ province }) {
 function ProvinceGallery({ regionPlaces = [], filteredVisits = [], placeLookup }) {
   const [showLockedProvinces, setShowLockedProvinces] = useState(false);
 
-  const { visitedGroups, lockedGroups, visitedCount, lockedCount } = useMemo(() => {
+  const { visitedProvinces, lockedProvinces, visitedCount, lockedCount } = useMemo(() => {
     const visitedRegionIds = new Set();
     for (const visit of filteredVisits) {
       const regionId = resolveMapIdForLevel(visit.placeId, "region", placeLookup);
@@ -7699,54 +7751,33 @@ function ProvinceGallery({ regionPlaces = [], filteredVisits = [], placeLookup }
       })
       .filter(Boolean);
 
-    const visitedByRegion = new Map();
-    const lockedByRegion = new Map();
+    const visited = galleryProvinces.filter(p => p.isVisited);
+    const locked = galleryProvinces.filter(p => !p.isVisited);
 
-    galleryProvinces.forEach((prov) => {
-      const regionGroup = CHINA_REGION_GROUPS[prov.shortName] || "其他";
-      if (prov.isVisited) {
-        const bucket = visitedByRegion.get(regionGroup) || [];
-        bucket.push(prov);
-        visitedByRegion.set(regionGroup, bucket);
-      } else {
-        const bucket = lockedByRegion.get(regionGroup) || [];
-        bucket.push(prov);
-        lockedByRegion.set(regionGroup, bucket);
-      }
-    });
+    const priority = ["北京", "上海", "重庆", "天津"];
+    const sortProvinces = (list) => {
+      list.sort((a, b) => {
+        const idxA = priority.indexOf(a.shortName);
+        const idxB = priority.indexOf(b.shortName);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.shortName.localeCompare(b.shortName, "zh-CN");
+      });
+    };
 
-    visitedByRegion.forEach((list) => {
-      list.sort((a, b) => a.shortName.localeCompare(b.shortName, "zh-CN"));
-    });
-    lockedByRegion.forEach((list) => {
-      list.sort((a, b) => a.shortName.localeCompare(b.shortName, "zh-CN"));
-    });
-
-    const buildGroups = (sourceMap) =>
-      CHINA_REGION_ORDER
-        .map((label) => {
-          const provinces = sourceMap.get(label) || [];
-          if (!provinces.length) return null;
-          return {
-            label,
-            englishLabel: CHINA_REGION_ENGLISH[label] || label,
-            provinces,
-          };
-        })
-        .filter(Boolean);
-
-    const unlockedGroups = buildGroups(visitedByRegion);
-    const hiddenGroups = buildGroups(lockedByRegion);
+    sortProvinces(visited);
+    sortProvinces(locked);
 
     return {
-      visitedGroups: unlockedGroups,
-      lockedGroups: hiddenGroups,
-      visitedCount: galleryProvinces.filter(p => p.isVisited).length,
-      lockedCount: galleryProvinces.filter(p => !p.isVisited).length,
+      visitedProvinces: visited,
+      lockedProvinces: locked,
+      visitedCount: visited.length,
+      lockedCount: locked.length,
     };
   }, [regionPlaces, filteredVisits, placeLookup]);
 
-  if (!visitedGroups.length && !lockedGroups.length) return null;
+  if (!visitedProvinces.length && !lockedProvinces.length) return null;
 
   return (
     <section className="country-gallery-section" id="province-gallery-section" aria-label="省份图鉴" style={{ borderTop: "1px dashed #dbe4ee", paddingTop: "40px", marginTop: "40px" }}>
@@ -7765,43 +7796,23 @@ function ProvinceGallery({ regionPlaces = [], filteredVisits = [], placeLookup }
           </button>
         ) : null}
       </div>
-      <div className="country-gallery-stack">
-        {visitedGroups.map((group) => (
-          <article className="country-gallery-continent" key={group.label}>
-            <div className="country-gallery-continent-heading">
-              <h3>
-                {group.label} · {group.englishLabel} · {group.provinces.length}
-              </h3>
-            </div>
-            <div className="country-gallery-grid">
-              {group.provinces.map((prov) => (
-                <ProvinceGalleryCard province={prov} key={prov.id} />
-              ))}
-            </div>
-          </article>
+      
+      <div className="country-gallery-grid" style={{ marginTop: "24px" }}>
+        {visitedProvinces.map((prov) => (
+          <ProvinceGalleryCard province={prov} key={prov.id} />
         ))}
       </div>
-      {showLockedProvinces && lockedGroups.length > 0 ? (
-        <div className="country-gallery-locked-block">
+
+      {showLockedProvinces && lockedProvinces.length > 0 ? (
+        <div className="country-gallery-locked-block" style={{ marginTop: "40px" }}>
           <div className="country-gallery-title locked-title">
             <h2>
               未解锁省份·<span className="major-title-en">Locked Provinces</span>·<span className="major-title-number">{lockedCount}</span>
             </h2>
           </div>
-          <div className="country-gallery-stack">
-            {lockedGroups.map((group) => (
-              <article className="country-gallery-continent" key={`locked-${group.label}`}>
-                <div className="country-gallery-continent-heading">
-                  <h3>
-                    {group.label} · {group.englishLabel} · {group.provinces.length}
-                  </h3>
-                </div>
-                <div className="country-gallery-grid">
-                  {group.provinces.map((prov) => (
-                    <ProvinceGalleryCard province={prov} key={`locked-${prov.id}`} />
-                  ))}
-                </div>
-              </article>
+          <div className="country-gallery-grid" style={{ marginTop: "24px" }}>
+            {lockedProvinces.map((prov) => (
+              <ProvinceGalleryCard province={prov} key={`locked-${prov.id}`} />
             ))}
           </div>
         </div>
