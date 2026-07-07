@@ -4547,4 +4547,181 @@ h2 {
   cursor: not-allowed;
 }
 
+/* ==========================================
+   全新设计的足迹之最（极点统计）长展示框样式
+   ========================================== */
+
+.journey-extremes-panel {
+  width: min(1240px, 100%);
+  margin: 24px auto 0 !important;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(224, 242, 254, 0.4) 0, transparent 40%),
+    linear-gradient(145deg, #ffffff 0%, #fcfdfd 100%) !important;
+  border: 1px solid #dbe4ee !important;
+  border-radius: 16px !important;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.05) !important;
+  box-sizing: border-box;
+}
+
+.extremes-header {
+  margin-bottom: 20px;
+}
+
+.extremes-header .eyebrow {
+  font-family: 'UpperEnglish', 'UpperNumeric', var(--prophet-code) !important;
+  font-size: 0.76rem !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+  color: #64748b !important;
+  margin-bottom: 4px !important;
+  font-weight: 700 !important;
+}
+
+.extremes-header h3 {
+  font-family: 'DynamicPanelEnglish', "Microsoft YaHei", sans-serif !important;
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+}
+
+.extremes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1020px) {
+  .extremes-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .extremes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.extreme-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  border-radius: 12px !important;
+  padding: 18px !important;
+  backdrop-filter: blur(8px);
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.extreme-card:hover {
+  transform: translateY(-3px) !important;
+  border-color: rgba(18, 60, 48, 0.25) !important;
+  box-shadow: 
+    0 12px 28px rgba(15, 23, 42, 0.06),
+    0 2px 4px rgba(18, 60, 48, 0.02) !important;
+}
+
+.extreme-icon-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(241, 245, 249, 0.9);
+  padding-bottom: 10px;
+}
+
+.direction-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.direction-badge.north { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+.direction-badge.south { background: linear-gradient(135deg, #f87171, #ef4444); }
+.direction-badge.east { background: linear-gradient(135deg, #34d399, #10b981); }
+.direction-badge.west { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+
+.extreme-icon-title h4 {
+  font-family: 'DynamicPanelEnglish', "Microsoft YaHei", sans-serif !important;
+  font-size: 0.92rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+}
+
+.extreme-details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.extreme-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.item-label {
+  font-family: 'DynamicPanelEnglish', "Microsoft YaHei", sans-serif !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.place-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+}
+
+.place-name .flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 14px;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.place-name .flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coordinates {
+  font-family: 'UpperNumeric', sans-serif !important;
+  font-size: 0.76rem !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  padding-left: 26px; /* Align with flag and text */
+}
+
+.no-record {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+  padding-left: 4px;
+}
+
 

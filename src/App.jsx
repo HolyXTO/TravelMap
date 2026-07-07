@@ -1260,6 +1260,13 @@ function displayCountryName(place) {
   );
 }
 
+function formatCoordinate(lat, lng) {
+  if (lat === undefined || lng === undefined) return "";
+  const latStr = lat >= 0 ? `${lat.toFixed(2)}° N` : `${Math.abs(lat).toFixed(2)}° S`;
+  const lngStr = lng >= 0 ? `${lng.toFixed(2)}° E` : `${Math.abs(lng).toFixed(2)}° W`;
+  return `${latStr}, ${lngStr}`;
+}
+
 function countryGalleryNameVariants(name) {
   if (!name) return [];
   const clean = cleanPlaceName(name);
@@ -2195,6 +2202,7 @@ function App() {
   const [activeMapThemeId, setActiveMapThemeId] = useState("copper");
   const [appProfiles, setAppProfiles] = useState(profiles);
   const [visits, setVisits] = useState([]);
+  const [recentInteractions, setRecentInteractions] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [routeMessage, setRouteMessage] = useState("");
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
@@ -2669,6 +2677,58 @@ function App() {
     [mapPlaces.country],
   );
 
+  const journeyExtremes = useMemo(() => {
+    let extremes = {
+      north: { country: null, city: null },
+      south: { country: null, city: null },
+      east: { country: null, city: null },
+      west: { country: null, city: null },
+    };
+
+    const uniqueCountries = new Map();
+    const uniqueCities = new Map();
+
+    for (const visit of filteredVisits) {
+      const country = resolvePlaceForLevel(visit.placeId, "country", placeLookup);
+      const city = resolvePlaceForLevel(visit.placeId, "city", placeLookup);
+      
+      if (country) {
+        const cKey = country.mapId || canonicalPlaceId(country.id);
+        const latLng = placeLatLng(country);
+        if (latLng) {
+          uniqueCountries.set(cKey, { place: country, ...latLng });
+        }
+      }
+      
+      if (city && city.level === "city") {
+        const cityKey = city.mapId || canonicalPlaceId(city.id);
+        const latLng = placeLatLng(city);
+        if (latLng) {
+          uniqueCities.set(cityKey, { place: city, ...latLng });
+        }
+      }
+    }
+
+    const countriesArr = Array.from(uniqueCountries.values());
+    const citiesArr = Array.from(uniqueCities.values());
+
+    if (countriesArr.length > 0) {
+      extremes.north.country = countriesArr.reduce((prev, curr) => (curr.lat > prev.lat ? curr : prev));
+      extremes.south.country = countriesArr.reduce((prev, curr) => (curr.lat < prev.lat ? curr : prev));
+      extremes.east.country = countriesArr.reduce((prev, curr) => (curr.lng > prev.lng ? curr : prev));
+      extremes.west.country = countriesArr.reduce((prev, curr) => (curr.lng < prev.lng ? curr : prev));
+    }
+
+    if (citiesArr.length > 0) {
+      extremes.north.city = citiesArr.reduce((prev, curr) => (curr.lat > prev.lat ? curr : prev));
+      extremes.south.city = citiesArr.reduce((prev, curr) => (curr.lat < prev.lat ? curr : prev));
+      extremes.east.city = citiesArr.reduce((prev, curr) => (curr.lng > prev.lng ? curr : prev));
+      extremes.west.city = citiesArr.reduce((prev, curr) => (curr.lng < prev.lng ? curr : prev));
+    }
+
+    return extremes;
+  }, [filteredVisits, placeLookup]);
+
   const profileScopedRoutes = useMemo(
     () =>
       activeProfile === "all"
@@ -2772,6 +2832,8 @@ function App() {
       await uploadVisitPhotos(createdVisit.id, photoFiles);
 
       await loadTravelData();
+      const canonicalId = canonicalPlaceId(placeId);
+      setRecentInteractions((prev) => [canonicalId, ...prev.filter((id) => id !== canonicalId)]);
       setSelectedPlaceId(resolveMapIdForLevel(placeId, activeLevel, placeLookup) || placeId);
       setAuthMessage("已保存到 Supabase。");
       resetTarget?.reset?.();
@@ -2867,6 +2929,11 @@ function App() {
       await uploadVisitPhotos(visitId, photoFiles);
 
       await loadTravelData();
+      const oldVisit = visits.find((v) => v.id === visitId);
+      if (oldVisit) {
+        const canonicalId = canonicalPlaceId(oldVisit.placeId);
+        setRecentInteractions((prev) => [canonicalId, ...prev.filter((id) => id !== canonicalId)]);
+      }
       setEditMessage("已更新足迹。");
       return true;
     } catch (error) {
@@ -3163,6 +3230,7 @@ function App() {
           onDeleteVisit={deleteVisit}
           focusRequest={quickAddFocusRequest}
           onFocusConsumed={() => setQuickAddFocusRequest(null)}
+          recentInteractions={recentInteractions}
         />
         <MapView
           activeLevel={activeLevel}
@@ -3185,6 +3253,115 @@ function App() {
           visitedPlaces={visibleVisitedPlaces}
           onPlaceFocus={handleMapPlaceFocus}
         />
+      </section>
+
+      {/* 极点统计长展示框 */}
+      <section className="journey-extremes-panel" aria-label="足迹四极统计">
+        <div className="extremes-header">
+          <p className="eyebrow">Extremes</p>
+          <h3>足迹四极</h3>
+        </div>
+        <div className="extremes-grid">
+          {/* 最北 */}
+          <div className="extreme-card north">
+            <div className="extreme-icon-title">
+              <span className="direction-badge north">北</span>
+              <h4>最北 · Northernmost</h4>
+            </div>
+            <div className="extreme-details">
+              {journeyExtremes.north.city ? (
+                <div className="extreme-item">
+                  <div className="item-content">
+                    <span className="place-name">
+                      <FlagIcon place={journeyExtremes.north.city.place} />
+                      {displayCountryName(resolvePlaceForLevel(journeyExtremes.north.city.place.id, "country", placeLookup))} · {displayPlaceName(journeyExtremes.north.city.place)}
+                    </span>
+                    <span className="coordinates">
+                      {formatCoordinate(journeyExtremes.north.city.lat, journeyExtremes.north.city.lng)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <span className="no-record">暂无记录</span>
+              )}
+            </div>
+          </div>
+
+          {/* 最南 */}
+          <div className="extreme-card south">
+            <div className="extreme-icon-title">
+              <span className="direction-badge south">南</span>
+              <h4>最南 · Southernmost</h4>
+            </div>
+            <div className="extreme-details">
+              {journeyExtremes.south.city ? (
+                <div className="extreme-item">
+                  <div className="item-content">
+                    <span className="place-name">
+                      <FlagIcon place={journeyExtremes.south.city.place} />
+                      {displayCountryName(resolvePlaceForLevel(journeyExtremes.south.city.place.id, "country", placeLookup))} · {displayPlaceName(journeyExtremes.south.city.place)}
+                    </span>
+                    <span className="coordinates">
+                      {formatCoordinate(journeyExtremes.south.city.lat, journeyExtremes.south.city.lng)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <span className="no-record">暂无记录</span>
+              )}
+            </div>
+          </div>
+
+          {/* 最东 */}
+          <div className="extreme-card east">
+            <div className="extreme-icon-title">
+              <span className="direction-badge east">东</span>
+              <h4>最东 · Easternmost</h4>
+            </div>
+            <div className="extreme-details">
+              {journeyExtremes.east.city ? (
+                <div className="extreme-item">
+                  <div className="item-content">
+                    <span className="place-name">
+                      <FlagIcon place={journeyExtremes.east.city.place} />
+                      {displayCountryName(resolvePlaceForLevel(journeyExtremes.east.city.place.id, "country", placeLookup))} · {displayPlaceName(journeyExtremes.east.city.place)}
+                    </span>
+                    <span className="coordinates">
+                      {formatCoordinate(journeyExtremes.east.city.lat, journeyExtremes.east.city.lng)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <span className="no-record">暂无记录</span>
+              )}
+            </div>
+          </div>
+
+          {/* 最西 */}
+          <div className="extreme-card west">
+            <div className="extreme-icon-title">
+              <span className="direction-badge west">西</span>
+              <h4>最西 · Westernmost</h4>
+            </div>
+            <div className="extreme-details">
+              {journeyExtremes.west.city ? (
+                <div className="extreme-item">
+                  <div className="item-content">
+                    <span className="place-name">
+                      <FlagIcon place={journeyExtremes.west.city.place} />
+                      {displayCountryName(resolvePlaceForLevel(journeyExtremes.west.city.place.id, "country", placeLookup))} · {displayPlaceName(journeyExtremes.west.city.place)}
+                    </span>
+                    <span className="coordinates">
+                      {formatCoordinate(journeyExtremes.west.city.lat, journeyExtremes.west.city.lng)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <span className="no-record">暂无记录</span>
+              )}
+            </div>
+          </div>
+        </div>
       </section>
 
       {modalCountry && (
@@ -5402,6 +5579,7 @@ function QuickAddDock({
   onDeleteVisit,
   focusRequest,
   onFocusConsumed,
+  recentInteractions = [],
 }) {
   return (
     <aside className="quick-add-dock" aria-label="快速添加足迹">
@@ -5426,6 +5604,7 @@ function QuickAddDock({
         onDeleteVisit={onDeleteVisit}
         focusRequest={focusRequest}
         onFocusConsumed={onFocusConsumed}
+        recentInteractions={recentInteractions}
       />
     </aside>
   );
@@ -5751,6 +5930,7 @@ function CountryModal({
               visits={visits}
               focusRequest={focusedModalPlaceRequest}
               onFocusConsumed={() => setFocusedModalPlaceRequest(null)}
+              recentInteractions={recentInteractions}
             />
           )}
           <div className="modal-map-wrap">
@@ -6292,6 +6472,7 @@ function PlaceSearchPanel({
   onDeleteVisit,
   onSignIn,
   onSignOut,
+  recentInteractions = [],
 }) {
   const [query, setQuery] = useState("");
   const [profileId, setProfileId] = useState(profiles[0]?.id || "");
@@ -6368,8 +6549,21 @@ function PlaceSearchPanel({
           byPlace.set(key, { ...item, visits: [item.visit] });
         }
       });
-    return Array.from(byPlace.values());
-  }, [activeProfile, compact, places, visits]);
+    const finalPlaces = Array.from(byPlace.values());
+    if (recentInteractions && recentInteractions.length > 0) {
+      finalPlaces.sort((a, b) => {
+        const aKey = canonicalPlaceId(a.place.mapId || a.place.id);
+        const bKey = canonicalPlaceId(b.place.mapId || b.place.id);
+        const aIdx = recentInteractions.indexOf(aKey);
+        const bIdx = recentInteractions.indexOf(bKey);
+        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+        if (aIdx !== -1) return -1;
+        if (bIdx !== -1) return 1;
+        return 0;
+      });
+    }
+    return finalPlaces;
+  }, [activeProfile, compact, places, visits, recentInteractions]);
 
   useEffect(() => {
     const targetId = typeof focusRequest === "string" ? focusRequest : focusRequest?.placeId;
@@ -6405,13 +6599,7 @@ function PlaceSearchPanel({
 
   function chooseVisitAction(item, action) {
     const itemVisits = item.visits?.length ? item.visits : [item.visit];
-    if (activeProfile === "all" && itemVisits.length > 1) {
-      setVisitChoice({ action, place: item.place, visits: itemVisits });
-      return;
-    }
-    const visit = itemVisits.find((entry) => entry.profileId === profileId) || itemVisits[0];
-    if (action === "delete") onDeleteVisit?.(visit.id);
-    else onEditVisit?.(visit);
+    setVisitChoice({ action, place: item.place, visits: itemVisits });
   }
 
   function runVisitChoice(visit) {
@@ -6549,7 +6737,7 @@ function PlaceSearchPanel({
             <button key={visit.id} onClick={() => runVisitChoice(visit)} type="button">
               <span>{profileLabel(visit.profileId)}</span>
               <small>
-                {displayVisitDate(visit) || "未填写日期"} · {visit.type || "旅行"}
+                {displayVisitDate(visit) || "未填写日期"} · {visit.type || "旅行"} · {visit.rating ? `${visit.rating}/10 ★` : "未评分"}
               </small>
             </button>
           ))}
