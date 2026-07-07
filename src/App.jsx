@@ -35,6 +35,7 @@ import {
   tripTypes,
 } from "./data/mockData";
 import countryGalleryImages from "./data/countryGallery";
+import provinceGalleryImages from "./data/provinceGallery";
 import { supabase } from "./lib/supabase";
 
 const PHOTO_BUCKET = "travel-photos";
@@ -3094,6 +3095,9 @@ function App() {
           <button onClick={() => scrollToPageSection("country-gallery-section")} type="button">
             国家图鉴
           </button>
+          <button onClick={() => scrollToPageSection("province-gallery-section")} type="button">
+            省份图鉴
+          </button>
           <button onClick={() => scrollToPageSection("overview-section")} type="button">
             统计数据
           </button>
@@ -3396,6 +3400,8 @@ function App() {
       )}
 
       <CountryGallery continentSummary={continentSummary} countryPlaces={mapPlaces.country} />
+
+      <ProvinceGallery regionPlaces={mapPlaces.region} filteredVisits={filteredVisits} placeLookup={placeLookup} />
 
       <TravelOverview
         activeProfile={activeProfile}
@@ -7563,6 +7569,243 @@ function AdminForm({
       <button className="primary-action inline-action" onClick={onSignOut} type="button">
         退出登录
       </button>
+    </section>
+  );
+}
+
+const CHINA_REGION_GROUPS = {
+  "上海": "华东", "江苏": "华东", "浙江": "华东", "安徽": "华东", "福建": "华东", "江西": "华东", "山东": "华东",
+  "北京": "华北", "天津": "华北", "河北": "华北", "山西": "华北", "内蒙古": "华北",
+  "河南": "华中", "湖北": "华中", "湖南": "华中",
+  "广东": "华南", "广西": "华南", "海南": "华南",
+  "重庆": "西南", "四川": "西南", "贵州": "西南", "云南": "西南", "西藏": "西南",
+  "陕西": "西北", "甘肃": "西北", "青海": "西北", "宁夏": "西北", "新疆": "西北",
+  "辽宁": "东北", "吉林": "东北", "黑龙江": "东北",
+  "香港": "港澳台", "澳门": "港澳台", "台湾": "港澳台"
+};
+
+const CHINA_REGION_ENGLISH = {
+  "华东": "East China",
+  "华北": "North China",
+  "华中": "Central China",
+  "华南": "South China",
+  "西南": "Southwest China",
+  "西北": "Northwest China",
+  "东北": "Northeast China",
+  "港澳台": "Hong Kong, Macao & Taiwan"
+};
+
+const CHINA_REGION_ORDER = ["华北", "东北", "华东", "华中", "华南", "西南", "西北", "港澳台"];
+
+function getProvinceShortName(place) {
+  if (!place) return "";
+  const name = place.localName || place.name || "";
+  return name
+    .replace("特别行政区", "")
+    .replace("壮族自治区", "")
+    .replace("回族自治区", "")
+    .replace("维吾尔自治区", "")
+    .replace("内蒙古自治区", "内蒙古")
+    .replace("自治区", "")
+    .replace("省", "")
+    .replace("市", "");
+}
+
+function formatProvinceDisplayName(place) {
+  if (!place) return "";
+  const local = place.localName || "";
+  const english = place.name || "";
+  let chn = local;
+  if (local.endsWith("特别行政区")) {
+    chn = local.replace("特别行政区", "");
+  } else if (local.endsWith("自治区")) {
+    if (local === "内蒙古自治区") chn = "内蒙古";
+    else if (local === "西藏自治区") chn = "西藏";
+    else if (local === "新疆维吾尔自治区") chn = "新疆";
+    else if (local === "广西壮族自治区") chn = "广西";
+    else if (local === "宁夏回族自治区") chn = "宁夏";
+  }
+  return `${chn} · ${english}`;
+}
+
+function ProvinceGalleryCard({ province }) {
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [wasHovered, setWasHovered] = useState(false);
+  const images = province.images || [];
+  const basePath = import.meta.env.BASE_URL || "/";
+
+  function handlePhotoLeave() {
+    if (!wasHovered || images.length <= 1) return;
+    setActiveImageIndex((current) => (current + 1) % images.length);
+    setWasHovered(false);
+  }
+
+  return (
+    <article className={`country-gallery-card ${province.isVisited ? "" : "locked"}`}>
+      <div className="country-gallery-card-copy">
+        <strong className="province-name" style={{ fontSize: "0.86rem", whiteSpace: "normal", display: "block", textAlign: "center" }}>
+          <span>{province.name}</span>
+        </strong>
+      </div>
+      <div
+        className="country-gallery-photo-frame"
+        onMouseEnter={() => setWasHovered(true)}
+        onMouseLeave={handlePhotoLeave}
+      >
+        {images.map((src, index) => (
+          <img
+            alt={`${province.name} ${index + 1}`}
+            className={index === activeImageIndex ? "active" : ""}
+            decoding="async"
+            draggable={false}
+            key={src}
+            loading="lazy"
+            src={`${basePath}${src}`}
+          />
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function ProvinceGallery({ regionPlaces = [], filteredVisits = [], placeLookup }) {
+  const [showLockedProvinces, setShowLockedProvinces] = useState(false);
+
+  const { visitedGroups, lockedGroups, visitedCount, lockedCount } = useMemo(() => {
+    const visitedRegionIds = new Set();
+    for (const visit of filteredVisits) {
+      const regionId = resolveMapIdForLevel(visit.placeId, "region", placeLookup);
+      if (regionId) visitedRegionIds.add(regionId);
+    }
+
+    const galleryProvinces = regionPlaces
+      .map((place) => {
+        const isChina = place.parentId === "CHN" || place.countryCode === "CHN" || place.id.startsWith("CHN-") || ["CN-HK", "CN-MO", "CN-TW"].includes(place.id);
+        if (!isChina) return null;
+
+        const shortName = getProvinceShortName(place);
+        const images = provinceGalleryImages[shortName] || [];
+        if (!images.length) return null;
+
+        const isVisited = visitedRegionIds.has(place.id);
+        return {
+          id: place.id,
+          name: formatProvinceDisplayName(place),
+          place,
+          isVisited,
+          images,
+          shortName
+        };
+      })
+      .filter(Boolean);
+
+    const visitedByRegion = new Map();
+    const lockedByRegion = new Map();
+
+    galleryProvinces.forEach((prov) => {
+      const regionGroup = CHINA_REGION_GROUPS[prov.shortName] || "其他";
+      if (prov.isVisited) {
+        const bucket = visitedByRegion.get(regionGroup) || [];
+        bucket.push(prov);
+        visitedByRegion.set(regionGroup, bucket);
+      } else {
+        const bucket = lockedByRegion.get(regionGroup) || [];
+        bucket.push(prov);
+        lockedByRegion.set(regionGroup, bucket);
+      }
+    });
+
+    visitedByRegion.forEach((list) => {
+      list.sort((a, b) => a.shortName.localeCompare(b.shortName, "zh-CN"));
+    });
+    lockedByRegion.forEach((list) => {
+      list.sort((a, b) => a.shortName.localeCompare(b.shortName, "zh-CN"));
+    });
+
+    const buildGroups = (sourceMap) =>
+      CHINA_REGION_ORDER
+        .map((label) => {
+          const provinces = sourceMap.get(label) || [];
+          if (!provinces.length) return null;
+          return {
+            label,
+            englishLabel: CHINA_REGION_ENGLISH[label] || label,
+            provinces,
+          };
+        })
+        .filter(Boolean);
+
+    const unlockedGroups = buildGroups(visitedByRegion);
+    const hiddenGroups = buildGroups(lockedByRegion);
+
+    return {
+      visitedGroups: unlockedGroups,
+      lockedGroups: hiddenGroups,
+      visitedCount: galleryProvinces.filter(p => p.isVisited).length,
+      lockedCount: galleryProvinces.filter(p => !p.isVisited).length,
+    };
+  }, [regionPlaces, filteredVisits, placeLookup]);
+
+  if (!visitedGroups.length && !lockedGroups.length) return null;
+
+  return (
+    <section className="country-gallery-section" id="province-gallery-section" aria-label="省份图鉴" style={{ borderTop: "1px dashed #dbe4ee", paddingTop: "40px", marginTop: "40px" }}>
+      <div className="country-gallery-title">
+        <h2>
+          省份图鉴·<span className="major-title-en">Unlocked Provinces</span>·<span className="major-title-number">{visitedCount}</span>
+        </h2>
+        {lockedCount > 0 ? (
+          <button
+            className={`country-gallery-toggle ${showLockedProvinces ? "active" : ""}`}
+            onClick={() => setShowLockedProvinces((current) => !current)}
+            type="button"
+          >
+            {showLockedProvinces ? "隐藏未解锁" : "显示未解锁"}
+            <span>{lockedCount}</span>
+          </button>
+        ) : null}
+      </div>
+      <div className="country-gallery-stack">
+        {visitedGroups.map((group) => (
+          <article className="country-gallery-continent" key={group.label}>
+            <div className="country-gallery-continent-heading">
+              <h3>
+                {group.label} · {group.englishLabel} · {group.provinces.length}
+              </h3>
+            </div>
+            <div className="country-gallery-grid">
+              {group.provinces.map((prov) => (
+                <ProvinceGalleryCard province={prov} key={prov.id} />
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+      {showLockedProvinces && lockedGroups.length > 0 ? (
+        <div className="country-gallery-locked-block">
+          <div className="country-gallery-title locked-title">
+            <h2>
+              未解锁省份·<span className="major-title-en">Locked Provinces</span>·<span className="major-title-number">{lockedCount}</span>
+            </h2>
+          </div>
+          <div className="country-gallery-stack">
+            {lockedGroups.map((group) => (
+              <article className="country-gallery-continent" key={`locked-${group.label}`}>
+                <div className="country-gallery-continent-heading">
+                  <h3>
+                    {group.label} · {group.englishLabel} · {group.provinces.length}
+                  </h3>
+                </div>
+                <div className="country-gallery-grid">
+                  {group.provinces.map((prov) => (
+                    <ProvinceGalleryCard province={prov} key={`locked-${prov.id}`} />
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
