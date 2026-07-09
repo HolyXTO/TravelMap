@@ -157,7 +157,8 @@ button {
 }
 
 .prophet-nav > button,
-.prophet-theme-nav > button {
+.prophet-theme-nav > button,
+.prophet-dropdown-nav > button {
   position: relative;
   isolation: isolate;
   border: 0;
@@ -175,7 +176,8 @@ button {
 }
 
 .prophet-nav > button::before,
-.prophet-theme-nav > button::before {
+.prophet-theme-nav > button::before,
+.prophet-dropdown-nav > button::before {
   position: absolute;
   z-index: -1;
   inset: 3px 4px;
@@ -195,7 +197,9 @@ button {
 .prophet-nav > button:hover,
 .prophet-nav > button:focus-visible,
 .prophet-theme-nav > button:hover,
-.prophet-theme-nav > button:focus-visible {
+.prophet-theme-nav > button:focus-visible,
+.prophet-dropdown-nav > button:hover,
+.prophet-dropdown-nav > button:focus-visible {
   color: var(--prophet-gold);
   transform: translateY(-1px);
 }
@@ -203,7 +207,9 @@ button {
 .prophet-nav > button:hover::before,
 .prophet-nav > button:focus-visible::before,
 .prophet-theme-nav > button:hover::before,
-.prophet-theme-nav > button:focus-visible::before {
+.prophet-theme-nav > button:focus-visible::before,
+.prophet-dropdown-nav > button:hover::before,
+.prophet-dropdown-nav > button:focus-visible::before {
   opacity: 1;
   transform: scaleX(1);
 }
@@ -243,11 +249,17 @@ h2 {
   cursor: pointer;
 }
 
+.topbar-right-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  justify-self: end;
+}
+
 .prophet-status {
   display: flex;
   justify-content: flex-end;
-  min-width: 160px;
-  justify-self: end;
+  min-width: 130px;
 }
 
 .detail-stats span,
@@ -4974,5 +4986,679 @@ h2 {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* -------------------------------------------------------------
+ * 旅行记录 (Travel Notes) 模块与弹窗样式
+ * ------------------------------------------------------------- */
+
+.travel-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.travel-note-card {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02) !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.travel-note-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: rgba(203, 213, 225, 1) !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06) !important;
+}
+
+.travel-note-card.expanded {
+  grid-column: 1 / -1 !important;
+  cursor: default !important;
+  transform: none !important;
+  border-color: rgba(203, 213, 225, 1) !important;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08) !important;
+}
+
+.note-card-banner {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+}
+
+.travel-note-card.expanded .note-card-banner {
+  height: 320px;
+}
+
+.note-card-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.travel-note-card:not(.expanded):hover .note-card-banner img {
+  transform: scale(1.05);
+}
+
+.note-card-meta {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 14px 20px;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.85), transparent);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #fff;
+  z-index: 2;
+}
+
+.note-meta-date,
+.note-meta-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: var(--prophet-serif);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.note-card-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.travel-note-card:hover .note-card-actions,
+.travel-note-card.expanded .note-card-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.note-card-actions button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(8px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.note-card-actions button:hover {
+  background: rgba(198, 155, 85, 0.9) !important;
+  color: #ffffff;
+  border-color: transparent;
+  transform: scale(1.1);
+}
+
+.note-card-body {
+  padding: 24px;
+}
+
+.note-card-body h3 {
+  font-family: var(--prophet-serif);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 10px 0;
+}
+
+.note-card-summary {
+  font-size: 0.92rem;
+  color: #475569;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Expanded Card Layout */
+.expanded-note-layout {
+  display: grid;
+  grid-template-columns: 45% 55%;
+  gap: 32px;
+  margin-top: 24px;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 24px;
+  text-align: left;
+}
+
+.note-map-wrapper {
+  position: sticky;
+  top: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.note-map-container {
+  height: 380px;
+  border-radius: 16px;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  z-index: 1;
+}
+
+.map-instruction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.note-article-content {
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.address-section-header {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+}
+
+.address-note-block {
+  background: rgba(248, 250, 252, 0.5);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.address-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.address-name-btn {
+  background: none;
+  border: none;
+  color: #1e293b;
+  font-family: var(--prophet-serif);
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.address-name-btn:hover {
+  color: var(--prophet-gold);
+  text-decoration: underline;
+}
+
+.address-text {
+  font-size: 0.92rem;
+  color: #334155;
+  line-height: 1.7;
+  margin: 0 0 10px 0;
+  white-space: pre-wrap;
+}
+
+.address-image-container {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.address-image-container img {
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}
+
+.address-link-anchor {
+  background: none;
+  border: none;
+  padding: 0;
+  font-weight: 800;
+  font-family: inherit;
+  font-size: inherit;
+  color: #2563eb !important;
+  cursor: pointer;
+  text-decoration: underline;
+  display: inline;
+  transition: color 0.15s ease;
+}
+
+.address-link-anchor:hover {
+  color: var(--prophet-gold) !important;
+}
+
+.close-expanded-btn {
+  padding: 10px 24px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  font-family: var(--prophet-serif);
+  font-weight: 800;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-expanded-btn:hover {
+  background: #f8fafc;
+  color: #1e293b;
+  border-color: #94a3b8;
+}
+
+/* Custom glowing Marker Pin */
+.custom-note-marker .marker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #c69b55;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  animation: pulse-marker 2s infinite;
+}
+
+.custom-note-marker .marker-dot {
+  width: 4px;
+  height: 4px;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+@keyframes pulse-marker {
+  0% {
+    box-shadow: 0 0 0 0 rgba(198, 155, 85, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(198, 155, 85, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(198, 155, 85, 0);
+  }
+}
+
+/* -------------------------------------------------------------
+ * 写日记弹窗样式
+ * ------------------------------------------------------------- */
+.travel-edit-dialog-overlay {
+  position: fixed;
+  z-index: 2000;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.travel-edit-dialog {
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: dialog-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+
+.dialog-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid #edf2f7;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-family: var(--prophet-serif);
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.close-dialog-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dialog-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #475569;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group textarea {
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  color: #1e293b;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #c69b55;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(198, 155, 85, 0.1);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.image-field-preview {
+  width: 100px;
+  height: 56px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.image-field-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dialog-address-list {
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 16px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.address-list-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #334155;
+}
+
+.add-address-btn {
+  padding: 6px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-address-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.address-edit-card {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+.address-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.remove-address-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0;
+}
+
+.remove-address-btn:hover {
+  text-decoration: underline;
+}
+
+.coords-lookup-btn {
+  padding: 0 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #475569;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.coords-lookup-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.coords-lookup-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dialog-footer {
+  padding: 18px 24px;
+  border-top: 1px solid #edf2f7;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancel-btn {
+  padding: 10px 24px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  font-family: var(--prophet-serif);
+  font-weight: 800;
+  color: #475569;
+  cursor: pointer;
+}
+
+.save-btn {
+  padding: 10px 28px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #c69b55, #b8863b);
+  font-family: var(--prophet-serif);
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(198,155,85,0.25);
+}
+
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* -------------------------------------------------------------
+ * 移动端与屏幕自适应规则
+ * ------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .travel-notes-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .travel-notes-grid {
+    grid-template-columns: 1fr;
+  }
+  .expanded-note-layout {
+    grid-template-columns: 1fr;
+  }
+  .note-map-wrapper {
+    position: static;
+  }
+}
+
+/* -------------------------------------------------------------
+ * 统一图鉴下拉菜单样式 (Galleries Dropdown Menu)
+ * ------------------------------------------------------------- */
+.prophet-dropdown-nav {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: -18px;
+  padding-bottom: 18px;
+}
+
+.prophet-dropdown-nav::after {
+  position: absolute;
+  top: calc(100% - 18px);
+  right: -16px;
+  left: -16px;
+  height: 22px;
+  content: "";
+}
+
+.prophet-dropdown-menu {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 50%;
+  transform: translate(-50%, -8px) scale(0.96);
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 130px;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: top center;
+  transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 1000;
+}
+
+.prophet-dropdown-nav:hover .prophet-dropdown-menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.prophet-dropdown-menu button {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: var(--prophet-serif);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #5b6678;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.prophet-dropdown-menu button:hover {
+  background: #f1f5f9;
+  color: var(--prophet-gold);
+}
+
 
 

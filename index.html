@@ -10,6 +10,24 @@
     <title>TravelMap | 足迹地图</title>
   </head>
   <body>
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        var div = document.createElement('div');
+        div.style.position = 'fixed';
+        div.style.top = '0';
+        div.style.left = '0';
+        div.style.right = '0';
+        div.style.backgroundColor = '#ef4444';
+        div.style.color = 'white';
+        div.style.padding = '16px';
+        div.style.zIndex = '999999';
+        div.style.fontFamily = 'monospace';
+        div.style.whiteSpace = 'pre-wrap';
+        div.style.fontSize = '14px';
+        div.innerText = '⚠️ 网页加载出错了:\n' + message + '\n\n来源: ' + source + ' (行号: ' + lineno + ', 列号: ' + colno + ')' + (error && error.stack ? '\n\n堆栈信息:\n' + error.stack : '');
+        document.body.appendChild(div);
+      };
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

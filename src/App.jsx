@@ -26,6 +26,8 @@ import {
   User,
   X,
   Users,
+  Calendar,
+  Map as MapIcon,
 } from "lucide-react";
 import {
   initialVisits,
@@ -2283,7 +2285,7 @@ function App() {
 
   const profileFilters = useMemo(
     () => [
-      { id: "all", label: "两个人" },
+      { id: "all", label: "X & T" },
       ...appProfiles.map((profile) => ({ id: profile.id, label: profile.name })),
     ],
     [appProfiles],
@@ -3081,6 +3083,18 @@ function App() {
   }
 
   function scrollToPageSection(sectionId) {
+    if ((sectionId === "travel-notes-section" || sectionId === "visual-journey-section") && !journeyVisualsLoaded) {
+      setJourneyVisualsLoaded(true);
+      setTimeout(() => {
+        const target = document.getElementById(sectionId);
+        if (!target) return;
+        const offset = 102;
+        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      }, 350);
+      return;
+    }
+
     const target = document.getElementById(sectionId);
     if (!target) return;
     const offset = 102;
@@ -3143,18 +3157,29 @@ function App() {
           <button onClick={() => scrollToPageSection("map-section")} type="button">
             地图
           </button>
-          <button onClick={() => scrollToPageSection("country-gallery-section")} type="button">
-            国家图鉴
-          </button>
-          <button onClick={() => scrollToPageSection("province-gallery-section")} type="button">
-            省份图鉴
-          </button>
+          <div className="prophet-dropdown-nav">
+            <button type="button">图鉴</button>
+            <div className="prophet-dropdown-menu">
+              <button onClick={() => scrollToPageSection("country-gallery-section")} type="button">
+                国家图鉴
+              </button>
+              <button onClick={() => scrollToPageSection("province-gallery-section")} type="button">
+                省份图鉴
+              </button>
+            </div>
+          </div>
           <button onClick={() => scrollToPageSection("overview-section")} type="button">
             统计数据
           </button>
           <button onClick={() => scrollToPageSection("visual-journey-section")} type="button">
             足迹可视化
           </button>
+          <button onClick={() => scrollToPageSection("travel-notes-section")} type="button">
+            旅行记录
+          </button>
+        </nav>
+        
+        <div className="topbar-right-controls">
           <div className="prophet-theme-nav">
             <button type="button">地图主题</button>
             <MapThemePicker
@@ -3164,20 +3189,20 @@ function App() {
               variant="nav"
             />
           </div>
-        </nav>
-        <div
-          className="status-strip prophet-status"
-          aria-label="项目状态"
-          onClick={() => setAuthPanelOpen(true)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") setAuthPanelOpen(true);
-          }}
-          role="button"
-          tabIndex={0}
-        >
-          <span className={session ? "db-connected" : "db-disconnected"}>
-            <Database size={16} /> {session ? "数据库已连接" : "未登录"}
-          </span>
+          <div
+            className="status-strip prophet-status"
+            aria-label="项目状态"
+            onClick={() => setAuthPanelOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") setAuthPanelOpen(true);
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            <span className={session ? "db-connected" : "db-disconnected"}>
+              <Database size={16} /> {session ? "数据库已连接" : "未登录"}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -3496,6 +3521,14 @@ function App() {
           </section>
         )}
       </div>
+      
+      {/* 旅行记录 */}
+      <TravelNotesSection
+        isEditor={isEditor}
+        session={session}
+        activeProfile={activeProfile}
+        profiles={appProfiles}
+      />
       {editingVisit && (
         <VisitEditDialog
           authMessage={editMessage}
@@ -7802,7 +7835,6 @@ function ProvinceGallery({ regionPlaces = [], filteredVisits = [], placeLookup }
           <ProvinceGalleryCard province={prov} key={prov.id} />
         ))}
       </div>
-
       {showLockedProvinces && lockedProvinces.length > 0 ? (
         <div className="country-gallery-locked-block" style={{ marginTop: "40px" }}>
           <div className="country-gallery-title locked-title">
@@ -7818,6 +7850,669 @@ function ProvinceGallery({ regionPlaces = [], filteredVisits = [], placeLookup }
         </div>
       ) : null}
     </section>
+  );
+}
+
+// -------------------------------------------------------------
+// 旅行记录 (Travel Notes) 模块实现
+// -------------------------------------------------------------
+
+const defaultTravelNotes = [
+  {
+    id: "note-1",
+    city: "巴黎",
+    coverImage: "/TravelMap/paris_eiffel_sunset.jpg",
+    startDate: "2024-05-10",
+    endDate: "2024-05-15",
+    rating: 10,
+    summary: "游览卢浮宫珍贵藏品，品味左岸咖啡馆的慵懒，以及塞纳河畔的迷人日落。",
+    center: [48.8566, 2.3522],
+    addresses: [
+      {
+        id: "addr-1-1",
+        name: "巴黎卢浮宫",
+        coordinates: { lat: 48.8606, lng: 2.3376 },
+        text: "🎟️ 预约前准备\n\n购票渠道：首选卢浮宫官网（ticket.louvre.fr），最稳妥。第三方平台虽然方便，但有买到假票或无效票的风险。\n门票价格：成人票价为22欧元。\n\n免费政策：\n1. 18岁以下游客（不限国籍）免费。\n2. 26岁以下的欧盟居民免费。\n3. 每月第一个周五晚18:00后免费（7、8月除外），但需提前在官网预约。\n4. 法国国庆日（7月14日）全天免费。\n\n巴黎博物馆通票：如果你买了通票，同样需要在官网预约一个具体入馆时间，预约时选择“Paris Museum Pass holders”选项，费用为0欧元。"
+      },
+      {
+        id: "addr-1-2",
+        name: "巴黎奥利机场",
+        coordinates: { lat: 48.7262, lng: 2.3652 },
+        text: "2024年5月10日 14:30 抵达。机场旁边购买巴黎交通周卡。"
+      },
+      {
+        id: "addr-1-3",
+        name: "巴黎北站",
+        coordinates: { lat: 48.8809, lng: 2.3553 },
+        text: "2024年5月10日 14:30 抵达。"
+      }
+    ]
+  },
+  {
+    id: "note-2",
+    city: "巴黎 · 经典地标漫步",
+    coverImage: "/TravelMap/paris_louvre_night.jpg",
+    startDate: "2024-06-01",
+    endDate: "2024-06-05",
+    rating: 9,
+    summary: "在夏乐宫远眺铁塔的壮丽，穿过凯旋门俯瞰十二条放射状的大街，尽享巴黎的宏伟。",
+    center: [48.8584, 2.2945],
+    addresses: [
+      {
+        id: "addr-2-1",
+        name: "埃菲尔铁塔",
+        coordinates: { lat: 48.8584, lng: 2.2945 },
+        text: "🗼 登塔攻略：建议提前1个月在官网买票。日落时分登塔最美，可以看到金色的巴黎市区和闪耀的铁塔灯光。"
+      },
+      {
+        id: "addr-2-2",
+        name: "凯旋门",
+        coordinates: { lat: 48.8738, lng: 2.2950 },
+        text: "登顶凯旋门可以看到放射状的十二条大道，非常震撼！门票可以用博物馆通票。"
+      }
+    ]
+  },
+  {
+    id: "note-3",
+    city: "巴黎 · 艺术与浪漫之旅",
+    coverImage: "/TravelMap/paris_montmartre.jpg",
+    startDate: "2024-07-15",
+    endDate: "2024-07-20",
+    rating: 10,
+    summary: "步入莫奈与梵高的艺术世界，在红磨坊旁留下笑影，在圣心大教堂俯瞰巴黎全景。",
+    center: [48.8867, 2.3431],
+    addresses: [
+      {
+        id: "addr-3-1",
+        name: "圣心大教堂",
+        coordinates: { lat: 48.8867, lng: 2.3431 },
+        text: "🏰 蒙马特高地：俯瞰巴黎全景的绝佳地点。注意台阶上挂红绳的小商贩，注意防盗。"
+      },
+      {
+        id: "addr-3-2",
+        name: "奥赛博物馆",
+        coordinates: { lat: 48.8599, lng: 2.3265 },
+        text: "🎨 莫奈、梵高、塞尚的杰作聚集地！巨大的火车站改建的展馆本身就是一件艺术品。"
+      }
+    ]
+  }
+];
+
+function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
+  const canEdit = session ? isEditor : true;
+  const [notes, setNotes] = useState(() => {
+    try {
+      const saved = localStorage.getItem("travel_notes");
+      return saved ? JSON.parse(saved) : defaultTravelNotes;
+    } catch (e) {
+      console.error("Failed to parse travel notes from localStorage:", e);
+      return defaultTravelNotes;
+    }
+  });
+  
+  const [expandedNoteId, setExpandedNoteId] = useState(null);
+  const [editingNote, setEditingNote] = useState(null);
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const mapInstances = useRef({});
+
+  useEffect(() => {
+    localStorage.setItem("travel_notes", JSON.stringify(notes));
+  }, [notes]);
+
+  // 当展开卡片时，平滑滚动至其顶部
+  useEffect(() => {
+    if (expandedNoteId) {
+      setTimeout(() => {
+        const el = document.getElementById(`travel-note-card-${expandedNoteId}`);
+        if (el) {
+          const offset = 100;
+          const top = el.getBoundingClientRect().top + window.scrollY - offset;
+          window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+        }
+      }, 100);
+    }
+  }, [expandedNoteId]);
+
+  // 处理 Leaflet 地图初始化
+  const initMap = (noteId, center, addresses) => {
+    const containerId = `note-map-${noteId}`;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // 清理之前的旧实例
+    if (mapInstances.current[noteId]) {
+      mapInstances.current[noteId].remove();
+      delete mapInstances.current[noteId];
+    }
+
+    const map = L.map(containerId, { zoomControl: true }).setView(center || [48.8566, 2.3522], 12);
+    
+    // 使用标准瓦片
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 自定义 Marker 样式，极富科技感与美感
+    const customIcon = L.divIcon({
+      className: "custom-note-marker",
+      html: `<div class="marker-pin"><span class="marker-dot"></span></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+
+    addresses.forEach((addr) => {
+      if (addr.coordinates && addr.coordinates.lat && addr.coordinates.lng) {
+        L.marker([addr.coordinates.lat, addr.coordinates.lng], { icon: customIcon })
+          .addTo(map)
+          .bindPopup(`<strong style="font-family: var(--prophet-serif); font-size: 0.88rem;">${addr.name}</strong>`);
+      }
+    });
+
+    mapInstances.current[noteId] = map;
+  };
+
+  const handleLinkClick = (noteId, coords, name) => {
+    const map = mapInstances.current[noteId];
+    if (map && coords) {
+      map.setView([coords.lat, coords.lng], 16, { animate: true, duration: 1.0 });
+      // 开启对应的 Marker Popup
+      map.eachLayer((layer) => {
+        if (layer instanceof L.Marker) {
+          const latlng = layer.getLatLng();
+          if (Math.abs(latlng.lat - coords.lat) < 0.0001 && Math.abs(latlng.lng - coords.lng) < 0.0001) {
+            layer.bindPopup(`<strong style="font-family: var(--prophet-serif); font-size: 0.88rem;">${name}</strong>`).openPopup();
+          }
+        }
+      });
+    }
+  };
+
+  const handleDelete = (id, e) => {
+    e.stopPropagation();
+    if (confirm("确定要删除这篇旅行记录吗？")) {
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+      if (expandedNoteId === id) setExpandedNoteId(null);
+    }
+  };
+
+  const handleEdit = (note, e) => {
+    e.stopPropagation();
+    setEditingNote(JSON.parse(JSON.stringify(note)));
+  };
+
+  const handleSaveNote = (savedNote) => {
+    if (notes.some((n) => n.id === savedNote.id)) {
+      setNotes((prev) => prev.map((n) => (n.id === savedNote.id ? savedNote : n)));
+    } else {
+      setNotes((prev) => [savedNote, ...prev]);
+    }
+    setEditingNote(null);
+    setIsAddingNote(false);
+  };
+
+  // 格式化段落文本中的超链接地址
+  const renderTextWithLinks = (noteId, text, addresses) => {
+    if (!text || !addresses || addresses.length === 0) return text;
+    
+    // 按长度降序排序避免部分匹配冲突
+    const sorted = [...addresses].sort((a, b) => b.name.length - a.name.length);
+    const escapedNames = sorted.map((a) => a.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"));
+    const regex = new RegExp(`(${escapedNames.join("|")})`, "g");
+    
+    const parts = text.split(regex);
+    return parts.map((part, index) => {
+      const match = sorted.find((a) => a.name === part);
+      if (match) {
+        return (
+          <button
+            key={index}
+            className="address-link-anchor"
+            onClick={() => handleLinkClick(noteId, match.coordinates, match.name)}
+            type="button"
+          >
+            {part}
+          </button>
+        );
+      }
+      return part;
+    });
+  };
+
+  return (
+    <section className="country-gallery-section" id="travel-notes-section" aria-label="旅行记录" style={{ borderTop: "1px dashed #dbe4ee", paddingTop: "40px", marginTop: "40px" }}>
+      <div className="country-gallery-title">
+        <h2>
+          旅行记录·<span className="major-title-en">Travel Notes</span>·<span className="major-title-number">{notes.length}</span>
+        </h2>
+        {canEdit && (
+          <button
+            className="country-gallery-toggle active"
+            onClick={() => setIsAddingNote(true)}
+            type="button"
+            style={{ padding: "8px 18px", borderRadius: "999px", background: "linear-gradient(135deg, #c69b55, #b8863b)", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <Plus size={16} /> 写新记录
+          </button>
+        )}
+      </div>
+
+      <div className="travel-notes-grid">
+        {notes.map((note) => {
+          const isExpanded = expandedNoteId === note.id;
+          return (
+            <div
+              id={`travel-note-card-${note.id}`}
+              key={note.id}
+              className={`travel-note-card ${isExpanded ? "expanded" : ""}`}
+              onClick={() => {
+                if (!isExpanded) {
+                  setExpandedNoteId(note.id);
+                  // 延时等 DOM 渲染后再初始化地图
+                  setTimeout(() => initMap(note.id, note.center, note.addresses), 200);
+                }
+              }}
+            >
+              <div className="note-card-banner">
+                <img src={note.coverImage} alt={note.city} />
+                <div className="note-card-meta">
+                  <span className="note-meta-date">
+                    <Calendar size={12} /> {note.startDate} 至 {note.endDate}
+                  </span>
+                  <span className="note-meta-rating">
+                    <Star size={12} fill="var(--prophet-gold)" color="var(--prophet-gold)" /> {note.rating}/10
+                  </span>
+                </div>
+                {canEdit && (
+                  <div className="note-card-actions">
+                    <button onClick={(e) => handleEdit(note, e)} type="button" title="编辑">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={(e) => handleDelete(note.id, e)} type="button" title="删除">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="note-card-body">
+                <h3>{note.city}</h3>
+                <p className="note-card-summary">{note.summary}</p>
+
+                {isExpanded && (
+                  <div className="expanded-note-layout">
+                    {/* 地图列 */}
+                    <div className="note-map-wrapper">
+                      <div id={`note-map-${note.id}`} className="note-map-container" />
+                      <div className="map-instruction">
+                        <MapIcon size={14} /> 点击右侧攻略中的地址，地图将自动飞跃定位
+                      </div>
+                    </div>
+
+                    {/* 内容列 */}
+                    <div className="note-article-content">
+                      <div className="address-section-header">旅行轨迹细节：</div>
+                      {note.addresses.map((addr) => (
+                        <div key={addr.id} className="address-note-block">
+                          <div className="address-title">
+                            <MapPin size={14} color="#c69b55" />
+                            <button
+                              onClick={() => handleLinkClick(note.id, addr.coordinates, addr.name)}
+                              className="address-name-btn"
+                              type="button"
+                            >
+                              {addr.name}
+                            </button>
+                          </div>
+                          <p className="address-text">
+                            {renderTextWithLinks(note.id, addr.text, note.addresses)}
+                          </p>
+                          {addr.image && (
+                            <div className="address-image-container">
+                              <img src={addr.image} alt={addr.name} />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedNoteId(null);
+                          }}
+                          className="close-expanded-btn"
+                          type="button"
+                        >
+                          收起记录
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {(isAddingNote || editingNote) && (
+        <TravelNoteEditDialog
+          note={editingNote || { id: `note-${Date.now()}`, city: "", coverImage: "", startDate: "", endDate: "", rating: 10, summary: "", center: [48.8566, 2.3522], addresses: [] }}
+          onClose={() => {
+            setIsAddingNote(false);
+            setEditingNote(null);
+          }}
+          onSave={handleSaveNote}
+        />
+      )}
+    </section>
+  );
+}
+
+// -------------------------------------------------------------
+// 添加/编辑旅行记录弹窗组件
+// -------------------------------------------------------------
+function TravelNoteEditDialog({ note, onClose, onSave }) {
+  const [editingNote, setEditingNote] = useState(() => JSON.parse(JSON.stringify(note)));
+  const [searchingIndex, setSearchingIndex] = useState(null);
+
+  const adjustHeight = (el) => {
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  };
+
+  const handleFieldChange = (field, val) => {
+    setEditingNote((prev) => ({ ...prev, [field]: val }));
+  };
+
+  const handleUpdateAddressField = (idx, field, val) => {
+    setEditingNote((prev) => {
+      const updated = [...prev.addresses];
+      updated[idx][field] = val;
+      return { ...prev, addresses: updated };
+    });
+  };
+
+  const handleAddAddress = () => {
+    setEditingNote((prev) => ({
+      ...prev,
+      addresses: [
+        ...prev.addresses,
+        {
+          id: `addr-${Date.now()}-${prev.addresses.length}`,
+          name: "",
+          coordinates: { lat: 48.8566, lng: 2.3522 },
+          text: ""
+        }
+      ]
+    }));
+  };
+
+  const handleRemoveAddress = (idx) => {
+    setEditingNote((prev) => ({
+      ...prev,
+      addresses: prev.addresses.filter((_, i) => i !== idx)
+    }));
+  };
+
+  // 前端 Canvas 无损等比图片压缩
+  const processImageUpload = (file, callback) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxDim = 800; // 最长边限制为 800px 保证加载迅速且不超容
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressed = canvas.toDataURL("image/jpeg", 0.7);
+        callback(compressed);
+      };
+    };
+  };
+
+  // 通过 Nominatim API 一键搜索地址并解析为经纬度填充
+  const handleGeocodeSearch = async (idx, name) => {
+    if (!name) {
+      alert("请先填写地点名称后再尝试查询！");
+      return;
+    }
+    setSearchingIndex(idx);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        handleUpdateAddressField(idx, "coordinates", { lat, lng });
+        
+        // 同时如果是第一个地址且中心点是默认的，自动设为地图中心
+        if (idx === 0) {
+          setEditingNote((prev) => ({ ...prev, center: [lat, lng] }));
+        }
+      } else {
+        alert("未查找到该地址的坐标信息，请手动填写经纬度。");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("解析地址失败，请手动填写。");
+    } finally {
+      setSearchingIndex(null);
+    }
+  };
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    if (!editingNote.city) {
+      alert("请填写旅行记录标题/城市名称！");
+      return;
+    }
+    if (editingNote.addresses.length > 0 && !editingNote.center) {
+      // 设为第一个地址的中心
+      const first = editingNote.addresses[0].coordinates;
+      editingNote.center = [first.lat, first.lng];
+    }
+    onSave(editingNote);
+  };
+
+  return (
+    <div className="travel-edit-dialog-overlay" onClick={onClose}>
+      <div className="travel-edit-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="dialog-header">
+          <h3>编辑旅行记录</h3>
+          <button onClick={onClose} className="close-dialog-btn" type="button">
+            <X size={18} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleFormSubmit} className="dialog-body">
+          <div className="form-group">
+            <label>旅行记录标题 / 城市 *</label>
+            <input
+              type="text"
+              value={editingNote.city}
+              onChange={(e) => handleFieldChange("city", e.target.value)}
+              placeholder="例如：巴黎"
+              required
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>开始日期</label>
+              <input
+                type="date"
+                value={editingNote.startDate}
+                onChange={(e) => handleFieldChange("startDate", e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label>截止日期</label>
+              <input
+                type="date"
+                value={editingNote.endDate}
+                onChange={(e) => handleFieldChange("endDate", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>评分 (1 - 10)</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={editingNote.rating}
+                onChange={(e) => handleFieldChange("rating", parseInt(e.target.value) || 10)}
+              />
+            </div>
+            <div className="form-group">
+              <label>卡片预览图</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => processImageUpload(e.target.files[0], (data) => handleFieldChange("coverImage", data))}
+              />
+              {editingNote.coverImage && (
+                <div className="image-field-preview">
+                  <img src={editingNote.coverImage} alt="预览" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>简短概览描述</label>
+            <textarea
+              value={editingNote.summary}
+              onChange={(e) => {
+                handleFieldChange("summary", e.target.value);
+                adjustHeight(e.target);
+              }}
+              ref={adjustHeight}
+              placeholder="概览说明..."
+              rows={2}
+            />
+          </div>
+
+          <div className="dialog-address-list">
+            <div className="address-list-title">
+              <span>旅行打卡点轨迹列表</span>
+              <button onClick={handleAddAddress} className="add-address-btn" type="button">
+                + 新增旅行点
+              </button>
+            </div>
+
+            {editingNote.addresses.map((addr, idx) => (
+              <div key={addr.id} className="address-edit-card">
+                <div className="address-card-header">
+                  <span>打卡点 #{idx + 1}</span>
+                  <button onClick={() => handleRemoveAddress(idx)} className="remove-address-btn" type="button">
+                    删除该点
+                  </button>
+                </div>
+                
+                <div className="form-group">
+                  <label>打卡地点名称</label>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <input
+                      type="text"
+                      value={addr.name}
+                      onChange={(e) => handleUpdateAddressField(idx, "name", e.target.value)}
+                      placeholder="例如：巴黎卢浮宫"
+                    />
+                    <button
+                      onClick={() => handleGeocodeSearch(idx, addr.name)}
+                      className="coords-lookup-btn"
+                      type="button"
+                      disabled={searchingIndex === idx}
+                    >
+                      {searchingIndex === idx ? "解析中..." : "解析坐标"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>纬度 (Latitude)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={addr.coordinates.lat}
+                      onChange={(e) => handleUpdateAddressField(idx, "coordinates", { ...addr.coordinates, lat: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>经度 (Longitude)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={addr.coordinates.lng}
+                      onChange={(e) => handleUpdateAddressField(idx, "coordinates", { ...addr.coordinates, lng: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>攻略细节 / 旅行日记</label>
+                  <textarea
+                    value={addr.text}
+                    onChange={(e) => {
+                      handleUpdateAddressField(idx, "text", e.target.value);
+                      adjustHeight(e.target);
+                    }}
+                    ref={adjustHeight}
+                    placeholder="在这里输入打卡地点的攻略和细节..."
+                    rows={4}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>点位配图</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => processImageUpload(e.target.files[0], (data) => handleUpdateAddressField(idx, "image", data))}
+                  />
+                  {addr.image && (
+                    <div className="image-field-preview">
+                      <img src={addr.image} alt="预览" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="dialog-footer">
+            <button onClick={onClose} className="cancel-btn" type="button">取消</button>
+            <button type="submit" className="save-btn">保存旅行记录</button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
