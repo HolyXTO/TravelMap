@@ -7935,6 +7935,179 @@ const defaultTravelNotes = [
         text: "🎨 莫奈、梵高、塞尚的杰作聚集地！巨大的火车站改建的展馆本身就是一件艺术品。"
       }
     ]
+  },
+  {
+    id: "note-4",
+    city: "莫斯科",
+    coverImage: "/TravelMap/moscow_cover_evening.jpg",
+    startDate: "2024-08-10",
+    endDate: "2024-08-15",
+    rating: 10,
+    summary: "漫步在红场，仰望瓦西里升天大教堂缤纷的洋葱头穹顶，感受克里姆林宫的庄严气势。",
+    center: [55.7558, 37.6173],
+    addresses: [
+      {
+        id: "addr-4-1",
+        name: "瓦西里升天大教堂",
+        coordinates: { lat: 55.7525, lng: 37.6231 },
+        text: "🏰 瓦西里升天大教堂是莫斯科最具标志性的建筑，拥有九个色彩缤纷的洋葱头圆顶。建议黄昏时分来打卡，建筑在晚霞下散发着梦幻般的光彩。\n\n🎟️ 门票信息：外国游客成人票约1000卢布，内部现已改为博物馆，展示俄罗斯中世纪的壁画和宗教艺术品。",
+        image: "/TravelMap/moscow_basil_portrait.jpg"
+      },
+      {
+        id: "addr-4-2",
+        name: "克里姆林宫",
+        coordinates: { lat: 55.7520, lng: 37.6175 },
+        text: "🏛️ 俄罗斯权力的中心，红墙环绕，塔楼巍峨。建议从亚历山大花园一侧购票排队安检入内。内部包括伊凡大帝钟楼、天使长大教堂等宏伟建筑群，以及珍宝馆（兵器库）。\n\n📌 参观攻略：一定要留足半天时间，兵器库和钻石馆的门票需要单独购买，非常推荐！",
+        image: "/TravelMap/moscow_kremlin_landscape.jpg"
+      }
+    ]
+  },
+  {
+    id: "note-5",
+    city: "新加坡",
+    coverImage: "/TravelMap/singapore_cover.jpg",
+    startDate: "2024-09-01",
+    endDate: "2024-09-05",
+    rating: 10,
+    summary: "狮城探索之旅：漫步滨海湾花园，打卡标志性鱼尾狮，享受克拉码头夜色与圣淘沙岛阳光。",
+    center: [1.2868, 103.8545],
+    addresses: [
+      {
+        id: "addr-5-1",
+        day: 1,
+        name: "新加坡樟宜机场",
+        coordinates: { lat: 1.3644, lng: 103.9915 },
+        text: "✈️ 抵达樟宜机场，世界最美机场之一！顺便打卡星耀樟宜的汇丰雨漩涡（室内瀑布），感受震撼的水雾与灯光。"
+      },
+      {
+        id: "addr-5-2",
+        day: 1,
+        name: "鱼尾狮公园",
+        coordinates: { lat: 1.2868, lng: 103.8545 },
+        text: "🦁 新加坡的地标！在这里摆各种创意姿势与喷水的鱼尾狮合影。建议黄昏来，不仅能看到白天的鱼尾狮，还能欣赏滨海湾金沙酒店的夜间激光秀。",
+        image: "/TravelMap/singapore_merlion.jpg"
+      },
+      {
+        id: "addr-5-3",
+        day: 1,
+        name: "滨海湾金沙酒店",
+        coordinates: { lat: 1.2847, lng: 103.8610 },
+        text: "🏨 宏伟的三塔建筑群，楼顶的无边泳池举世闻名。即使不入住，也可以前往空中花园观景台俯瞰整个海湾夜景。"
+      },
+      {
+        id: "addr-5-4",
+        day: 2,
+        name: "滨海湾花园 (Gardens by the Bay)",
+        coordinates: { lat: 1.2816, lng: 103.8636 },
+        text: "🌲 仿佛置身阿凡达的潘多拉星球！巨大的超级树穹顶（Supertree Grove）令人叹为观止。千万不要错过晚上19:45和20:45的声光秀，超级树会随音乐闪烁变色，极其梦幻！",
+        image: "/TravelMap/singapore_gardens.jpg"
+      },
+      {
+        id: "addr-5-5",
+        day: 2,
+        name: "新加坡摩天观景轮",
+        coordinates: { lat: 1.2893, lng: 103.8631 },
+        text: "🎡 亚洲最大的摩天轮之一。运转一圈大约30分钟，可以饱览滨海湾全景，甚至在晴朗时能眺望到邻国马来西亚和印尼的岛屿。"
+      },
+      {
+        id: "addr-5-6",
+        day: 2,
+        name: "艺术科学博物馆 (ArtScience Museum)",
+        coordinates: { lat: 1.2863, lng: 103.8592 },
+        text: "🎨 独特的白莲花造型建筑。内部的 teamLab '超跃未来' 互动展非常受欢迎，是拍照打卡的绝佳艺术空间。"
+      },
+      {
+        id: "addr-5-7",
+        day: 2,
+        name: "螺旋桥",
+        coordinates: { lat: 1.2876, lng: 103.8608 },
+        text: "🌉 结构灵感来自DNA双螺旋。夜晚桥身LED亮起蓝色和紫色，极具科幻未来感，是绝佳的漫步通道。"
+      },
+      {
+        id: "addr-5-8",
+        day: 2,
+        name: "驳船码头 (Boat Quay)",
+        coordinates: { lat: 1.2872, lng: 103.8497 },
+        text: "🍻 新加坡河畔的历史街区，现改为酒吧与餐饮街。吹着晚风，小酌一杯，非常惬意。"
+      },
+      {
+        id: "addr-5-9",
+        day: 3,
+        name: "牛车水 (Chinatown)",
+        coordinates: { lat: 1.2825, lng: 103.8442 },
+        text: "🏮 新加坡的唐人街。老式排屋和街巷布满了各种手工艺品店与地道中餐馆，红灯笼高挂，充满历史韵味。"
+      },
+      {
+        id: "addr-5-10",
+        day: 3,
+        name: "佛牙寺龙华院",
+        coordinates: { lat: 1.2814, lng: 103.8443 },
+        text: "🛕 百年唐代风格木结构寺庙，宏伟庄严。四楼供奉着释迦牟尼佛的真身佛牙舍利，内部装修金碧辉煌。"
+      },
+      {
+        id: "addr-5-11",
+        day: 3,
+        name: "麦士威路美食中心 (Maxwell Food Centre)",
+        coordinates: { lat: 1.2806, lng: 103.8438 },
+        text: "🍛 品尝地道星洲美食的大本营！最出名的是“天天海南鸡饭”，鸡肉极其鲜嫩，配上特制黑酱油与辣椒酱，简直人间美味。"
+      },
+      {
+        id: "addr-5-12",
+        day: 3,
+        name: "克拉码头 (Clarke Quay)",
+        coordinates: { lat: 1.2906, lng: 103.8465 },
+        text: "🌃 新加坡夜生活的核心区。五彩斑斓的旧仓库改建成了动感十足的酒吧与舞厅，运河游船在此穿梭，霓虹闪烁。"
+      },
+      {
+        id: "addr-5-13",
+        day: 4,
+        name: "新加坡环球影城 (Universal Studios Singapore)",
+        coordinates: { lat: 1.2543, lng: 103.8238 },
+        text: "🎢 圣淘沙岛的主角！包括变形金刚3D对决、双轨过山车、木乃伊复仇等热门项目，带给您一整天的尖叫与欢笑。"
+      },
+      {
+        id: "addr-5-14",
+        day: 4,
+        name: "圣淘沙捷运",
+        coordinates: { lat: 1.2646, lng: 103.8222 },
+        text: "🚝 连接主岛怡丰城与圣淘沙岛的轻轨捷运，出行非常便利。"
+      },
+      {
+        id: "addr-5-15",
+        day: 4,
+        name: "巴拉湾海滩 (Palawan Beach)",
+        coordinates: { lat: 1.2505, lng: 103.8189 },
+        text: "🏖️ 拥有连接亚洲大陆最南端小岛的吊桥，椰林树影，海水清澈，非常适合午后散步。"
+      },
+      {
+        id: "addr-5-16",
+        day: 4,
+        name: "西乐索海滩 (Siloso Beach)",
+        coordinates: { lat: 1.2558, lng: 103.8099 },
+        text: "🏄 新加坡最活跃的海滩，聚集了各种沙滩排球爱好者、冲浪俱乐部以及海滨小酒馆。"
+      },
+      {
+        id: "addr-5-17",
+        day: 4,
+        name: "S.E.A. 海洋馆",
+        coordinates: { lat: 1.2584, lng: 103.8193 },
+        text: "🐟 全球最大的海洋馆之一。巨大的深海观景区长 36 米，汇聚了双吻前口蝠鲼、魔鬼鱼、锤头鲨等数万只海洋生物，极具治愈感。"
+      },
+      {
+        id: "addr-5-18",
+        day: 4,
+        name: "斜坡滑车 (Skyline Luge)",
+        coordinates: { lat: 1.2524, lng: 103.8163 },
+        text: "🏎️ 坐在滑车上，沿特制轨道一路从高地滑行到底部沙滩，重力加速度带来的刺激感让人欲罢不能！"
+      },
+      {
+        id: "addr-5-19",
+        day: 4,
+        name: "怡丰城 (VivoCity)",
+        coordinates: { lat: 1.2638, lng: 103.8219 },
+        text: "🛍️ 新加坡最大的购物商场之一，从圣淘沙岛返回后的最佳逛吃地，顶层设有露天水上公园。"
+      }
+    ]
   }
 ];
 
@@ -7943,7 +8116,17 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
   const [notes, setNotes] = useState(() => {
     try {
       const saved = localStorage.getItem("travel_notes");
-      return saved ? JSON.parse(saved) : defaultTravelNotes;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const merged = [...parsed];
+        defaultTravelNotes.forEach((defNote) => {
+          if (!merged.some((n) => n.id === defNote.id || n.city === defNote.city)) {
+            merged.push(defNote);
+          }
+        });
+        return merged;
+      }
+      return defaultTravelNotes;
     } catch (e) {
       console.error("Failed to parse travel notes from localStorage:", e);
       return defaultTravelNotes;
@@ -7953,11 +8136,52 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
   const [expandedNoteId, setExpandedNoteId] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [activeDayFilter, setActiveDayFilter] = useState(null);
+  const pendingZoomAddress = useRef(null);
+  const isExpanding = useRef(false);
   const mapInstances = useRef({});
 
   useEffect(() => {
     localStorage.setItem("travel_notes", JSON.stringify(notes));
   }, [notes]);
+
+  // 当切换卡片时重置天数过滤和挂起的地点，并管理展开过渡状态
+  useEffect(() => {
+    setActiveDayFilter(null);
+    pendingZoomAddress.current = null;
+    if (expandedNoteId) {
+      isExpanding.current = true;
+      const timer = setTimeout(() => {
+        isExpanding.current = false;
+      }, 450);
+      return () => clearTimeout(timer);
+    } else {
+      isExpanding.current = false;
+    }
+  }, [expandedNoteId]);
+
+  // 反应式初始化/重绘地图
+  useEffect(() => {
+    if (expandedNoteId) {
+      const note = notes.find((n) => n.id === expandedNoteId);
+      if (note) {
+        const timer = setTimeout(() => {
+          initMap(note.id, note.center, note.addresses, activeDayFilter);
+        }, 400);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      // 收起时清理所有实例
+      Object.keys(mapInstances.current).forEach((key) => {
+        try {
+          mapInstances.current[key].remove();
+        } catch (e) {
+          console.error(e);
+        }
+      });
+      mapInstances.current = {};
+    }
+  }, [expandedNoteId, activeDayFilter, notes]);
 
   // 当展开卡片时，平滑滚动至其顶部
   useEffect(() => {
@@ -7974,56 +8198,163 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
   }, [expandedNoteId]);
 
   // 处理 Leaflet 地图初始化
-  const initMap = (noteId, center, addresses) => {
+  const initMap = (noteId, center, addresses, dayFilter) => {
     const containerId = `note-map-${noteId}`;
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    // 清理之前的旧实例
-    if (mapInstances.current[noteId]) {
-      mapInstances.current[noteId].remove();
-      delete mapInstances.current[noteId];
+    let map = mapInstances.current[noteId];
+    if (!map) {
+      map = L.map(containerId, { zoomControl: true }).setView(center || [48.8566, 2.3522], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      mapInstances.current[noteId] = map;
+    } else {
+      map.eachLayer((layer) => {
+        if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+          map.removeLayer(layer);
+        }
+      });
     }
 
-    const map = L.map(containerId, { zoomControl: true }).setView(center || [48.8566, 2.3522], 12);
-    
-    // 使用标准瓦片
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    // 按天生成和管理轨迹与标记
+    const dayColors = {
+      1: "#3b82f6", // Blue
+      2: "#ec4899", // Pink
+      3: "#10b981", // Emerald
+      4: "#f59e0b", // Amber
+      5: "#8b5cf6", // Purple
+      6: "#ef4444", // Red
+      7: "#06b6d4"  // Cyan
+    };
+    const getDayColor = (d) => dayColors[d] || "#64748b";
 
-    // 自定义 Marker 样式，极富科技感与美感
-    const customIcon = L.divIcon({
-      className: "custom-note-marker",
-      html: `<div class="marker-pin"><span class="marker-dot"></span></div>`,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12]
-    });
+    const uniqueDays = [...new Set(addresses.map((a) => a.day || 1))].sort((a, b) => a - b);
+    uniqueDays.forEach((dayNum) => {
+      // 如果开启了天数过滤，且不属于这一天，则直接跳过该路线和地点的绘制
+      if (dayFilter !== null && dayFilter !== dayNum) return;
 
-    addresses.forEach((addr) => {
-      if (addr.coordinates && addr.coordinates.lat && addr.coordinates.lng) {
+      const dayAddrs = addresses.filter((a) => (a.day || 1) === dayNum && a.coordinates && a.coordinates.lat && a.coordinates.lng);
+      
+      // 绘制连线
+      if (dayAddrs.length >= 2) {
+        const latlngs = dayAddrs.map((a) => [a.coordinates.lat, a.coordinates.lng]);
+        const polyline = L.polyline(latlngs, {
+          color: getDayColor(dayNum),
+          weight: 4,
+          opacity: 0.85,
+          dashArray: "6, 8"
+        }).addTo(map);
+
+        polyline.bindTooltip(`Day ${dayNum}`, {
+          permanent: false,
+          direction: "center",
+          className: "day-route-tooltip"
+        });
+      }
+
+      // 绘制带天数专属颜色和序号的 Marker
+      dayAddrs.forEach((addr, idx) => {
+        const customIcon = L.divIcon({
+          className: "custom-numbered-marker-wrapper",
+          html: `<div class="custom-numbered-marker" style="background-color: ${getDayColor(dayNum)}; box-shadow: 0 0 0 3px ${getDayColor(dayNum)}33;">${idx + 1}</div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
+
         L.marker([addr.coordinates.lat, addr.coordinates.lng], { icon: customIcon })
           .addTo(map)
-          .bindPopup(`<strong style="font-family: var(--prophet-serif); font-size: 0.88rem;">${addr.name}</strong>`);
-      }
+          .bindPopup(`<strong style="font-family: var(--prophet-serif); font-size: 0.88rem;">Day ${dayNum} - 第 ${idx + 1} 站: ${addr.name}</strong>`);
+      });
     });
+
+    // 检查是否有挂起的具体打卡点需要聚焦，如果有则直接聚焦
+    // zoomToAddress 内部已经包含 invalidateSize + rAF 的精确时序，这里直接调用
+    if (pendingZoomAddress.current) {
+      const addr = pendingZoomAddress.current;
+      pendingZoomAddress.current = null;
+      zoomToAddress(noteId, addr);
+    } else {
+      // 缩放到当前过滤后的最佳视野范围
+      // 先强制刷新容器尺寸，再用 rAF 等一帧，确保投影矩阵正确
+      map.invalidateSize({ animate: false });
+      requestAnimationFrame(() => {
+        const filterPoints = addresses.filter((a) => {
+          const isDayMatch = dayFilter === null || (a.day || 1) === dayFilter;
+          return isDayMatch && a.coordinates && a.coordinates.lat && a.coordinates.lng;
+        });
+
+        if (filterPoints.length > 0) {
+          const bounds = L.latLngBounds(filterPoints.map((a) => [a.coordinates.lat, a.coordinates.lng]));
+          // 使用非对称 Padding：给右上角图例留出 120px，其余方向只需 50px 保证路线区域缩放到最饱满且合理的大小
+          map.fitBounds(bounds, {
+            paddingTopLeft: [50, 50],
+            paddingBottomRight: [120, 50],
+            animate: true,
+            duration: 1.0
+          });
+        }
+      });
+    }
 
     mapInstances.current[noteId] = map;
   };
 
-  const handleLinkClick = (noteId, coords, name) => {
+  const zoomToAddress = (noteId, addr) => {
     const map = mapInstances.current[noteId];
-    if (map && coords) {
-      map.setView([coords.lat, coords.lng], 16, { animate: true, duration: 1.0 });
-      // 开启对应的 Marker Popup
-      map.eachLayer((layer) => {
-        if (layer instanceof L.Marker) {
-          const latlng = layer.getLatLng();
-          if (Math.abs(latlng.lat - coords.lat) < 0.0001 && Math.abs(latlng.lng - coords.lng) < 0.0001) {
-            layer.bindPopup(`<strong style="font-family: var(--prophet-serif); font-size: 0.88rem;">${name}</strong>`).openPopup();
-          }
-        }
+    if (map && addr && addr.coordinates) {
+      const { lat, lng } = addr.coordinates;
+      // Step 1: force Leaflet to recalculate container dimensions
+      map.invalidateSize({ animate: false });
+      // Step 2: wait two animation frames so the projection matrix is fully updated
+      // before calling setView — this fixes the "point not in center" bug
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          map.setView([lat, lng], 16, { animate: true, duration: 0.8 });
+          // Step 3: open the popup after the pan completes
+          setTimeout(() => {
+            map.eachLayer((layer) => {
+              if (layer instanceof L.Marker) {
+                const latlng = layer.getLatLng();
+                if (Math.abs(latlng.lat - lat) < 0.0001 && Math.abs(latlng.lng - lng) < 0.0001) {
+                  layer.bindPopup(`<strong style="font-family: var(--prophet-serif); font-size: 0.88rem;">Day ${addr.day || 1} - ${addr.name}</strong>`).openPopup();
+                }
+              }
+            });
+          }, 900);
+        });
       });
+    }
+  };
+
+  const handleLinkClick = (noteId, addr) => {
+    const targetDay = addr.day || 1;
+    pendingZoomAddress.current = addr;
+    if (activeDayFilter !== targetDay) {
+      setActiveDayFilter(targetDay);
+    } else {
+      zoomToAddress(noteId, addr);
+    }
+  };
+
+  const handleDayRouteClick = (noteId, dayNum) => {
+    if (activeDayFilter === dayNum) {
+      // 如果已经筛选了该天，手动触发镜头重置/定位
+      const map = mapInstances.current[noteId];
+      const note = notes.find((n) => n.id === noteId);
+      if (map && note) {
+        const dayAddrs = note.addresses.filter((a) => (a.day || 1) === dayNum && a.coordinates && a.coordinates.lat && a.coordinates.lng);
+        if (dayAddrs.length > 0) {
+          map.invalidateSize({ animate: false });
+          requestAnimationFrame(() => {
+            const bounds = L.latLngBounds(dayAddrs.map((a) => [a.coordinates.lat, a.coordinates.lng]));
+            map.fitBounds(bounds, { paddingTopLeft: [50, 50], paddingBottomRight: [120, 50], animate: true, duration: 1.0 });
+          });
+        }
+      }
+    } else {
+      setActiveDayFilter(dayNum);
     }
   };
 
@@ -8067,7 +8398,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
           <button
             key={index}
             className="address-link-anchor"
-            onClick={() => handleLinkClick(noteId, match.coordinates, match.name)}
+            onClick={() => handleLinkClick(noteId, match)}
             type="button"
           >
             {part}
@@ -8107,8 +8438,6 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
               onClick={() => {
                 if (!isExpanded) {
                   setExpandedNoteId(note.id);
-                  // 延时等 DOM 渲染后再初始化地图
-                  setTimeout(() => initMap(note.id, note.center, note.addresses), 200);
                 }
               }}
             >
@@ -8142,44 +8471,108 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
                   <div className="expanded-note-layout">
                     {/* 地图列 */}
                     <div className="note-map-wrapper">
-                      <div id={`note-map-${note.id}`} className="note-map-container" />
+                      <div style={{ position: "relative" }}>
+                        <div id={`note-map-${note.id}`} className="note-map-container" />
+                        <button
+                          onClick={() => {
+                            if (activeDayFilter === null) {
+                              const map = mapInstances.current[note.id];
+                              const valid = note.addresses.filter((a) => a.coordinates && a.coordinates.lat && a.coordinates.lng);
+                              if (map && valid.length > 0) {
+                                map.invalidateSize({ animate: false });
+                                requestAnimationFrame(() => {
+                                  const bounds = L.latLngBounds(valid.map((a) => [a.coordinates.lat, a.coordinates.lng]));
+                                  map.fitBounds(bounds, { paddingTopLeft: [50, 50], paddingBottomRight: [120, 50], animate: true, duration: 1.0 });
+                                });
+                              }
+                            } else {
+                              setActiveDayFilter(null);
+                            }
+                          }}
+                          className="map-reset-view-btn"
+                          type="button"
+                          title="显示全部路线"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                        <div className="map-legend">
+                          {(() => {
+                            const days = [...new Set(note.addresses.map((a) => a.day || 1))].sort((a, b) => a - b);
+                            const dayColors = {
+                              1: "#3b82f6", 2: "#ec4899", 3: "#10b981", 4: "#f59e0b", 5: "#8b5cf6", 6: "#ef4444", 7: "#06b6d4"
+                            };
+                            return days.map((d) => (
+                              <div
+                                key={d}
+                                className={`legend-item ${activeDayFilter === d ? "active" : ""}`}
+                                onClick={() => setActiveDayFilter(d)}
+                                title={`点击筛选 Day ${d}`}
+                              >
+                                <span className="legend-line" style={{ backgroundColor: dayColors[d] || "#64748b" }} />
+                                Day {d}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
                       <div className="map-instruction">
                         <MapIcon size={14} /> 点击右侧攻略中的地址，地图将自动飞跃定位
                       </div>
                     </div>
 
                     {/* 内容列 */}
-                    <div className="note-article-content">
-                      <div className="address-section-header">旅行轨迹细节：</div>
-                      {note.addresses.map((addr) => (
-                        <div key={addr.id} className="address-note-block">
-                          <div className="address-title">
-                            <MapPin size={14} color="#c69b55" />
-                            <button
-                              onClick={() => handleLinkClick(note.id, addr.coordinates, addr.name)}
-                              className="address-name-btn"
-                              type="button"
-                            >
-                              {addr.name}
-                            </button>
-                          </div>
-                          <p className="address-text">
-                            {renderTextWithLinks(note.id, addr.text, note.addresses)}
-                          </p>
-                          {addr.image && (
-                            <div className="address-image-container">
-                              <img src={addr.image} alt={addr.name} />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
+                    <div className="note-article-wrapper">
+                      <div className="note-article-content">
+                        {(() => {
+                          const days = [...new Set(note.addresses.map((a) => a.day || 1))].sort((a, b) => a - b);
+                          return days.map((dayNum) => {
+                            const dayAddrs = note.addresses.filter((a) => (a.day || 1) === dayNum);
+                            return (
+                              <div key={`day-group-${dayNum}`} className="day-notes-group">
+                                <button
+                                  onClick={() => handleDayRouteClick(note.id, dayNum)}
+                                  className="day-group-header-btn"
+                                  type="button"
+                                >
+                                  <span><Calendar size={14} style={{ marginRight: "6px", verticalAlign: "middle" }} /> Day {dayNum} 路线定位</span>
+                                  <span style={{ fontSize: "0.8rem", opacity: 0.8 }}>点击缩放此路线 ({dayAddrs.length} 个地点)</span>
+                                </button>
+                                <div className="day-group-addresses">
+                                  {dayAddrs.map((addr) => (
+                                    <div key={addr.id} className="address-note-block">
+                                      <div className="address-title">
+                                        <MapPin size={14} color="#c69b55" />
+                                        <button
+                                          onClick={() => handleLinkClick(note.id, addr)}
+                                          className="address-name-btn"
+                                          type="button"
+                                        >
+                                          {addr.name}
+                                        </button>
+                                      </div>
+                                      <p className="address-text">
+                                        {renderTextWithLinks(note.id, addr.text, note.addresses)}
+                                      </p>
+                                      {addr.image && (
+                                        <div className="address-image-container">
+                                          <img src={addr.image} alt={addr.name} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                      <div className="note-article-footer">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setExpandedNoteId(null);
                           }}
-                          className="close-expanded-btn"
+                          className="close-expanded-btn-bottom"
                           type="button"
                         >
                           收起记录
@@ -8241,6 +8634,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
         ...prev.addresses,
         {
           id: `addr-${Date.now()}-${prev.addresses.length}`,
+          day: 1,
           name: "",
           coordinates: { lat: 48.8566, lng: 2.3522 },
           text: ""
@@ -8432,6 +8826,32 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                   <button onClick={() => handleRemoveAddress(idx)} className="remove-address-btn" type="button">
                     删除该点
                   </button>
+                </div>
+                
+                <div className="form-group">
+                  <label>日程天数 (Day)</label>
+                  <select
+                    value={addr.day || 1}
+                    onChange={(e) => handleUpdateAddressField(idx, "day", parseInt(e.target.value) || 1)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      border: "1px solid #cbd5e1",
+                      background: "#fff",
+                      color: "#1e293b",
+                      fontSize: "0.9rem",
+                      outline: "none"
+                    }}
+                  >
+                    <option value={1}>第 1 天 (Day 1)</option>
+                    <option value={2}>第 2 天 (Day 2)</option>
+                    <option value={3}>第 3 天 (Day 3)</option>
+                    <option value={4}>第 4 天 (Day 4)</option>
+                    <option value={5}>第 5 天 (Day 5)</option>
+                    <option value={6}>第 6 天 (Day 6)</option>
+                    <option value={7}>第 7 天 (Day 7)</option>
+                  </select>
                 </div>
                 
                 <div className="form-group">
