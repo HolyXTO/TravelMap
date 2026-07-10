@@ -160,7 +160,84 @@ function visitTone(visitInfo, profiles = [], mapTheme, activeProfile = "all") {
 const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
+const wgs84ToGcj02 = (lat, lng) => {
+  const outOfChina = (lt, ln) => {
+    if (ln < 72.004 || ln > 137.8347) return true;
+    if (lt < 0.8293 || lt > 55.8271) return true;
+    return false;
+  };
+
+  if (outOfChina(lat, lng)) {
+    return [lat, lng];
+  }
+
+  const pi = 3.1415926535897932384626;
+  const a = 6378245.0;
+  const ee = 0.00669342162296594323;
+
+  const transformLat = (x, y) => {
+    let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+    ret += (20.0 * Math.sin(6.0 * x * pi) + 20.0 * Math.sin(2.0 * x * pi)) * 2.0 / 3.0;
+    ret += (20.0 * Math.sin(y * pi) + 40.0 * Math.sin(y / 3.0 * pi)) * 2.0 / 3.0;
+    ret += (160.0 * Math.sin(y / 12.0 * pi) + 320 * Math.sin(y * pi / 30.0)) * 2.0 / 3.0;
+    return ret;
+  };
+
+  const transformLng = (x, y) => {
+    let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+    ret += (20.0 * Math.sin(6.0 * x * pi) + 20.0 * Math.sin(2.0 * x * pi)) * 2.0 / 3.0;
+    ret += (20.0 * Math.sin(x * pi) + 40.0 * Math.sin(x / 3.0 * pi)) * 2.0 / 3.0;
+    ret += (150.0 * Math.sin(x / 12.0 * pi) + 300.0 * Math.sin(x / 30.0 * pi)) * 2.0 / 3.0;
+    return ret;
+  };
+
+  const dLat = transformLat(lng - 105.0, lat - 35.0);
+  const dLng = transformLng(lng - 105.0, lat - 35.0);
+  const radLat = lat / 180.0 * pi;
+  let magic = Math.sin(radLat);
+  magic = 1.0 - ee * magic * magic;
+  const sqrtMagic = Math.sqrt(magic);
+  const transformDLat = (dLat * 180.0) / ((a * (1.0 - ee)) / (magic * sqrtMagic) * pi);
+  const transformDLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * pi);
+  
+  return [lat + transformDLat, lng + transformDLng];
+};
+
+const adjustCoords = (coords, tileSource) => {
+  if (!coords) return coords;
+  const lat = coords.lat ?? coords[0];
+  const lng = coords.lng ?? coords[1];
+  
+  if (tileSource === "amap") {
+    const [adjLat, adjLng] = wgs84ToGcj02(lat, lng);
+    return Array.isArray(coords) ? [adjLat, adjLng] : { lat: adjLat, lng: adjLng };
+  }
+  return coords;
+};
+
 const getTileLayerConfig = (tileSource, type, themeId = "") => {
+  if (tileSource === "amap") {
+    // 高德地图 (AutoNavi - Full Chinese labels for the entire world, works fast inside China without VPN)
+    // 对于大地图背景底图，高德没有极简灰色模式，建议仍使用 Esri 的极简底图主题以保证美观度，仅在路网上切换
+    if (type === "dark" || themeId === "ink") {
+      return {
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+      };
+    }
+    if (type === "light" || themeId === "ocean" || themeId === "copper") {
+      return {
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+      };
+    }
+    return {
+      url: "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+      attribution: "&copy; 高德地图 (AutoNavi)",
+      subdomains: "1234"
+    };
+  }
+
   if (tileSource === "direct") {
     // Esri/ArcGIS Online (works perfectly inside China without VPN, using WGS-84)
     if (type === "dark" || themeId === "ink") {
@@ -3253,40 +3330,7 @@ function App() {
               variant="nav"
             />
           </div>
-          <div className="prophet-dropdown-nav" style={{ marginLeft: "12px" }}>
-            <button type="button">地图图源</button>
-            <div className="prophet-dropdown-menu" style={{ width: "160px" }}>
-              <button
-                onClick={() => setMapTileSource("direct")}
-                className={mapTileSource === "direct" ? "active" : ""}
-                type="button"
-                style={{ textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}
-              >
-                <span>国内直连 (Esri)</span>
-                {mapTileSource === "direct" && <span style={{ color: "var(--prophet-gold)" }}>✓</span>}
-              </button>
-              <button
-                onClick={() => setMapTileSource("osmfr")}
-                className={mapTileSource === "osmfr" ? "active" : ""}
-                type="button"
-                style={{ textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}
-              >
-                <span>法国镜像 (OSM Fr)</span>
-                {mapTileSource === "osmfr" && <span style={{ color: "var(--prophet-gold)" }}>✓</span>}
-              </button>
-              <button
-                onClick={() => setMapTileSource("osm")}
-                className={mapTileSource === "osm" ? "active" : ""}
-                type="button"
-                style={{ textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}
-              >
-                <span>标准 (OSM/Carto)</span>
-                {mapTileSource === "osm" && <span style={{ color: "var(--prophet-gold)" }}>✓</span>}
-              </button>
-            </div>
-          </div>
-          <div
-            className="status-strip prophet-status"
+          <div className="status-strip prophet-status"
             aria-label="项目状态"
             onClick={() => setAuthPanelOpen(true)}
             onKeyDown={(event) => {
@@ -3626,6 +3670,7 @@ function App() {
         activeProfile={activeProfile}
         profiles={appProfiles}
         mapTileSource={mapTileSource}
+        setMapTileSource={setMapTileSource}
       />
       {editingVisit && (
         <VisitEditDialog
@@ -8226,7 +8271,7 @@ const defaultTravelNotes = [
   }
 ];
 
-function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTileSource }) {
+function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTileSource, setMapTileSource }) {
   const canEdit = session ? isEditor : true;
   const [notes, setNotes] = useState(() => {
     try {
@@ -8359,7 +8404,10 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
       
       // 绘制连线
       if (dayAddrs.length >= 2) {
-        const latlngs = dayAddrs.map((a) => [a.coordinates.lat, a.coordinates.lng]);
+        const latlngs = dayAddrs.map((a) => {
+          const coords = adjustCoords(a.coordinates, mapTileSource);
+          return [coords.lat, coords.lng];
+        });
         const polyline = L.polyline(latlngs, {
           color: getDayColor(dayNum),
           weight: 4,
@@ -8383,7 +8431,8 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           iconAnchor: [12, 12]
         });
 
-        L.marker([addr.coordinates.lat, addr.coordinates.lng], { icon: customIcon })
+        const coords = adjustCoords(addr.coordinates, mapTileSource);
+        L.marker([coords.lat, coords.lng], { icon: customIcon })
           .addTo(map)
           .bindPopup(`<strong style="font-family: var(--prophet-serif); font-size: 0.88rem;">Day ${dayNum} - 第 ${idx + 1} 站: ${addr.name}</strong>`);
       });
@@ -8406,7 +8455,10 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
         });
 
         if (filterPoints.length > 0) {
-          const bounds = L.latLngBounds(filterPoints.map((a) => [a.coordinates.lat, a.coordinates.lng]));
+          const bounds = L.latLngBounds(filterPoints.map((a) => {
+            const coords = adjustCoords(a.coordinates, mapTileSource);
+            return [coords.lat, coords.lng];
+          }));
           // 使用非对称 Padding：给右上角图例留出 120px，其余方向只需 50px 保证路线区域缩放到最饱满且合理的大小
           map.fitBounds(bounds, {
             paddingTopLeft: [50, 50],
@@ -8424,7 +8476,8 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   const zoomToAddress = (noteId, addr) => {
     const map = mapInstances.current[noteId];
     if (map && addr && addr.coordinates) {
-      const { lat, lng } = addr.coordinates;
+      const coords = adjustCoords(addr.coordinates, mapTileSource);
+      const { lat, lng } = coords;
       // Step 1: force Leaflet to recalculate container dimensions
       map.invalidateSize({ animate: false });
       // Step 2: wait two animation frames so the projection matrix is fully updated
@@ -8473,7 +8526,10 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
         if (dayAddrs.length > 0) {
           map.invalidateSize({ animate: false });
           requestAnimationFrame(() => {
-            const bounds = L.latLngBounds(dayAddrs.map((a) => [a.coordinates.lat, a.coordinates.lng]));
+            const bounds = L.latLngBounds(dayAddrs.map((a) => {
+              const coords = adjustCoords(a.coordinates, mapTileSource);
+              return [coords.lat, coords.lng];
+            }));
             map.fitBounds(bounds, { paddingTopLeft: [50, 50], paddingBottomRight: [120, 50], animate: true, duration: 1.0 });
           });
         }
@@ -8608,7 +8664,10 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                               if (map && valid.length > 0) {
                                 map.invalidateSize({ animate: false });
                                 requestAnimationFrame(() => {
-                                  const bounds = L.latLngBounds(valid.map((a) => [a.coordinates.lat, a.coordinates.lng]));
+                                  const bounds = L.latLngBounds(valid.map((a) => {
+                                    const coords = adjustCoords(a.coordinates, mapTileSource);
+                                    return [coords.lat, coords.lng];
+                                  }));
                                   map.fitBounds(bounds, { paddingTopLeft: [50, 50], paddingBottomRight: [120, 50], animate: true, duration: 1.0 });
                                 });
                               }
@@ -8643,7 +8702,26 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                         </div>
                       </div>
                       <div className="map-instruction">
-                        <MapIcon size={14} /> 点击右侧攻略中的地址，地图将自动飞跃定位
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <MapIcon size={14} /> 点击右侧攻略中的地址，地图将自动飞跃定位
+                        </div>
+                        <div className="map-source-switch-container">
+                          <span className="switch-label">地图语言：</span>
+                          <button
+                            onClick={() => setMapTileSource("direct")}
+                            className={`map-source-switch-btn ${mapTileSource === "direct" ? "active" : ""}`}
+                            type="button"
+                          >
+                            原生地图 (Esri)
+                          </button>
+                          <button
+                            onClick={() => setMapTileSource("amap")}
+                            className={`map-source-switch-btn ${mapTileSource === "amap" ? "active" : ""}`}
+                            type="button"
+                          >
+                            中文标注 (高德)
+                          </button>
+                        </div>
                       </div>
                     </div>
 

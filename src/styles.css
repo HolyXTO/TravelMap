@@ -5161,12 +5161,52 @@ h2 {
 }
 
 .map-instruction {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
   font-size: 0.8rem;
   color: #64748b;
   font-weight: 700;
+}
+
+.map-source-switch-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 2px;
+}
+
+.switch-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.map-source-switch-btn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-family: var(--prophet-serif);
+  font-weight: 800;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.map-source-switch-btn:hover {
+  border-color: var(--prophet-gold);
+  color: var(--prophet-gold);
+}
+
+.map-source-switch-btn.active {
+  background: var(--prophet-gold);
+  border-color: var(--prophet-gold);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(198, 155, 85, 0.2);
 }
 
 .note-article-wrapper {
