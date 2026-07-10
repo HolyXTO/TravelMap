@@ -160,6 +160,62 @@ function visitTone(visitInfo, profiles = [], mapTheme, activeProfile = "all") {
 const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
+const getTileLayerConfig = (tileSource, type, themeId = "") => {
+  if (tileSource === "direct") {
+    // Esri/ArcGIS Online (works perfectly inside China without VPN, using WGS-84)
+    if (type === "dark" || themeId === "ink") {
+      return {
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+      };
+    }
+    if (type === "light" || themeId === "ocean" || themeId === "copper") {
+      return {
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+      };
+    }
+    // Default street map (used for travel notes note-maps)
+    return {
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+      attribution: "Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom"
+    };
+  } else if (tileSource === "osmfr") {
+    // French OpenStreetMap mirror (accessible in China without VPN)
+    return {
+      url: "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png",
+      attribution: "&copy; OpenStreetMap France | &copy; OpenStreetMap contributors"
+    };
+  } else {
+    // Standard OpenStreetMap / CartoDB tiles (requires VPN in China)
+    if (type === "dark" || themeId === "ink") {
+      return {
+        url: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
+        attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>"
+      };
+    }
+    if (type === "light" || themeId === "ocean" || themeId === "copper") {
+      return {
+        url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>"
+      };
+    }
+    if (themeId === "coral" || themeId === "mint") {
+      return {
+        url: themeId === "coral"
+          ? "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png",
+        attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>"
+      };
+    }
+    // Default street map (OSM standard)
+    return {
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"
+    };
+  }
+};
+
 function useNearViewport(rootMargin = "320px") {
   const ref = useRef(null);
   const [isNear, setIsNear] = useState(false);
@@ -2255,6 +2311,14 @@ function App() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [activeMapThemeId, setActiveMapThemeId] = useState("copper");
+  const [mapTileSource, setMapTileSource] = useState(() => {
+    return localStorage.getItem("map_tile_source") || "direct"; // Default to "direct" (Esri) which works great in China without VPN
+  });
+
+  useEffect(() => {
+    localStorage.setItem("map_tile_source", mapTileSource);
+  }, [mapTileSource]);
+
   const [appProfiles, setAppProfiles] = useState(profiles);
   const [visits, setVisits] = useState([]);
   const [recentInteractions, setRecentInteractions] = useState([]);
@@ -3189,6 +3253,38 @@ function App() {
               variant="nav"
             />
           </div>
+          <div className="prophet-dropdown-nav" style={{ marginLeft: "12px" }}>
+            <button type="button">地图图源</button>
+            <div className="prophet-dropdown-menu" style={{ width: "160px" }}>
+              <button
+                onClick={() => setMapTileSource("direct")}
+                className={mapTileSource === "direct" ? "active" : ""}
+                type="button"
+                style={{ textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}
+              >
+                <span>国内直连 (Esri)</span>
+                {mapTileSource === "direct" && <span style={{ color: "var(--prophet-gold)" }}>✓</span>}
+              </button>
+              <button
+                onClick={() => setMapTileSource("osmfr")}
+                className={mapTileSource === "osmfr" ? "active" : ""}
+                type="button"
+                style={{ textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}
+              >
+                <span>法国镜像 (OSM Fr)</span>
+                {mapTileSource === "osmfr" && <span style={{ color: "var(--prophet-gold)" }}>✓</span>}
+              </button>
+              <button
+                onClick={() => setMapTileSource("osm")}
+                className={mapTileSource === "osm" ? "active" : ""}
+                type="button"
+                style={{ textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}
+              >
+                <span>标准 (OSM/Carto)</span>
+                {mapTileSource === "osm" && <span style={{ color: "var(--prophet-gold)" }}>✓</span>}
+              </button>
+            </div>
+          </div>
           <div
             className="status-strip prophet-status"
             aria-label="项目状态"
@@ -3332,6 +3428,7 @@ function App() {
           visitedCityVisits={visitedCityVisits}
           visitedPlaces={visibleVisitedPlaces}
           onPlaceFocus={handleMapPlaceFocus}
+          mapTileSource={mapTileSource}
         />
       </section>
 
@@ -5246,6 +5343,7 @@ function MapView({
   visitedCityVisits,
   visitedPlaces,
   onPlaceFocus,
+  mapTileSource,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -5284,17 +5382,20 @@ function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapTheme) return;
-    if (tileLayerRef.current) {
-      tileLayerRef.current.remove();
+
+    const config = getTileLayerConfig(mapTileSource, "", mapTheme.id);
+    if (!tileLayerRef.current) {
+      tileLayerRef.current = L.tileLayer(config.url, {
+        attribution: config.attribution,
+        maxZoom: 20,
+        noWrap: false,
+        keepBuffer: 4,
+        subdomains: "abcd",
+      }).addTo(map);
+    } else {
+      tileLayerRef.current.setUrl(config.url);
     }
-    tileLayerRef.current = L.tileLayer(mapTheme.tile, {
-      attribution: MAP_TILE_ATTRIBUTION,
-      maxZoom: 20,
-      noWrap: false,
-      keepBuffer: 4,
-      subdomains: "abcd",
-    }).addTo(map);
-  }, [mapTheme]);
+  }, [mapTheme, mapTileSource]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -6061,6 +6162,7 @@ function CountryModal({
               visitedCityVisits={modalVisitedCityVisits}
               visitedPlaces={modalVisitedPlaces}
               onPlaceFocus={handleModalPlaceFocus}
+              mapTileSource={mapTileSource}
             />
           </div>
           {comparisonMode ? (
@@ -6280,10 +6382,12 @@ function MiniCountryMap({
   visitedCityVisits,
   visitedPlaces,
   onPlaceFocus,
+  mapTileSource,
 }) {
   const miniRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
+  const tileLayerRef = useRef(null);
   const lastFitCountryRef = useRef(null);
   const [activeVisitPreview, setActiveVisitPreview] = useState(null);
 
@@ -6297,16 +6401,26 @@ function MiniCountryMap({
     });
     L.control.zoom({ position: "bottomleft" }).addTo(map);
     map.on("click", () => setActiveVisitPreview(null));
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-      maxZoom: 20,
-      subdomains: "abcd",
-    }).addTo(map);
     mapRef.current = map;
     return () => {
       map.remove();
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+    const config = getTileLayerConfig(mapTileSource, "light");
+    tileLayerRef.current = L.tileLayer(config.url, {
+      maxZoom: 20,
+      attribution: config.attribution,
+      subdomains: "abcd",
+    }).addTo(map);
+  }, [mapTileSource]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -8181,7 +8295,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
       });
       mapInstances.current = {};
     }
-  }, [expandedNoteId, activeDayFilter, notes]);
+  }, [expandedNoteId, activeDayFilter, notes, mapTileSource]);
 
   // 当展开卡片时，平滑滚动至其顶部
   useEffect(() => {
@@ -8204,13 +8318,18 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
     if (!container) return;
 
     let map = mapInstances.current[noteId];
+    const tileConfig = getTileLayerConfig(mapTileSource, "street");
+
     if (!map) {
       map = L.map(containerId, { zoomControl: true }).setView(center || [48.8566, 2.3522], 12);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; OpenStreetMap contributors'
+      map._tileLayer = L.tileLayer(tileConfig.url, {
+        attribution: tileConfig.attribution
       }).addTo(map);
       mapInstances.current[noteId] = map;
     } else {
+      if (map._tileLayer) {
+        map._tileLayer.setUrl(tileConfig.url);
+      }
       map.eachLayer((layer) => {
         if (layer instanceof L.Marker || layer instanceof L.Polyline) {
           map.removeLayer(layer);
@@ -8330,15 +8449,20 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
 
   const handleLinkClick = (noteId, addr) => {
     const targetDay = addr.day || 1;
-    pendingZoomAddress.current = addr;
     if (activeDayFilter !== targetDay) {
+      // 先设置挂起地点，再切换天数，initMap 完成重绘后会读取并聚焦
+      pendingZoomAddress.current = addr;
       setActiveDayFilter(targetDay);
     } else {
+      // 同一天：直接聚焦，不需要 pending（避免残留影响后续操作）
+      pendingZoomAddress.current = null;
       zoomToAddress(noteId, addr);
     }
   };
 
   const handleDayRouteClick = (noteId, dayNum) => {
+    // 无论哪种情况，点击路线定位时都清除挂起地点，防止残留 pendingZoomAddress 干扰 fitBounds
+    pendingZoomAddress.current = null;
     if (activeDayFilter === dayNum) {
       // 如果已经筛选了该天，手动触发镜头重置/定位
       const map = mapInstances.current[noteId];
@@ -8475,6 +8599,8 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
                         <div id={`note-map-${note.id}`} className="note-map-container" />
                         <button
                           onClick={() => {
+                            // 重置时清除挂起地点，防止切换后 initMap 被劫持为单点聚焦
+                            pendingZoomAddress.current = null;
                             if (activeDayFilter === null) {
                               const map = mapInstances.current[note.id];
                               const valid = note.addresses.filter((a) => a.coordinates && a.coordinates.lat && a.coordinates.lng);
