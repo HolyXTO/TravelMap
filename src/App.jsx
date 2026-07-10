@@ -232,7 +232,7 @@ const getTileLayerConfig = (tileSource, type, themeId = "") => {
       };
     }
     return {
-      url: "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+      url: "https://wprd0{s}.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7",
       attribution: "&copy; 高德地图 (AutoNavi)",
       subdomains: "1234"
     };
@@ -8369,13 +8369,18 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     if (!map) {
       map = L.map(containerId, { zoomControl: true }).setView(center || [48.8566, 2.3522], 12);
       map._tileLayer = L.tileLayer(tileConfig.url, {
-        attribution: tileConfig.attribution
+        attribution: tileConfig.attribution,
+        subdomains: tileConfig.subdomains || "abc"
       }).addTo(map);
       mapInstances.current[noteId] = map;
     } else {
       if (map._tileLayer) {
-        map._tileLayer.setUrl(tileConfig.url);
+        map._tileLayer.remove();
       }
+      map._tileLayer = L.tileLayer(tileConfig.url, {
+        attribution: tileConfig.attribution,
+        subdomains: tileConfig.subdomains || "abc"
+      }).addTo(map);
       map.eachLayer((layer) => {
         if (layer instanceof L.Marker || layer instanceof L.Polyline) {
           map.removeLayer(layer);
