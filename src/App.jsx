@@ -8716,15 +8716,25 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                             onClick={() => setMapTileSource("direct")}
                             className={`map-source-switch-btn ${mapTileSource === "direct" ? "active" : ""}`}
                             type="button"
+                            title="全球高清街道图，显示英文与本地语言"
                           >
                             原生地图 (Esri)
+                          </button>
+                          <button
+                            onClick={() => setMapTileSource("osmfr")}
+                            className={`map-source-switch-btn ${mapTileSource === "osmfr" ? "active" : ""}`}
+                            type="button"
+                            title="全球范围中英双语标注，支持免翻墙高速加载"
+                          >
+                            中英双语 (OSM)
                           </button>
                           <button
                             onClick={() => setMapTileSource("amap")}
                             className={`map-source-switch-btn ${mapTileSource === "amap" ? "active" : ""}`}
                             type="button"
+                            title="全中文标注，但仅限中国境内使用（境外高缩放无街道）"
                           >
-                            中文标注 (高德)
+                            高德 (仅限国内)
                           </button>
                         </div>
                       </div>
