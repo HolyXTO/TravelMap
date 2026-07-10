@@ -8638,6 +8638,55 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     setEditingNote(JSON.parse(JSON.stringify(note)));
   };
 
+  const handleExportNotes = () => {
+    const dataStr = JSON.stringify(notes, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    const exportFileDefaultName = 'travel_notes_backup.json';
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const handleImportNotes = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported)) {
+            setNotes((prev) => {
+              const merged = [...prev];
+              imported.forEach((note) => {
+                const idx = merged.findIndex((n) => n.id === note.id);
+                if (idx > -1) {
+                  merged[idx] = note;
+                } else {
+                  merged.push(note);
+                }
+              });
+              return merged;
+            });
+            alert("旅行记录导入成功！");
+          } else {
+            alert("导入失败：文件格式不正确，必须是旅行记录的 JSON 数组。");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("读取备份文件失败，请确保选择的是正确的 .json 备份文件。");
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
   const handleSaveNote = (savedNote) => {
     if (notes.some((n) => n.id === savedNote.id)) {
       setNotes((prev) => prev.map((n) => (n.id === savedNote.id ? savedNote : n)));
@@ -8683,14 +8732,34 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           旅行记录·<span className="major-title-en">Travel Notes</span>·<span className="major-title-number">{notes.length}</span>
         </h2>
         {canEdit && (
-          <button
-            className="country-gallery-toggle active"
-            onClick={() => setIsAddingNote(true)}
-            type="button"
-            style={{ padding: "8px 18px", borderRadius: "999px", background: "linear-gradient(135deg, #c69b55, #b8863b)", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px" }}
-          >
-            <Plus size={16} /> 写新记录
-          </button>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <button
+              className="country-gallery-toggle"
+              onClick={handleExportNotes}
+              type="button"
+              style={{ padding: "8px 16px", borderRadius: "999px", border: "1px solid #cbd5e1", background: "#fff", color: "#64748b", fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+              title="导出当前所有旅行记录到本地 JSON 备份文件"
+            >
+              <Download size={14} /> 导出备份
+            </button>
+            <button
+              className="country-gallery-toggle"
+              onClick={handleImportNotes}
+              type="button"
+              style={{ padding: "8px 16px", borderRadius: "999px", border: "1px solid #cbd5e1", background: "#fff", color: "#64748b", fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+              title="从 JSON 备份文件导入旅行记录（相同 ID 的记录将被覆盖）"
+            >
+              <Upload size={14} /> 导入备份
+            </button>
+            <button
+              className="country-gallery-toggle active"
+              onClick={() => setIsAddingNote(true)}
+              type="button"
+              style={{ padding: "8px 18px", borderRadius: "999px", background: "linear-gradient(135deg, #c69b55, #b8863b)", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <Plus size={16} /> 写新记录
+            </button>
+          </div>
         )}
       </div>
 
@@ -9002,12 +9071,34 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     }
     setSearchingIndex(idx);
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lng = parseFloat(data[0].lon);
+      let lat, lng;
+      
+      // 优先使用 Esri 地理编码服务（国内免梯子直连且极速，全球范围中英文完美支持，且无需 token）
+      const esriUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(name)}&maxLocations=1`;
+      try {
+        const res = await fetch(esriUrl);
+        const data = await res.json();
+        if (data && data.candidates && data.candidates.length > 0) {
+          const location = data.candidates[0].location;
+          lat = parseFloat(location.y);
+          lng = parseFloat(location.x);
+        }
+      } catch (e) {
+        console.warn("Esri Geocoder failed, falling back to Nominatim...", e);
+      }
+
+      // 如果 Esri 没查到或请求出错，尝试使用 Nominatim 备份（海外使用梯子时效果好）
+      if (lat === undefined || lng === undefined) {
+        const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`;
+        const res = await fetch(osmUrl);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          lat = parseFloat(data[0].lat);
+          lng = parseFloat(data[0].lon);
+        }
+      }
+
+      if (lat !== undefined && lng !== undefined) {
         handleUpdateAddressField(idx, "coordinates", { lat, lng });
         
         // 同时如果是第一个地址且中心点是默认的，自动设为地图中心
