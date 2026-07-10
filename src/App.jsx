@@ -9056,9 +9056,13 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
       let lat, lng;
 
       // 1️⃣ 优先使用天地图地理编码（国内政府服务，无需梯子，中文地名效果最佳）
+      // 自动拼上城市名作为前缀，解决重名地点问题（如“光谷广场”全国多处，加上“武汉”可正确定位）
+      const cityCtx = editingNote?.city?.trim() || "";
+      // 如果用户输入的地名中已包含城市名，不重复拼接
+      const queryWithCity = cityCtx && !name.includes(cityCtx) ? `${cityCtx} ${name}` : name;
       try {
         const tdt = await fetch(
-          `https://api.tianditu.gov.cn/geocoder?ds=${encodeURIComponent(JSON.stringify({ keyWord: name }))}&tk=${TIANDITU_KEY}`
+          `https://api.tianditu.gov.cn/geocoder?ds=${encodeURIComponent(JSON.stringify({ keyWord: queryWithCity }))}&tk=${TIANDITU_KEY}`
         );
         const tdtData = await tdt.json();
         if (tdtData && tdtData.status === "0" && tdtData.location) {
@@ -9072,7 +9076,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
       // 2️⃣ 天地图未查到，尝试 Esri 地理编码（全球范围，中英文支持）
       if (lat === undefined || lng === undefined) {
         try {
-          const esriUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(name)}&maxLocations=1`;
+          const esriUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(queryWithCity)}&maxLocations=1`;
           const res = await fetch(esriUrl);
           const data = await res.json();
           if (data && data.candidates && data.candidates.length > 0) {
@@ -9087,7 +9091,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
       // 3️⃣ Nominatim 兜底（需梯子，或海外访问时使用）
       if (lat === undefined || lng === undefined) {
         try {
-          const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`;
+          const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryWithCity)}&format=json&limit=1`;
           const res = await fetch(osmUrl);
           const data = await res.json();
           if (data && data.length > 0) {
@@ -9131,7 +9135,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
   };
 
   return (
-    <div className="travel-edit-dialog-overlay" onClick={onClose}>
+    <div className="travel-edit-dialog-overlay">
       <div className="travel-edit-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
           <h3>编辑旅行记录</h3>
@@ -9324,6 +9328,16 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                 </div>
               </div>
             ))}
+            {/* 地址列表底部的“新增旅行点”按鈕，无需滚回顶部 */}
+            {editingNote.addresses.length > 0 && (
+              <button
+                onClick={handleAddAddress}
+                className="add-address-btn add-address-btn-bottom"
+                type="button"
+              >
+                + 新增旅行点
+              </button>
+            )}
           </div>
 
           <div className="dialog-footer">

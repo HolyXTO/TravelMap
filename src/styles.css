@@ -5770,6 +5770,29 @@ h2 {
   color: #0f172a;
 }
 
+/* 地址列表底部的"新增旅行点"按钮：宽度拉满、更突出 */
+.add-address-btn-bottom {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 14px;
+  border: 2px dashed #c69b55;
+  border-radius: 10px;
+  background: #fffbf2;
+  color: #b8863b;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-address-btn-bottom:hover {
+  background: #fef3c7;
+  border-color: #b8863b;
+  color: #92660e;
+}
+
 .address-edit-card {
   background: #f8fafc;
   border: 1px dashed #cbd5e1;
