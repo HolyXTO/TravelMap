@@ -160,13 +160,27 @@ function visitTone(visitInfo, profiles = [], mapTheme, activeProfile = "all") {
 const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-const wgs84ToGcj02 = (lat, lng) => {
-  const outOfChina = (lt, ln) => {
-    if (ln < 72.004 || ln > 137.8347) return true;
-    if (lt < 0.8293 || lt > 55.8271) return true;
-    return false;
-  };
+const outOfChina = (lat, lng) => {
+  if (lng < 72.004 || lng > 137.8347) return true;
+  if (lat < 18.0 || lat > 55.8271) return true;
+  return false;
+};
 
+const isNoteDomestic = (note) => {
+  if (!note) return false;
+  if (note.center) {
+    return !outOfChina(note.center[0], note.center[1]);
+  }
+  if (note.addresses && note.addresses.length > 0) {
+    const first = note.addresses[0];
+    if (first.coordinates) {
+      return !outOfChina(first.coordinates.lat, first.coordinates.lng);
+    }
+  }
+  return false;
+};
+
+const wgs84ToGcj02 = (lat, lng) => {
   if (outOfChina(lat, lng)) {
     return [lat, lng];
   }
@@ -8363,6 +8377,26 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     }
   }, [expandedNoteId]);
 
+  // 当展开卡片时，根据地点是国内还是国外，自动切换默认地图图源
+  useEffect(() => {
+    if (!expandedNoteId) return;
+    const note = notes.find((n) => n.id === expandedNoteId);
+    if (!note) return;
+    
+    const domestic = isNoteDomestic(note);
+    if (domestic) {
+      // 国内：如果当前使用的是国外专用的 Esri，则默认切换到天地图
+      if (mapTileSource === "direct") {
+        setMapTileSource("tianditu");
+      }
+    } else {
+      // 国外：如果当前使用的是国内专用的天地图或高德，则强切换到 Esri (direct)
+      if (mapTileSource === "tianditu" || mapTileSource === "amap") {
+        setMapTileSource("direct");
+      }
+    }
+  }, [expandedNoteId, notes, mapTileSource, setMapTileSource]);
+
   // 反应式初始化/重绘地图
   useEffect(() => {
     if (expandedNoteId) {
@@ -8757,25 +8791,41 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <MapIcon size={14} /> 点击右侧攻略中的地址，地图将自动飞跃定位
                         </div>
-                        <div className="map-source-switch-container">
-                          <span className="switch-label">地图语言：</span>
-                          <button
-                            onClick={() => setMapTileSource("direct")}
-                            className={`map-source-switch-btn ${mapTileSource === "direct" ? "active" : ""}`}
-                            type="button"
-                            title="全球高清街道图，显示英文与本地语言"
-                          >
-                            原生地图 (Esri)
-                          </button>
-                          <button
-                            onClick={() => setMapTileSource("tianditu")}
-                            className={`map-source-switch-btn ${mapTileSource === "tianditu" ? "active" : ""}`}
-                            type="button"
-                            title="使用天地图API，全球高清街道图 + 全中文地名与标注"
-                          >
-                            中文标注 (天地图)
-                          </button>
-                        </div>
+                        {(() => {
+                          const domestic = isNoteDomestic(note);
+                          return (
+                            <div className="map-source-switch-container">
+                              <span className="switch-label">地图选择：</span>
+                              <button
+                                onClick={() => setMapTileSource("direct")}
+                                className={`map-source-switch-btn ${mapTileSource === "direct" ? "active" : ""}`}
+                                disabled={domestic}
+                                type="button"
+                                title={domestic ? "国内行程默认使用中文地图，无需使用原生地图" : "全球高清街道图，显示英文与本地语言"}
+                              >
+                                Esri地图
+                              </button>
+                              <button
+                                onClick={() => setMapTileSource("amap")}
+                                className={`map-source-switch-btn ${mapTileSource === "amap" ? "active" : ""}`}
+                                disabled={!domestic}
+                                type="button"
+                                title={!domestic ? "国外高比例尺下无街道详情，仅限国内行程使用" : "高精中文地图，带有火星坐标纠错"}
+                              >
+                                高德地图
+                              </button>
+                              <button
+                                onClick={() => setMapTileSource("tianditu")}
+                                className={`map-source-switch-btn ${mapTileSource === "tianditu" ? "active" : ""}`}
+                                disabled={!domestic}
+                                type="button"
+                                title={!domestic ? "国家地理信息服务平台，国外缩放度受限，仅限国内行程使用" : "天地图官方数据，全球中文标注，无偏展示"}
+                              >
+                                天地图
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
