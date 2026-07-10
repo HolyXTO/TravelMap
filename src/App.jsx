@@ -215,82 +215,91 @@ const adjustCoords = (coords, tileSource) => {
   return coords;
 };
 
-const getTileLayerConfig = (tileSource, type, themeId = "") => {
-  if (tileSource === "amap") {
-    // 高德地图 (AutoNavi - Full Chinese labels for the entire world, works fast inside China without VPN)
-    // 对于大地图背景底图，高德没有极简灰色模式，建议仍使用 Esri 的极简底图主题以保证美观度，仅在路网上切换
+const TIANDITU_KEY = "68a2c44c031deb6991a26247553e0dbe";
+
+const getTileLayersConfigs = (tileSource, type, themeId = "") => {
+  if (tileSource === "tianditu") {
+    // 天地图 (China's official national map platform with full Chinese labels globally)
     if (type === "dark" || themeId === "ink") {
-      return {
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-      };
+      return [
+        {
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+          attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+        }
+      ];
     }
     if (type === "light" || themeId === "ocean" || themeId === "copper") {
-      return {
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-      };
+      return [
+        {
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+          attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+        }
+      ];
     }
-    return {
-      url: "https://wprd0{s}.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7",
-      attribution: "&copy; 高德地图 (AutoNavi)",
-      subdomains: "1234"
-    };
+    return [
+      {
+        url: `https://t{s}.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TIANDITU_KEY}`,
+        attribution: "&copy; 国家地理信息公共服务平台 (天地图)",
+        subdomains: "01234567"
+      },
+      {
+        url: `https://t{s}.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TIANDITU_KEY}`,
+        attribution: "&copy; 国家地理信息公共服务平台 (天地图)",
+        subdomains: "01234567"
+      }
+    ];
   }
 
-  if (tileSource === "direct") {
-    // Esri/ArcGIS Online (works perfectly inside China without VPN, using WGS-84)
+  if (tileSource === "amap") {
+    // 高德地图 (AutoNavi - Full Chinese labels, works fast inside China, but only inside China borders for street zoom levels)
     if (type === "dark" || themeId === "ink") {
-      return {
+      return [
+        {
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+          attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+        }
+      ];
+    }
+    if (type === "light" || themeId === "ocean" || themeId === "copper") {
+      return [
+        {
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+          attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+        }
+      ];
+    }
+    return [
+      {
+        url: "https://wprd0{s}.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7",
+        attribution: "&copy; 高德地图 (AutoNavi)",
+        subdomains: "1234"
+      }
+    ];
+  }
+
+  // Default to Esri/ArcGIS Online (direct)
+  if (type === "dark" || themeId === "ink") {
+    return [
+      {
         url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
         attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-      };
-    }
-    if (type === "light" || themeId === "ocean" || themeId === "copper") {
-      return {
+      }
+    ];
+  }
+  if (type === "light" || themeId === "ocean" || themeId === "copper") {
+    return [
+      {
         url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
         attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-      };
-    }
-    // Default street map (used for travel notes note-maps)
-    return {
+      }
+    ];
+  }
+  return [
+    {
       url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
       attribution: "Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom"
-    };
-  } else if (tileSource === "osmfr") {
-    // French OpenStreetMap mirror (accessible in China without VPN)
-    return {
-      url: "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png",
-      attribution: "&copy; OpenStreetMap France | &copy; OpenStreetMap contributors"
-    };
-  } else {
-    // Standard OpenStreetMap / CartoDB tiles (requires VPN in China)
-    if (type === "dark" || themeId === "ink") {
-      return {
-        url: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
-        attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>"
-      };
     }
-    if (type === "light" || themeId === "ocean" || themeId === "copper") {
-      return {
-        url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-        attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>"
-      };
-    }
-    if (themeId === "coral" || themeId === "mint") {
-      return {
-        url: themeId === "coral"
-          ? "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png",
-        attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>"
-      };
-    }
-    // Default street map (OSM standard)
-    return {
-      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"
-    };
-  }
+  ];
 };
 
 function useNearViewport(rootMargin = "320px") {
@@ -5429,17 +5438,35 @@ function MapView({
     const map = mapRef.current;
     if (!map || !mapTheme) return;
 
-    const config = getTileLayerConfig(mapTileSource, "", mapTheme.id);
-    if (!tileLayerRef.current) {
+    if (tileLayerRef.current) {
+      if (Array.isArray(tileLayerRef.current)) {
+        tileLayerRef.current.forEach((layer) => layer.remove());
+      } else {
+        tileLayerRef.current.remove();
+      }
+      tileLayerRef.current = null;
+    }
+
+    const configs = getTileLayersConfigs(mapTileSource, "", mapTheme.id);
+    if (configs.length > 1) {
+      tileLayerRef.current = configs.map((cfg) => {
+        return L.tileLayer(cfg.url, {
+          attribution: cfg.attribution,
+          maxZoom: 20,
+          noWrap: false,
+          keepBuffer: 4,
+          subdomains: cfg.subdomains || "abc",
+        }).addTo(map);
+      });
+    } else {
+      const config = configs[0];
       tileLayerRef.current = L.tileLayer(config.url, {
         attribution: config.attribution,
         maxZoom: 20,
         noWrap: false,
         keepBuffer: 4,
-        subdomains: "abcd",
+        subdomains: config.subdomains || "abc",
       }).addTo(map);
-    } else {
-      tileLayerRef.current.setUrl(config.url);
     }
   }, [mapTheme, mapTileSource]);
 
@@ -6458,14 +6485,30 @@ function MiniCountryMap({
     const map = mapRef.current;
     if (!map) return;
     if (tileLayerRef.current) {
-      tileLayerRef.current.remove();
+      if (Array.isArray(tileLayerRef.current)) {
+        tileLayerRef.current.forEach((layer) => layer.remove());
+      } else {
+        tileLayerRef.current.remove();
+      }
+      tileLayerRef.current = null;
     }
-    const config = getTileLayerConfig(mapTileSource, "light");
-    tileLayerRef.current = L.tileLayer(config.url, {
-      maxZoom: 20,
-      attribution: config.attribution,
-      subdomains: "abcd",
-    }).addTo(map);
+    const configs = getTileLayersConfigs(mapTileSource, "light");
+    if (configs.length > 1) {
+      tileLayerRef.current = configs.map((cfg) => {
+        return L.tileLayer(cfg.url, {
+          maxZoom: 20,
+          attribution: cfg.attribution,
+          subdomains: cfg.subdomains || "abc",
+        }).addTo(map);
+      });
+    } else {
+      const config = configs[0];
+      tileLayerRef.current = L.tileLayer(config.url, {
+        maxZoom: 20,
+        attribution: config.attribution,
+        subdomains: config.subdomains || "abc",
+      }).addTo(map);
+    }
   }, [mapTileSource]);
 
   useEffect(() => {
@@ -8364,23 +8407,27 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     if (!container) return;
 
     let map = mapInstances.current[noteId];
-    const tileConfig = getTileLayerConfig(mapTileSource, "street");
+    const configs = getTileLayersConfigs(mapTileSource, "street");
 
     if (!map) {
       map = L.map(containerId, { zoomControl: true }).setView(center || [48.8566, 2.3522], 12);
-      map._tileLayer = L.tileLayer(tileConfig.url, {
-        attribution: tileConfig.attribution,
-        subdomains: tileConfig.subdomains || "abc"
-      }).addTo(map);
+      map._tileLayers = configs.map((cfg) => {
+        return L.tileLayer(cfg.url, {
+          attribution: cfg.attribution,
+          subdomains: cfg.subdomains || "abc"
+        }).addTo(map);
+      });
       mapInstances.current[noteId] = map;
     } else {
-      if (map._tileLayer) {
-        map._tileLayer.remove();
+      if (map._tileLayers) {
+        map._tileLayers.forEach((layer) => layer.remove());
       }
-      map._tileLayer = L.tileLayer(tileConfig.url, {
-        attribution: tileConfig.attribution,
-        subdomains: tileConfig.subdomains || "abc"
-      }).addTo(map);
+      map._tileLayers = configs.map((cfg) => {
+        return L.tileLayer(cfg.url, {
+          attribution: cfg.attribution,
+          subdomains: cfg.subdomains || "abc"
+        }).addTo(map);
+      });
       map.eachLayer((layer) => {
         if (layer instanceof L.Marker || layer instanceof L.Polyline) {
           map.removeLayer(layer);
@@ -8721,20 +8768,12 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                             原生地图 (Esri)
                           </button>
                           <button
-                            onClick={() => setMapTileSource("osmfr")}
-                            className={`map-source-switch-btn ${mapTileSource === "osmfr" ? "active" : ""}`}
+                            onClick={() => setMapTileSource("tianditu")}
+                            className={`map-source-switch-btn ${mapTileSource === "tianditu" ? "active" : ""}`}
                             type="button"
-                            title="全球范围中英双语标注，支持免翻墙高速加载"
+                            title="使用天地图API，全球高清街道图 + 全中文地名与标注"
                           >
-                            中英双语 (OSM)
-                          </button>
-                          <button
-                            onClick={() => setMapTileSource("amap")}
-                            className={`map-source-switch-btn ${mapTileSource === "amap" ? "active" : ""}`}
-                            type="button"
-                            title="全中文标注，但仅限中国境内使用（境外高缩放无街道）"
-                          >
-                            高德 (仅限国内)
+                            中文标注 (天地图)
                           </button>
                         </div>
                       </div>
