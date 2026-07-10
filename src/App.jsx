@@ -28,8 +28,6 @@ import {
   Users,
   Calendar,
   Map as MapIcon,
-  Download,
-  Upload,
 } from "lucide-react";
 import {
   initialVisits,
@@ -8332,25 +8330,8 @@ const defaultTravelNotes = [
 
 function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTileSource, setMapTileSource }) {
   const canEdit = session ? isEditor : true;
-  const [notes, setNotes] = useState(() => {
-    try {
-      const saved = localStorage.getItem("travel_notes");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const merged = [...parsed];
-        defaultTravelNotes.forEach((defNote) => {
-          if (!merged.some((n) => n.id === defNote.id || n.city === defNote.city)) {
-            merged.push(defNote);
-          }
-        });
-        return merged;
-      }
-      return defaultTravelNotes;
-    } catch (e) {
-      console.error("Failed to parse travel notes from localStorage:", e);
-      return defaultTravelNotes;
-    }
-  });
+  const [notes, setNotes] = useState(defaultTravelNotes);
+  const [notesLoading, setNotesLoading] = useState(true);
   
   const [expandedNoteId, setExpandedNoteId] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
@@ -8360,9 +8341,47 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   const isExpanding = useRef(false);
   const mapInstances = useRef({});
 
+  // 从 Supabase 云端加载旅行记录
   useEffect(() => {
-    localStorage.setItem("travel_notes", JSON.stringify(notes));
-  }, [notes]);
+    const loadNotes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("travel_notes")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) {
+          console.warn("Supabase travel_notes load failed:", error.message);
+          return;
+        }
+        if (data && data.length > 0) {
+          const dbNotes = data.map((row) => ({
+            id: row.id,
+            city: row.city,
+            coverImage: row.cover_image,
+            startDate: row.start_date,
+            endDate: row.end_date,
+            rating: row.rating,
+            summary: row.summary,
+            center: row.center,
+            addresses: row.addresses,
+          }));
+          // 云端记录置顶，示例记录补充在后面
+          const merged = [...dbNotes];
+          defaultTravelNotes.forEach((defNote) => {
+            if (!merged.some((n) => n.id === defNote.id || n.city === defNote.city)) {
+              merged.push(defNote);
+            }
+          });
+          setNotes(merged);
+        }
+      } catch (e) {
+        console.error("Error loading travel notes from Supabase:", e);
+      } finally {
+        setNotesLoading(false);
+      }
+    };
+    loadNotes();
+  }, []);
 
   // 当切换卡片时重置天数过滤和挂起的地点，并管理展开过渡状态
   useEffect(() => {
@@ -8627,12 +8646,20 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     }
   };
 
-  const handleDelete = (id, e) => {
+  const handleDelete = async (id, e) => {
     e.stopPropagation();
-    if (confirm("确定要删除这篇旅行记录吗？")) {
-      setNotes((prev) => prev.filter((n) => n.id !== id));
-      if (expandedNoteId === id) setExpandedNoteId(null);
+    if (!confirm("确定要删除这篇旅行记录吗？")) return;
+    // 仅对云端记录执行数据库删除（示例记录不在数据库中）
+    const isDefault = defaultTravelNotes.some((n) => n.id === id);
+    if (!isDefault) {
+      const { error } = await supabase.from("travel_notes").delete().eq("id", id);
+      if (error) {
+        alert("删除失败：" + error.message);
+        return;
+      }
     }
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    if (expandedNoteId === id) setExpandedNoteId(null);
   };
 
   const handleEdit = (note, e) => {
@@ -8640,56 +8667,29 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     setEditingNote(JSON.parse(JSON.stringify(note)));
   };
 
-  const handleExportNotes = () => {
-    const dataStr = JSON.stringify(notes, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-    const exportFileDefaultName = 'travel_notes_backup.json';
-
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-  };
-
-  const handleImportNotes = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const imported = JSON.parse(e.target.result);
-          if (Array.isArray(imported)) {
-            setNotes((prev) => {
-              const merged = [...prev];
-              imported.forEach((note) => {
-                const idx = merged.findIndex((n) => n.id === note.id);
-                if (idx > -1) {
-                  merged[idx] = note;
-                } else {
-                  merged.push(note);
-                }
-              });
-              return merged;
-            });
-            alert("旅行记录导入成功！");
-          } else {
-            alert("导入失败：文件格式不正确，必须是旅行记录的 JSON 数组。");
-          }
-        } catch (err) {
-          console.error(err);
-          alert("读取备份文件失败，请确保选择的是正确的 .json 备份文件。");
-        }
-      };
-      reader.readAsText(file);
+  const handleSaveNote = async (savedNote) => {
+    // 转换字段名：前端 camelCase → 数据库 snake_case
+    const dbRecord = {
+      id: savedNote.id,
+      city: savedNote.city,
+      cover_image: savedNote.coverImage,
+      start_date: savedNote.startDate,
+      end_date: savedNote.endDate,
+      rating: savedNote.rating,
+      summary: savedNote.summary,
+      center: savedNote.center,
+      addresses: savedNote.addresses,
+      created_by: session?.user?.id ?? null,
     };
-    input.click();
-  };
-
-  const handleSaveNote = (savedNote) => {
+    // upsert：存在则更新，不存在则插入
+    const { error } = await supabase
+      .from("travel_notes")
+      .upsert(dbRecord, { onConflict: "id" });
+    if (error) {
+      alert("保存失败：" + error.message);
+      return;
+    }
+    // 更新本地状态
     if (notes.some((n) => n.id === savedNote.id)) {
       setNotes((prev) => prev.map((n) => (n.id === savedNote.id ? savedNote : n)));
     } else {
@@ -8734,34 +8734,14 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           旅行记录·<span className="major-title-en">Travel Notes</span>·<span className="major-title-number">{notes.length}</span>
         </h2>
         {canEdit && (
-          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            <button
-              className="country-gallery-toggle"
-              onClick={handleExportNotes}
-              type="button"
-              style={{ padding: "8px 16px", borderRadius: "999px", border: "1px solid #cbd5e1", background: "#fff", color: "#64748b", fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
-              title="导出当前所有旅行记录到本地 JSON 备份文件"
-            >
-              <Download size={14} /> 导出备份
-            </button>
-            <button
-              className="country-gallery-toggle"
-              onClick={handleImportNotes}
-              type="button"
-              style={{ padding: "8px 16px", borderRadius: "999px", border: "1px solid #cbd5e1", background: "#fff", color: "#64748b", fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
-              title="从 JSON 备份文件导入旅行记录（相同 ID 的记录将被覆盖）"
-            >
-              <Upload size={14} /> 导入备份
-            </button>
-            <button
-              className="country-gallery-toggle active"
-              onClick={() => setIsAddingNote(true)}
-              type="button"
-              style={{ padding: "8px 18px", borderRadius: "999px", background: "linear-gradient(135deg, #c69b55, #b8863b)", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px" }}
-            >
-              <Plus size={16} /> 写新记录
-            </button>
-          </div>
+          <button
+            className="country-gallery-toggle active"
+            onClick={() => setIsAddingNote(true)}
+            type="button"
+            style={{ padding: "8px 18px", borderRadius: "999px", background: "linear-gradient(135deg, #c69b55, #b8863b)", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <Plus size={16} /> 写新记录
+          </button>
         )}
       </div>
 
@@ -9065,7 +9045,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     };
   };
 
-  // 通过 Nominatim API 一键搜索地址并解析为经纬度填充
+  // 地理编码：天地图（国内无需梯子）→ Esri → Nominatim
   const handleGeocodeSearch = async (idx, name) => {
     if (!name) {
       alert("请先填写地点名称后再尝试查询！");
@@ -9074,36 +9054,54 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     setSearchingIndex(idx);
     try {
       let lat, lng;
-      
-      // 优先使用 Esri 地理编码服务（国内免梯子直连且极速，全球范围中英文完美支持，且无需 token）
-      const esriUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(name)}&maxLocations=1`;
+
+      // 1️⃣ 优先使用天地图地理编码（国内政府服务，无需梯子，中文地名效果最佳）
       try {
-        const res = await fetch(esriUrl);
-        const data = await res.json();
-        if (data && data.candidates && data.candidates.length > 0) {
-          const location = data.candidates[0].location;
-          lat = parseFloat(location.y);
-          lng = parseFloat(location.x);
+        const tdt = await fetch(
+          `https://api.tianditu.gov.cn/geocoder?ds=${encodeURIComponent(JSON.stringify({ keyWord: name }))}&tk=${TIANDITU_KEY}`
+        );
+        const tdtData = await tdt.json();
+        if (tdtData && tdtData.status === "0" && tdtData.location) {
+          lat = parseFloat(tdtData.location.lat);
+          lng = parseFloat(tdtData.location.lon);
         }
       } catch (e) {
-        console.warn("Esri Geocoder failed, falling back to Nominatim...", e);
+        console.warn("TianDiTu Geocoder failed:", e);
       }
 
-      // 如果 Esri 没查到或请求出错，尝试使用 Nominatim 备份（海外使用梯子时效果好）
+      // 2️⃣ 天地图未查到，尝试 Esri 地理编码（全球范围，中英文支持）
       if (lat === undefined || lng === undefined) {
-        const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`;
-        const res = await fetch(osmUrl);
-        const data = await res.json();
-        if (data && data.length > 0) {
-          lat = parseFloat(data[0].lat);
-          lng = parseFloat(data[0].lon);
+        try {
+          const esriUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(name)}&maxLocations=1`;
+          const res = await fetch(esriUrl);
+          const data = await res.json();
+          if (data && data.candidates && data.candidates.length > 0) {
+            lat = parseFloat(data.candidates[0].location.y);
+            lng = parseFloat(data.candidates[0].location.x);
+          }
+        } catch (e) {
+          console.warn("Esri Geocoder failed:", e);
+        }
+      }
+
+      // 3️⃣ Nominatim 兜底（需梯子，或海外访问时使用）
+      if (lat === undefined || lng === undefined) {
+        try {
+          const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name)}&format=json&limit=1`;
+          const res = await fetch(osmUrl);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            lat = parseFloat(data[0].lat);
+            lng = parseFloat(data[0].lon);
+          }
+        } catch (e) {
+          console.warn("Nominatim Geocoder failed:", e);
         }
       }
 
       if (lat !== undefined && lng !== undefined) {
         handleUpdateAddressField(idx, "coordinates", { lat, lng });
-        
-        // 同时如果是第一个地址且中心点是默认的，自动设为地图中心
+        // 第一个地址自动设为地图中心
         if (idx === 0) {
           setEditingNote((prev) => ({ ...prev, center: [lat, lng] }));
         }
