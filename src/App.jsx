@@ -3625,6 +3625,7 @@ function App() {
         session={session}
         activeProfile={activeProfile}
         profiles={appProfiles}
+        mapTileSource={mapTileSource}
       />
       {editingVisit && (
         <VisitEditDialog
@@ -8225,7 +8226,7 @@ const defaultTravelNotes = [
   }
 ];
 
-function TravelNotesSection({ isEditor, session, activeProfile, profiles }) {
+function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTileSource }) {
   const canEdit = session ? isEditor : true;
   const [notes, setNotes] = useState(() => {
     try {
