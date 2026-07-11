@@ -8669,36 +8669,113 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   };
 
   const handleSaveNote = async (savedNote) => {
-    // 转换字段名：前端 camelCase → 数据库 snake_case
-    const dbRecord = {
-      id: savedNote.id,
-      city: savedNote.city,
-      cover_image: savedNote.coverImage,
-      cover_image_position: savedNote.coverImagePosition || { x: 50, y: 50 },
-      start_date: savedNote.startDate,
-      end_date: savedNote.endDate,
-      rating: savedNote.rating,
-      summary: savedNote.summary,
-      center: savedNote.center,
-      addresses: savedNote.addresses,
-      created_by: session?.user?.id ?? null,
+    // 辅助：Base64 转 Blob
+    const base64ToBlob = (base64Data, contentType = 'image/jpeg') => {
+      const sliceSize = 1024;
+      const block = base64Data.split(';');
+      const realData = block.length > 1 ? block[1].split(',')[1] : base64Data;
+      const byteCharacters = atob(realData);
+      const byteArrays = [];
+      for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        const slice = byteCharacters.slice(offset, offset + sliceSize);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+      return new Blob(byteArrays, { type: contentType });
     };
-    // upsert：存在则更新，不存在则插入
-    const { error } = await supabase
-      .from("travel_notes")
-      .upsert(dbRecord, { onConflict: "id" });
-    if (error) {
+
+    // 辅助：上传 Base64 到 Supabase Storage 并返回公开 URL
+    const uploadBase64 = async (base64Str, prefix) => {
+      if (!base64Str || !base64Str.startsWith("data:")) return base64Str;
+      try {
+        const mime = base64Str.split(';')[0].split(':')[1];
+        const ext = mime.split('/')[1] || 'jpg';
+        const blob = base64ToBlob(base64Str, mime);
+        const fileName = `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
+        const storagePath = `travel_notes/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from(PHOTO_BUCKET)
+          .upload(storagePath, blob, {
+            contentType: mime,
+            upsert: true,
+          });
+        if (uploadError) throw uploadError;
+        
+        const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(storagePath);
+        return data.publicUrl;
+      } catch (e) {
+        console.error("Upload base64 photo failed:", e);
+        throw new Error("保存图片到云存储失败: " + e.message);
+      }
+    };
+
+    try {
+      // 1. 上传封面图（如果是 base64）
+      let finalCover = savedNote.coverImage;
+      if (finalCover && finalCover.startsWith("data:")) {
+        finalCover = await uploadBase64(finalCover, "cover");
+      }
+
+      // 2. 上传每个足迹点的配图（如果是 base64）
+      const finalAddresses = [];
+      for (const addr of savedNote.addresses) {
+        let finalAddrImg = addr.image;
+        if (finalAddrImg && finalAddrImg.startsWith("data:")) {
+          finalAddrImg = await uploadBase64(finalAddrImg, `addr-${addr.id}`);
+        }
+        finalAddresses.push({
+          ...addr,
+          image: finalAddrImg
+        });
+      }
+
+      const noteToSave = {
+        ...savedNote,
+        coverImage: finalCover,
+        addresses: finalAddresses
+      };
+
+      // 3. 转换字段名：前端 camelCase → 数据库 snake_case
+      const dbRecord = {
+        id: noteToSave.id,
+        city: noteToSave.city,
+        cover_image: noteToSave.coverImage,
+        cover_image_position: noteToSave.coverImagePosition || { x: 50, y: 50 },
+        start_date: noteToSave.startDate,
+        end_date: noteToSave.endDate,
+        rating: noteToSave.rating,
+        summary: noteToSave.summary,
+        center: noteToSave.center,
+        addresses: noteToSave.addresses,
+        created_by: session?.user?.id ?? null,
+      };
+
+      // 4. 保存到数据库
+      const { error } = await supabase
+        .from("travel_notes")
+        .upsert(dbRecord, { onConflict: "id" });
+      if (error) {
+        throw error;
+      }
+
+      // 更新本地状态
+      if (notes.some((n) => n.id === noteToSave.id)) {
+        setNotes((prev) => prev.map((n) => (n.id === noteToSave.id ? noteToSave : n)));
+      } else {
+        setNotes((prev) => [noteToSave, ...prev]);
+      }
+      setEditingNote(null);
+      setIsAddingNote(false);
+      return true;
+    } catch (error) {
       alert("保存失败：" + error.message);
-      return;
+      return false;
     }
-    // 更新本地状态
-    if (notes.some((n) => n.id === savedNote.id)) {
-      setNotes((prev) => prev.map((n) => (n.id === savedNote.id ? savedNote : n)));
-    } else {
-      setNotes((prev) => [savedNote, ...prev]);
-    }
-    setEditingNote(null);
-    setIsAddingNote(false);
   };
 
   // 格式化段落文本中的超链接地址
@@ -8964,6 +9041,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   );
 }
 
+
 // -------------------------------------------------------------
 // 添加/编辑旅行记录弹窗组件（双栏布局 + 内嵌地图 v2）
 // -------------------------------------------------------------
@@ -9086,6 +9164,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
   }));
   const [searchingIndex, setSearchingIndex] = useState(null);
   const [mapPickingIdx, setMapPickingIdx] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // 地图 refs
   const editMapRef = useRef(null);
@@ -9214,14 +9293,24 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     }
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!editingNote.city) { alert("请填写旅行记录标题/城市名称！"); return; }
     if (editingNote.addresses.length > 0 && !editingNote.center) {
       const first = editingNote.addresses[0].coordinates;
       editingNote.center = [first.lat, first.lng];
     }
-    onSave(editingNote);
+    setIsSaving(true);
+    try {
+      const ok = await onSave(editingNote);
+      // If ok is false, handleSaveNote will show alert, but keep dialog open
+      if (!ok) {
+        setIsSaving(false);
+      }
+    } catch (err) {
+      alert("保存失败：" + err.message);
+      setIsSaving(false);
+    }
   };
 
   // ── 初始化编辑器地图 ──────────────────────────────────────────
@@ -9348,7 +9437,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
             <span className="tned-eyebrow">旅行记录编辑器</span>
             <h3>{editingNote.city || "新建旅行记录"}</h3>
           </div>
-          <button onClick={onClose} className="close-dialog-btn" type="button">
+          <button onClick={onClose} className="close-dialog-btn" type="button" disabled={isSaving}>
             <X size={18} />
           </button>
         </div>
@@ -9531,8 +9620,10 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
             </div>
 
             <div className="dialog-footer">
-              <button onClick={onClose} className="cancel-btn" type="button">取消</button>
-              <button type="submit" className="save-btn">保存旅行记录</button>
+              <button onClick={onClose} className="cancel-btn" type="button" disabled={isSaving}>取消</button>
+              <button type="submit" className="save-btn" disabled={isSaving}>
+                {isSaving ? "正在上传图片并保存..." : "保存旅行记录"}
+              </button>
             </div>
           </form>
 
