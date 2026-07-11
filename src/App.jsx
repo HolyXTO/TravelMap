@@ -8225,14 +8225,13 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
             coverImagePosition: row.cover_image_position || { x: 50, y: 50 },
             author: row.cover_image_position?.author || "Xiao",
           }));
-          const merged = [...dbNotes];
-          
           let deletedIds = [];
           try {
             deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
           } catch (e) {
             console.error(e);
           }
+          const merged = dbNotes.filter((n) => !deletedIds.includes(n.id));
 
           const classicIds = ["note-1", "note-2", "note-3", "note-4", "note-5"];
           defaultTravelNotes.forEach((defNote) => {
@@ -8522,7 +8521,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     e.stopPropagation();
     if (!confirm("确定要删除这篇旅行记录吗？")) return;
     
-    const isDefault = ["note-1", "note-2", "note-3", "note-4", "note-5"].includes(id);
+    const isDefault = defaultTravelNotes.some((n) => n.id === id) || ["note-1", "note-2", "note-3", "note-4", "note-5"].includes(id);
     if (isDefault) {
       try {
         const deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
@@ -8532,6 +8531,16 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
         }
       } catch (err) {
         console.error("Failed to save deleted default note ID:", err);
+      }
+      
+      // Try to delete it from Supabase as well in case it was modified and saved to the cloud,
+      // but do not block or throw error if it fails (e.g. if not logged in or doesn't exist).
+      try {
+        if (session) {
+          await supabase.from("travel_notes").delete().eq("id", id);
+        }
+      } catch (err) {
+        console.warn("Failed to delete default note from Supabase (safe to ignore):", err);
       }
     } else {
       const { error } = await supabase.from("travel_notes").delete().eq("id", id);
