@@ -2430,7 +2430,7 @@ function App() {
           }
           
           .map-surface .eyebrow {
-            font-family: 'DynamicPanelEnglish', var(--prophet-code) !important;
+            font-family: 'UpperEnglish', var(--prophet-code) !important;
           }
           
           /* Card eyebrows and counts typography overrides */
@@ -8747,7 +8747,10 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
               
               <div className="note-card-body">
                 <h3>{note.city}</h3>
-                <p className="note-card-summary">{note.summary}</p>
+                <p className="note-card-summary">
+                  {note.summary}
+                  <span className="note-card-author">Author: {note.author || note.coverImagePosition?.author || "Xiao"}</span>
+                </p>
 
                 {isExpanded && (
                   <div className="expanded-note-layout">
@@ -9054,6 +9057,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     const cloned = JSON.parse(JSON.stringify(note));
     return {
       ...cloned,
+      author: cloned.author || cloned.coverImagePosition?.author || "Xiao",
       coverImagePosition: cloned.coverImagePosition || { x: 50, y: 50 },
       // Initialize address.photos list. If the address has a single image but no photos, convert it.
       addresses: (cloned.addresses || []).map((a) => ({
@@ -9425,11 +9429,24 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                 <span className="tned-section-lbl-icon">📝</span> 基本信息
               </div>
 
-              <div className="form-group">
-                <label>旅行记录标题 / 城市 *</label>
-                <input type="text" value={editingNote.city}
-                  onChange={(e) => handleFieldChange("city", e.target.value)}
-                  placeholder="例如：武汉" required />
+              <div className="form-row">
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>旅行记录标题 / 城市 *</label>
+                  <input type="text" value={editingNote.city}
+                    onChange={(e) => handleFieldChange("city", e.target.value)}
+                    placeholder="例如：武汉" required />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>作者</label>
+                  <select
+                    value={editingNote.author || "Xiao"}
+                    onChange={(e) => handleFieldChange("author", e.target.value)}
+                    className="author-select"
+                  >
+                    <option value="Xiao">Xiao</option>
+                    <option value="Tang">Tang</option>
+                  </select>
+                </div>
               </div>
 
               <div className="form-row">

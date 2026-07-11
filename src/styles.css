@@ -6636,3 +6636,41 @@ h2 {
   transform: scale(1.1);
   opacity: 1;
 }
+
+/* Align first day route header button with map top boundary */
+.day-notes-group:first-child .day-group-header-btn {
+  margin-top: 0;
+}
+
+/* Author dropdown custom dropdown field styling */
+.author-select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.author-select:focus {
+  border-color: #c69b55;
+  box-shadow: 0 0 0 3px rgba(198,155,85,0.1);
+}
+
+/* Homepage note card author styling */
+.note-card-author {
+  color: var(--prophet-gold);
+  font-weight: 700;
+  margin-left: 8px;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  background: rgba(198, 155, 85, 0.08);
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  vertical-align: middle;
+}

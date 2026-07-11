@@ -246,6 +246,7 @@ export const initialVisits = ${JSON.stringify(visits, null, 2)};
       city: n.city,
       coverImage: n.cover_image,
       coverImagePosition: n.cover_image_position || { x: 50, y: 50 },
+      author: n.cover_image_position?.author || "Xiao",
       startDate: n.start_date,
       endDate: n.end_date,
       rating: n.rating,
