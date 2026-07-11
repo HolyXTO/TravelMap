@@ -2,8 +2,8 @@ import { placeLevels, tripTypes, places } from "./mockData_static";
 export { placeLevels, tripTypes, places };
 
 // =========================================================================
-// 此文件由 scripts/sync_data.cjs 脚本从云端拉取真实数据后，与经典示例数据进行智能合并生成。
-// 请勿直接手动修改此文件。
+// 此文件由 scripts/sync_data.cjs 脚本从云端拉取真实数据后自动生成。
+// 仅包含你的真实旅行数据，不包含任何示例脏数据。请勿手动修改此文件。
 // =========================================================================
 
 export const profiles = [
@@ -1496,7 +1496,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "W-2990440",
     "visitedAt": null,
-    "type": "���行",
+    "type": "旅行",
     "note": "",
     "photos": []
   },
@@ -1991,7 +1991,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "CN045030",
     "visitedAt": null,
-    "type": "旅行",
+    "type": "���行",
     "note": "",
     "photos": []
   },
@@ -2252,7 +2252,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "EXTRA-RIMINI",
     "visitedAt": null,
-    "type": "���行",
+    "type": "旅行",
     "note": "",
     "photos": []
   },
@@ -2502,51 +2502,6 @@ export const initialVisits = [
     "visitedAt": "2017-01-01",
     "type": "旅行",
     "note": "{\"dateDisplay\":\"2017\",\"datePrecision\":\"year\",\"rating\":5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "visit-1",
-    "profileId": "person-a",
-    "placeId": "city-shanghai",
-    "visitedAt": "2023-04-12",
-    "type": "居住",
-    "note": "长期生活的起点，适合做默认高亮城市。",
-    "photos": []
-  },
-  {
-    "id": "visit-2",
-    "profileId": "person-b",
-    "placeId": "city-suzhou",
-    "visitedAt": "2023-05-03",
-    "type": "旅行",
-    "note": "周末短途，园林和运河都可以放进照片墙。",
-    "photos": []
-  },
-  {
-    "id": "visit-3",
-    "profileId": "person-a",
-    "placeId": "city-dresden",
-    "visitedAt": "2024-09-18",
-    "type": "学习",
-    "note": "示例：德国 - 萨克森 - 德累斯顿。",
-    "photos": []
-  },
-  {
-    "id": "visit-4",
-    "profileId": "person-b",
-    "placeId": "city-tokyo",
-    "visitedAt": "2024-05-21",
-    "type": "旅行",
-    "note": "城市点位和城市区域都可以在城市层级高亮。",
-    "photos": []
-  },
-  {
-    "id": "visit-5",
-    "profileId": "person-a",
-    "placeId": "city-paris",
-    "visitedAt": "2025-02-09",
-    "type": "旅行",
-    "note": "这里将来可以展示多张上传照片。",
     "photos": []
   }
 ];

@@ -2498,25 +2498,13 @@ function App() {
       if (profilesResult.error) throw profilesResult.error;
       if (visitsResult.error) throw visitsResult.error;
 
-      // 智能合并 profiles 成员，避免精美示例打卡丢失
+      // 云端拉取的真实数据，直接覆盖更新 state，不再混入任何老旧的示例 mock 脏数据
       const dbProfiles = normalizeProfilesForDisplay(profilesResult.data.map(mapProfile));
-      const mergedProfiles = [...dbProfiles];
-      profiles.forEach((def) => {
-        if (!mergedProfiles.some((p) => p.id === def.id)) {
-          mergedProfiles.push(def);
-        }
-      });
-      setAppProfiles(mergedProfiles);
+      setAppProfiles(dbProfiles);
 
-      // 智能合并 visits 打卡
       const dbVisits = visitsResult.data.map(mapVisit);
-      const mergedVisits = [...dbVisits];
-      initialVisits.forEach((def) => {
-        if (!mergedVisits.some((v) => v.id === def.id || (v.placeId === def.placeId && v.profileId === def.profileId))) {
-          mergedVisits.push(def);
-        }
-      });
-      setVisits(mergedVisits);
+      setVisits(dbVisits);
+
       const routesResult = await withTimeout(supabase
         .from("travel_routes")
         .select("id, profile_id, start_place_id, end_place_id, traveled_at, note, created_by, created_at")
@@ -2531,11 +2519,9 @@ function App() {
       }
       setDataStatus("Supabase 已连接");
     } catch (error) {
-      console.error(error);
-      setAppProfiles(profiles);
-      setVisits(initialVisits);
-      setRoutes([]);
-      setDataStatus("Supabase 暂不可用，正在显示本地示例数据");
+      console.warn("Supabase fetch failed or timed out:", error);
+      // 超时或失败时，完全不污染 state，继续使用已初始化好的纯净本地固化数据
+      setDataStatus("Supabase 暂不可用");
     }
   };
 
@@ -2574,12 +2560,12 @@ function App() {
           const regionPlaces = states.features.map((feature) => normalizePlace(featureToPlace(feature)));
           const countryPlaces = applyChinaRegionGeometry(rawCountryPlaces, regionPlaces);
           const cityPlaces = linkChinaCityParents(
-            regionPlaces,
-            cities.features.map((feature) => normalizePlace(featureToPlace(feature))),
+              regionPlaces,
+              cities.features.map((feature) => normalizePlace(featureToPlace(feature))),
           );
           const searchIndex = linkChinaCityParents(
-            regionPlaces,
-            [...placeIndex.map(normalizePlace), ...SUPPLEMENTAL_PLACES.map(normalizePlace)],
+              regionPlaces,
+              [...placeIndex.map(normalizePlace), ...SUPPLEMENTAL_PLACES.map(normalizePlace)],
           );
           setMapPlaces({
             country: countryPlaces,
@@ -2605,12 +2591,18 @@ function App() {
     let cancelled = false;
 
     async function boot() {
-      await loadTravelData();
       try {
-        const { data } = await withTimeout(supabase.auth.getSession(), 3500);
-        if (!cancelled) setSession(data.session);
+        // 先静默、极速地查询 session。如果未登录，此方法瞬间返回，且开销几乎为 0
+        const { data } = await withTimeout(supabase.auth.getSession(), 1500);
+        if (data && data.session) {
+          if (!cancelled) setSession(data.session);
+          // 只有登录的编辑者电脑上，才触发 Supabase 数据拉取与同步
+          await loadTravelData();
+        } else {
+          setDataStatus("未登录访客，展示本地离线固化数据");
+        }
       } catch (err) {
-        console.warn("supabase auth session timed out:", err);
+        console.warn("supabase auth session or fetch timed out:", err);
       }
     }
 
@@ -2618,6 +2610,9 @@ function App() {
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setAuthMessage("");
+      if (nextSession) {
+        loadTravelData();
+      }
     });
 
     return () => {
@@ -8108,7 +8103,7 @@ function ProvinceGallery({ regionPlaces = [], filteredVisits = [], placeLookup }
 function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTileSource, setMapTileSource }) {
   const canEdit = session ? isEditor : true;
   const [notes, setNotes] = useState(defaultTravelNotes);
-  const [notesLoading, setNotesLoading] = useState(true);
+  const [notesLoading, setNotesLoading] = useState(false);
   
   const [expandedNoteId, setExpandedNoteId] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
@@ -8118,8 +8113,9 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   const isExpanding = useRef(false);
   const mapInstances = useRef({});
 
-  // 从 Supabase 云端加载旅行记录
+  // 从 Supabase 云端加载旅行记录（仅在已登录的编辑者电脑上静默同步更新）
   useEffect(() => {
+    if (!session) return;
     const loadNotes = async () => {
       try {
         const { data, error } = await withTimeout(supabase
@@ -8143,23 +8139,16 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
             addresses: row.addresses,
             coverImagePosition: row.cover_image_position || { x: 50, y: 50 },
           }));
-          // 云端记录置顶，示例记录补充在后面
-          const merged = [...dbNotes];
-          defaultTravelNotes.forEach((defNote) => {
-            if (!merged.some((n) => n.id === defNote.id || n.city === defNote.city)) {
-              merged.push(defNote);
-            }
-          });
-          setNotes(merged);
+          setNotes(dbNotes);
         }
       } catch (e) {
-        console.error("Error loading travel notes from Supabase:", e);
+        console.warn("Error loading travel notes from Supabase:", e);
       } finally {
         setNotesLoading(false);
       }
     };
     loadNotes();
-  }, []);
+  }, [session]);
 
   // 当切换卡片时重置天数过滤和挂起的地点，并管理展开过渡状态
   useEffect(() => {
