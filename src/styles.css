@@ -5987,3 +5987,250 @@ h2 {
 
 
 
+
+/* ================================================================
+   旅行记录编辑器 —— 新双栏宽屏设计
+   ================================================================ */
+
+.travel-edit-dialog-wide {
+  width: 94vw;
+  max-width: 1440px;
+  height: 90vh;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: dialog-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tned-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 28px;
+  border-bottom: 1px solid #edf2f7;
+  background: linear-gradient(135deg, #fafbfc 0%, #f8f5f0 100%);
+  flex-shrink: 0;
+}
+
+.tned-header-title { display: flex; flex-direction: column; gap: 2px; }
+
+.tned-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #c69b55;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tned-header h3 {
+  margin: 0;
+  font-family: var(--prophet-serif);
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.tned-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.tned-left {
+  flex: 0 0 52%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 24px 28px;
+  gap: 0;
+  border-right: 1px solid #edf2f7;
+}
+
+.tned-left::-webkit-scrollbar { width: 5px; }
+.tned-left::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+.tned-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.tned-section:last-of-type {
+  border-bottom: none;
+}
+
+.tned-section-label {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tned-section-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tned-empty-hint {
+  padding: 20px;
+  border: 2px dashed #e2e8f0;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.addr-card-num {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #c69b55;
+}
+
+.addr-card-picking {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+}
+
+.addr-coords-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.addr-action-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.coords-lookup-btn {
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.coords-lookup-btn:hover:not(:disabled) { background: #f1f5f9; border-color: #94a3b8; color: #1e293b; }
+.coords-lookup-btn:disabled { opacity: 0.55; cursor: wait; }
+
+.map-pick-btn {
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.map-pick-btn:hover { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
+.map-pick-btn.active { background: #dbeafe; border-color: #3b82f6; color: #1d4ed8; }
+
+.day-select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.day-select:focus { border-color: #c69b55; box-shadow: 0 0 0 3px rgba(198,155,85,0.1); }
+
+.tned-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #edf2f7;
+  position: relative;
+  min-width: 0;
+}
+
+.tned-map-container {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.tned-map-hint {
+  padding: 8px 14px;
+  font-size: 0.73rem;
+  color: #64748b;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.tned-pick-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, #1d4ed8, #3b82f6);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  animation: pick-banner-in 0.2s ease;
+}
+
+.tned-pick-banner span { flex: 1; line-height: 1.4; }
+
+.tned-pick-banner button {
+  padding: 4px 12px;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.tned-pick-banner button:hover { background: rgba(255,255,255,0.35); }
+
+@keyframes pick-banner-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 18px 0 4px;
+  border-top: 1px solid #edf2f7;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .travel-edit-dialog-wide { width: 98vw; height: 96vh; }
+  .tned-body { flex-direction: column; }
+  .tned-left { flex: 0 0 auto; border-right: none; border-bottom: 1px solid #edf2f7; max-height: 55vh; }
+  .tned-right { flex: 1; min-height: 220px; }
+}
