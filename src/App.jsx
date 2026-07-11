@@ -60,6 +60,23 @@ const staticVisits = initialVisits.map((v) => {
 const PHOTO_BUCKET = "travel-photos";
 const ASSET_BASE_URL = import.meta.env.BASE_URL || "/";
 
+function handleImageLoadError(e) {
+  const img = e.target;
+  const maxRetries = 6;
+  if (!img.dataset.retryCount) {
+    img.dataset.retryCount = "0";
+  }
+  let count = parseInt(img.dataset.retryCount, 10);
+  if (count < maxRetries) {
+    count++;
+    img.dataset.retryCount = String(count);
+    const originalSrc = img.src.split("?")[0];
+    setTimeout(() => {
+      img.src = `${originalSrc}?r=${count}-${Date.now()}`;
+    }, 1500 * count);
+  }
+}
+
 const GLOBE_SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
 const routeTransportOptions = [
   { id: "flight", label: "飞机" },
@@ -4629,27 +4646,57 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
     const basePath = ASSET_BASE_URL;
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin("anonymous");
-    const earthTexture = textureLoader.load(`${basePath}textures/earth-blue-marble.jpg`);
-    const bumpTexture = textureLoader.load(`${basePath}textures/earth-topology.png`);
-    earthTexture.colorSpace = THREE.SRGBColorSpace;
-    earthTexture.anisotropy = 16;
-    bumpTexture.anisotropy = 8;
+
+    const initialEarthTexture = textureLoader.load(`${basePath}textures/earth-dark.jpg`);
+    initialEarthTexture.colorSpace = THREE.SRGBColorSpace;
 
     const globeRoot = new THREE.Group();
     globeRoot.rotation.y = THREE.MathUtils.degToRad(-110);
     scene.add(globeRoot);
 
+    const earthMaterial = new THREE.MeshStandardMaterial({
+      map: initialEarthTexture,
+      roughness: 0.7,
+      metalness: 0,
+    });
+
     const earth = new THREE.Mesh(
       new THREE.SphereGeometry(2, 96, 96),
-      new THREE.MeshStandardMaterial({
-        map: earthTexture,
-        bumpMap: bumpTexture,
-        bumpScale: 0.05,
-        roughness: 0.7,
-        metalness: 0,
-      }),
+      earthMaterial
     );
     globeRoot.add(earth);
+
+    const loadTextureWithRetry = (url, type, maxRetries = 5, attempt = 0) => {
+      textureLoader.load(
+        url,
+        (loadedTexture) => {
+          if (type === "map") {
+            loadedTexture.colorSpace = THREE.SRGBColorSpace;
+            loadedTexture.anisotropy = 16;
+            earthMaterial.map = loadedTexture;
+            earthMaterial.needsUpdate = true;
+          } else if (type === "bump") {
+            loadedTexture.anisotropy = 8;
+            earthMaterial.bumpMap = loadedTexture;
+            earthMaterial.bumpScale = 0.05;
+            earthMaterial.needsUpdate = true;
+          }
+        },
+        undefined,
+        (err) => {
+          console.warn(`Globe texture (${type}) load failed on attempt ${attempt + 1}:`, err);
+          if (attempt < maxRetries) {
+            setTimeout(() => {
+              const retryUrl = `${url.split("?")[0]}?retry=${attempt}-${Date.now()}`;
+              loadTextureWithRetry(retryUrl, type, maxRetries, attempt + 1);
+            }, 1500 * (attempt + 1));
+          }
+        }
+      );
+    };
+
+    loadTextureWithRetry(`${basePath}textures/earth-blue-marble.jpg`, "map");
+    loadTextureWithRetry(`${basePath}textures/earth-topology.png`, "bump");
 
     const atmosphere = new THREE.Mesh(
       new THREE.SphereGeometry(2.08, 96, 96),
@@ -7345,6 +7392,7 @@ function CountryGalleryCard({ country }) {
             key={src}
             loading="lazy"
             src={`${basePath}${src}`}
+            onError={handleImageLoadError}
           />
         ))}
       </div>
@@ -8010,6 +8058,7 @@ function ProvinceGalleryCard({ province }) {
             key={src}
             loading="lazy"
             src={`${basePath}${src}`}
+            onError={handleImageLoadError}
           />
         ))}
       </div>
