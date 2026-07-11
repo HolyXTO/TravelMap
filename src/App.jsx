@@ -2629,18 +2629,20 @@ function App() {
     let cancelled = false;
 
     async function boot() {
+      // 默默地在后台拉取最新的云端足迹。如果网络通畅，就会平滑同步最新的改动（如新加的卡塔尔）
       try {
-        // 先静默、极速地查询 session。如果未登录，此方法瞬间返回，且开销几乎为 0
+        loadTravelData();
+      } catch (e) {
+        console.warn("Silent background load failed:", e);
+      }
+
+      try {
         const { data } = await withTimeout(supabase.auth.getSession(), 1500);
         if (data && data.session) {
           if (!cancelled) setSession(data.session);
-          // 只有登录的编辑者电脑上，才触发 Supabase 数据拉取与同步
-          await loadTravelData();
-        } else {
-          setDataStatus("未登录访客，展示本地离线固化数据");
         }
       } catch (err) {
-        console.warn("supabase auth session or fetch timed out:", err);
+        console.warn("supabase auth session timed out:", err);
       }
     }
 
@@ -4647,6 +4649,9 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin("anonymous");
 
+    let earthTexture = null;
+    let bumpTexture = null;
+
     const initialEarthTexture = textureLoader.load(`${basePath}textures/earth-dark.jpg`);
     initialEarthTexture.colorSpace = THREE.SRGBColorSpace;
 
@@ -4673,10 +4678,12 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
           if (type === "map") {
             loadedTexture.colorSpace = THREE.SRGBColorSpace;
             loadedTexture.anisotropy = 16;
+            earthTexture = loadedTexture;
             earthMaterial.map = loadedTexture;
             earthMaterial.needsUpdate = true;
           } else if (type === "bump") {
             loadedTexture.anisotropy = 8;
+            bumpTexture = loadedTexture;
             earthMaterial.bumpMap = loadedTexture;
             earthMaterial.bumpScale = 0.05;
             earthMaterial.needsUpdate = true;
@@ -4939,8 +4946,9 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
       flagBadgeMaterials.forEach((material) => material.dispose());
       flagTextures.forEach((texture) => texture.dispose());
       flagMaterials.forEach((material) => material.dispose());
-      earthTexture.dispose();
-      bumpTexture.dispose();
+      if (initialEarthTexture) initialEarthTexture.dispose();
+      if (earthTexture) earthTexture.dispose();
+      if (bumpTexture) bumpTexture.dispose();
       renderer.dispose();
       mount.replaceChildren();
     };
@@ -8185,7 +8193,6 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
 
   // 从 Supabase 云端加载旅行记录（仅在已登录的编辑者电脑上静默同步更新）
   useEffect(() => {
-    if (!session) return;
     const loadNotes = async () => {
       try {
         const { data, error } = await withTimeout(supabase

@@ -5,6 +5,58 @@
 
 export const defaultTravelNotes = [
   {
+    "id": "note-1783761190292",
+    "city": "卡塔尔",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783761815824-qzobfckxy.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 93
+    },
+    "startDate": "2025-06-08",
+    "endDate": "2025-06-08",
+    "rating": 10,
+    "summary": "QATAR",
+    "center": [
+      48.8566,
+      2.3522
+    ],
+    "addresses": [
+      {
+        "id": "addr-1783761401547-0",
+        "day": 1,
+        "name": "伊斯兰艺术博物馆",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-addr-1783761401547-0-1783762091855-6jypayxis.jpeg",
+        "coordinates": {
+          "lat": 25.2952793064976,
+          "lng": 51.539503835420895
+        }
+      },
+      {
+        "id": "addr-1783761554468-1",
+        "day": 1,
+        "name": "Souq Waqif",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-addr-1783761554468-1-1783761819175-k6emz0oxm.jpeg",
+        "coordinates": {
+          "lat": 25.288257,
+          "lng": 51.532985
+        }
+      },
+      {
+        "id": "addr-1783762016709-2",
+        "day": 1,
+        "name": "哈马德国际机场",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-addr-1783762016709-2-1783762093883-ftk7d5o9w.jpeg",
+        "coordinates": {
+          "lat": 25.2748602,
+          "lng": 51.6124512
+        }
+      }
+    ]
+  },
+  {
     "id": "note-1783749662830",
     "city": "长沙",
     "coverImage": "",
