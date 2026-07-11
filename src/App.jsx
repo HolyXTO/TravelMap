@@ -9218,78 +9218,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     });
   };
 
-  const renderAddressPhotos = (addr, idx, isEditMode = false) => {
-    if (!addr.photos || addr.photos.length === 0) {
-      if (!isEditMode && addr.image) {
-        return (
-          <div className="address-image-container">
-            <img src={addr.image} alt={addr.name} onClick={() => window.open(addr.image, "_blank")} style={{ cursor: "zoom-in" }} />
-          </div>
-        );
-      }
-      return null;
-    }
-
-    const landscapes = addr.photos.filter(p => (p.ratio || "4:3") === "4:3");
-    const portraits = addr.photos.filter(p => p.ratio === "3:4");
-
-    if (landscapes.length === 1 && portraits.length === 1) {
-      // 规则 1：当仅有一个 4:3 和一个 3:4 时，并排占满一行
-      return (
-        <div className="address-photos-wrapper" style={{ marginTop: isEditMode ? 8 : 0 }}>
-          <div className="footpoint-photo-grid layout-mixed-one-each">
-            <div className="footpoint-photo-item item-4-3">
-              <img src={landscapes[0].url || landscapes[0].dataUrl} alt="" onClick={!isEditMode ? () => window.open(landscapes[0].url || landscapes[0].dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
-              {isEditMode && (
-                <button type="button" className="photo-remove-btn" onClick={() => handleRemovePhoto(idx, landscapes[0].id)}>✕</button>
-              )}
-            </div>
-            <div className="footpoint-photo-item item-3-4">
-              <img src={portraits[0].url || portraits[0].dataUrl} alt="" onClick={!isEditMode ? () => window.open(portraits[0].url || portraits[0].dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
-              {isEditMode && (
-                <button type="button" className="photo-remove-btn" onClick={() => handleRemovePhoto(idx, portraits[0].id)}>✕</button>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // 规则 2：如果最后只剩下两个 3:4，占满横向
-    const isPortraitStretch = (portraits.length % 3 === 2);
-
-    return (
-      <div className="address-photos-wrapper" style={{ marginTop: isEditMode ? 8 : 0 }}>
-        {landscapes.length > 0 && (
-          <div className="footpoint-photo-grid layout-landscape">
-            {landscapes.map((ph, pIdx) => (
-              <div key={ph.id || `l-${pIdx}`} className="footpoint-photo-item">
-                <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => window.open(ph.url || ph.dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
-                {isEditMode && (
-                  <button type="button" className="photo-remove-btn" onClick={() => handleRemovePhoto(idx, ph.id)}>✕</button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        {portraits.length > 0 && (
-          <div className="footpoint-photo-grid layout-portrait" style={{ marginTop: landscapes.length > 0 ? "10px" : "0" }}>
-            {portraits.map((ph, pIdx) => {
-              const isLastTwo = isPortraitStretch && (pIdx >= portraits.length - 2);
-              return (
-                <div key={ph.id || `p-${pIdx}`} className={`footpoint-photo-item ${isLastTwo ? "portrait-stretch-50" : ""}`}>
-                  <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => window.open(ph.url || ph.dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
-                  {isEditMode && (
-                    <button type="button" className="photo-remove-btn" onClick={() => handleRemovePhoto(idx, ph.id)}>✕</button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  };
+  // renderAddressPhotos has been moved to global scope
 
   const handleRemovePhoto = (addrIdx, photoId) => {
     setEditingNote((prev) => {
@@ -9741,7 +9670,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                       />
                     </label>
 
-                    {renderAddressPhotos(addr, idx, true)}
+                    {renderAddressPhotos(addr, idx, true, handleRemovePhoto)}
                   </div>
 
                 </div>
@@ -9781,5 +9710,78 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     </div>
   );
 }
+
+const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null) => {
+  if (!addr.photos || addr.photos.length === 0) {
+    if (!isEditMode && addr.image) {
+      return (
+        <div className="address-image-container">
+          <img src={addr.image} alt={addr.name} onClick={() => window.open(addr.image, "_blank")} style={{ cursor: "zoom-in" }} />
+        </div>
+      );
+    }
+    return null;
+  }
+
+  const landscapes = addr.photos.filter(p => (p.ratio || "4:3") === "4:3");
+  const portraits = addr.photos.filter(p => p.ratio === "3:4");
+
+  if (landscapes.length === 1 && portraits.length === 1) {
+    // 规则 1：当仅有一个 4:3 和一个 3:4 时，并排占满一行
+    return (
+      <div className="address-photos-wrapper" style={{ marginTop: isEditMode ? 8 : 0 }}>
+        <div className="footpoint-photo-grid layout-mixed-one-each">
+          <div className="footpoint-photo-item item-4-3">
+            <img src={landscapes[0].url || landscapes[0].dataUrl} alt="" onClick={!isEditMode ? () => window.open(landscapes[0].url || landscapes[0].dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
+            {isEditMode && onRemovePhoto && (
+              <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, landscapes[0].id)}>✕</button>
+            )}
+          </div>
+          <div className="footpoint-photo-item item-3-4">
+            <img src={portraits[0].url || portraits[0].dataUrl} alt="" onClick={!isEditMode ? () => window.open(portraits[0].url || portraits[0].dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
+            {isEditMode && onRemovePhoto && (
+              <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, portraits[0].id)}>✕</button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 规则 2：如果最后只剩下两个 3:4，占满横向
+  const isPortraitStretch = (portraits.length % 3 === 2);
+
+  return (
+    <div className="address-photos-wrapper" style={{ marginTop: isEditMode ? 8 : 0 }}>
+      {landscapes.length > 0 && (
+        <div className="footpoint-photo-grid layout-landscape">
+          {landscapes.map((ph, pIdx) => (
+            <div key={ph.id || `l-${pIdx}`} className="footpoint-photo-item">
+              <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => window.open(ph.url || ph.dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
+              {isEditMode && onRemovePhoto && (
+                <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, ph.id)}>✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {portraits.length > 0 && (
+        <div className="footpoint-photo-grid layout-portrait" style={{ marginTop: landscapes.length > 0 ? "10px" : "0" }}>
+          {portraits.map((ph, pIdx) => {
+            const isLastTwo = isPortraitStretch && (pIdx >= portraits.length - 2);
+            return (
+              <div key={ph.id || `p-${pIdx}`} className={`footpoint-photo-item ${isLastTwo ? "portrait-stretch-50" : ""}`}>
+                <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => window.open(ph.url || ph.dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
+                {isEditMode && onRemovePhoto && (
+                  <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, ph.id)}>✕</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default App;
