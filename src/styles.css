@@ -6544,6 +6544,23 @@ h2 {
   aspect-ratio: 3/4;
 }
 
+/* 规则 2：如果最后一行只剩下两张 3:4 的图片，拉伸占满横向（各占 50%） */
+.footpoint-photo-grid.layout-portrait .footpoint-photo-item.portrait-stretch-50 {
+  width: calc(50% - 5px);
+  aspect-ratio: 3/4;
+}
+
+/* 规则 1：当仅有一个 4:3 和一个 3:4 时，并排且把横向空间占满 */
+.footpoint-photo-grid.layout-mixed-one-each .footpoint-photo-item.item-4-3 {
+  width: calc(64% - 5px);
+  aspect-ratio: 4/3;
+}
+
+.footpoint-photo-grid.layout-mixed-one-each .footpoint-photo-item.item-3-4 {
+  width: calc(36% - 5px);
+  aspect-ratio: 3/4;
+}
+
 .footpoint-photo-item {
   position: relative;
   border-radius: 8px;

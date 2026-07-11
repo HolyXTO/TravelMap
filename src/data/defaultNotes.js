@@ -41,11 +41,6 @@ export const defaultTravelNotes = [
             "ratio": "3:4"
           },
           {
-            "id": "ph-1783782657609-7kyp6",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782368420-0-ph-1783782657609-7kyp6-1783783991213-clvjb11aq.jpeg",
-            "ratio": "4:3"
-          },
-          {
             "id": "ph-1783782798329-ak9gu",
             "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782368420-0-ph-1783782798329-ak9gu-1783783991151-3jn3vfxbf.jpeg",
             "ratio": "4:3"
@@ -82,6 +77,11 @@ export const defaultTravelNotes = [
             "id": "ph-1783783068370-0py3y",
             "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782803206-1-ph-1783783068370-0py3y-1783783991266-3p31csdut.jpeg",
             "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783788301732-kl9w1",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782803206-1-ph-1783788301732-kl9w1-1783788343298-pxyeszu0i.jpeg",
+            "ratio": "4:3"
           }
         ],
         "coordinates": {
