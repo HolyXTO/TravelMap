@@ -8364,6 +8364,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
             summary: row.summary,
             center: row.center,
             addresses: row.addresses,
+            coverImagePosition: row.cover_image_position || { x: 50, y: 50 },
           }));
           // 云端记录置顶，示例记录补充在后面
           const merged = [...dbNotes];
@@ -8673,6 +8674,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
       id: savedNote.id,
       city: savedNote.city,
       cover_image: savedNote.coverImage,
+      cover_image_position: savedNote.coverImagePosition || { x: 50, y: 50 },
       start_date: savedNote.startDate,
       end_date: savedNote.endDate,
       rating: savedNote.rating,
@@ -8760,7 +8762,8 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
               }}
             >
               <div className="note-card-banner">
-                <img src={note.coverImage} alt={note.city} />
+                <img src={note.coverImage} alt={note.city}
+                  style={note.coverImagePosition ? { objectPosition: `${note.coverImagePosition.x}% ${note.coverImagePosition.y}%` } : undefined} />
                 <div className="note-card-meta">
                   <span className="note-meta-date">
                     <Calendar size={12} /> {note.startDate} 至 {note.endDate}
@@ -8949,7 +8952,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
 
       {(isAddingNote || editingNote) && (
         <TravelNoteEditDialog
-          note={editingNote || { id: `note-${Date.now()}`, city: "", coverImage: "", startDate: "", endDate: "", rating: 10, summary: "", center: [48.8566, 2.3522], addresses: [] }}
+          note={editingNote || { id: `note-${Date.now()}`, city: "", coverImage: "", coverImagePosition: { x: 50, y: 50 }, startDate: "", endDate: "", rating: 10, summary: "", center: [48.8566, 2.3522], addresses: [] }}
           onClose={() => {
             setIsAddingNote(false);
             setEditingNote(null);
@@ -8962,16 +8965,133 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
 }
 
 // -------------------------------------------------------------
-// 添加/编辑旅行记录弹窗组件（双栏布局 + 内嵌地图）
+// 添加/编辑旅行记录弹窗组件（双栏布局 + 内嵌地图 v2）
 // -------------------------------------------------------------
+function StarRating({ value, onChange }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="star-rating-row">
+      {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+        <button
+          key={n}
+          type="button"
+          className={`star-btn ${n <= (hovered || value) ? "filled" : ""}`}
+          onMouseEnter={() => setHovered(n)}
+          onMouseLeave={() => setHovered(0)}
+          onClick={() => onChange(n)}
+          aria-label={`${n}星`}
+        >
+          ★
+        </button>
+      ))}
+      <span className="star-rating-label">{value} / 10</span>
+    </div>
+  );
+}
+
+// 封面图拖拽定位器
+// 卡片 banner 高 200px，宽跟随卡片，约 ~340px → 约 17:10 比例
+// 我们在编辑器里用 400px × 235px 作为裁剪框
+const CROP_W = 400, CROP_H = 235; // 和卡片实际比例匹配
+
+function CoverImagePositioner({ src, position, onChange }) {
+  const containerRef = useRef(null);
+  const imgRef = useRef(null);
+  const dragRef = useRef(null);
+  const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
+
+  // position: {x: 0-100, y: 0-100} (matches object-position)
+  const { x, y } = position;
+
+  const onImgLoad = (e) => {
+    setImgSize({ w: e.target.naturalWidth, h: e.target.naturalHeight });
+  };
+
+  // compute the rendered image size inside the CROP_W×CROP_H box using cover
+  const getRenderedSize = () => {
+    const { w, h } = imgSize;
+    if (!w || !h) return { rw: CROP_W, rh: CROP_H };
+    const scaleX = CROP_W / w, scaleY = CROP_H / h;
+    const scale = Math.max(scaleX, scaleY);
+    return { rw: w * scale, rh: h * scale };
+  };
+
+  const { rw, rh } = getRenderedSize();
+  // object-position in pixels
+  const imgOffsetX = -((x / 100) * (rw - CROP_W));
+  const imgOffsetY = -((y / 100) * (rh - CROP_H));
+
+  const onMouseDown = (e) => {
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startPx: x, startPy: y };
+    const onMove = (ev) => {
+      if (!dragRef.current) return;
+      const dx = ev.clientX - dragRef.current.startX;
+      const dy = ev.clientY - dragRef.current.startY;
+      const maxDx = rw - CROP_W, maxDy = rh - CROP_H;
+      const newPx = maxDx > 0 ? Math.max(0, Math.min(100, dragRef.current.startPx - (dx / maxDx * 100))) : 50;
+      const newPy = maxDy > 0 ? Math.max(0, Math.min(100, dragRef.current.startPy - (dy / maxDy * 100))) : 50;
+      onChange({ x: Math.round(newPx), y: Math.round(newPy) });
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  return (
+    <div className="cover-positioner-wrap">
+      <div
+        ref={containerRef}
+        className="cover-positioner-box"
+        style={{ width: CROP_W, height: CROP_H }}
+        onMouseDown={onMouseDown}
+        title="拖拽图片，调整卡片上的显示区域"
+      >
+        <img
+          ref={imgRef}
+          src={src}
+          alt="封面"
+          onLoad={onImgLoad}
+          draggable={false}
+          style={{
+            position: "absolute",
+            width: rw || "100%",
+            height: rh || "100%",
+            left: imgOffsetX,
+            top: imgOffsetY,
+            userSelect: "none",
+            cursor: "grab",
+          }}
+        />
+        {/* 4角标记 */}
+        <div className="cover-crop-corner tl" />
+        <div className="cover-crop-corner tr" />
+        <div className="cover-crop-corner bl" />
+        <div className="cover-crop-corner br" />
+        <div className="cover-crop-label">卡片显示区域（可拖拽调整）</div>
+      </div>
+      <div className="cover-positioner-hint">↔ 左右拖拽 &nbsp;·&nbsp; ↕ 上下拖拽，调整图片在卡片上的显示位置</div>
+    </div>
+  );
+}
+
 function TravelNoteEditDialog({ note, onClose, onSave }) {
-  const [editingNote, setEditingNote] = useState(() => JSON.parse(JSON.stringify(note)));
+  const [editingNote, setEditingNote] = useState(() => ({
+    ...JSON.parse(JSON.stringify(note)),
+    coverImagePosition: note.coverImagePosition || { x: 50, y: 50 },
+  }));
   const [searchingIndex, setSearchingIndex] = useState(null);
   const [mapPickingIdx, setMapPickingIdx] = useState(null);
 
+  // 地图 refs
   const editMapRef = useRef(null);
   const editMapInstance = useRef(null);
   const editMarkersRef = useRef({});
+  const editTileRef = useRef(null);
   const mapPickingIdxRef = useRef(null);
   const handleUpdateRef = useRef(null);
 
@@ -9018,7 +9138,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
       img.src = event.target.result;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const maxDim = 800;
+        const maxDim = 1200; // 保留更高分辨率以支持裁剪
         let { width, height } = img;
         if (width > maxDim || height > maxDim) {
           if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
@@ -9026,10 +9146,29 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
         }
         canvas.width = width; canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        callback(canvas.toDataURL("image/jpeg", 0.7));
+        callback(canvas.toDataURL("image/jpeg", 0.85));
       };
     };
   };
+
+  // ── Day 下拉框：根据日期范围生成选项 ──
+  const dayOptions = useMemo(() => {
+    const { startDate, endDate } = editingNote;
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diff = Math.max(1, Math.round((end - start) / 86400000) + 1);
+      const opts = [];
+      for (let i = 0; i < diff; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        const label = `第${i+1}天 · ${d.getMonth()+1}月${d.getDate()}日`;
+        opts.push({ value: i + 1, label });
+      }
+      return opts;
+    }
+    return Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: `第${i+1}天` }));
+  }, [editingNote.startDate, editingNote.endDate]);
 
   const handleGeocodeSearch = async (idx, name) => {
     if (!name) { alert("请先填写地点名称后再尝试查询！"); return; }
@@ -9085,17 +9224,21 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     onSave(editingNote);
   };
 
-  // 初始化编辑器内嵌地图
+  // ── 初始化编辑器地图 ──────────────────────────────────────────
   useEffect(() => {
     if (!editMapRef.current || editMapInstance.current) return;
     const L = window.L;
     if (!L) return;
 
     const map = L.map(editMapRef.current, { center: [30, 110], zoom: 4, zoomControl: true });
-    L.tileLayer(
+
+    // 默认 ESRI 底图
+    const esriLayer = L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
       { attribution: "© Esri", maxZoom: 19 }
-    ).addTo(map);
+    );
+    esriLayer.addTo(map);
+    editTileRef.current = { type: "esri", base: esriLayer, label: null };
 
     map.on("click", (e) => {
       const idx = mapPickingIdxRef.current;
@@ -9110,10 +9253,48 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
       map.remove();
       editMapInstance.current = null;
       editMarkersRef.current = {};
+      editTileRef.current = null;
     };
   }, []);
 
-  // 同步地图标记
+  // ── 根据坐标自动切换地图底图 ──────────────────────────────────
+  useEffect(() => {
+    const map = editMapInstance.current;
+    if (!map) return;
+    const L = window.L;
+    if (!L) return;
+
+    // 判断是否国内
+    const isDomestic = isNoteDomestic(editingNote);
+    const current = editTileRef.current;
+    if (!current) return;
+
+    if (isDomestic && current.type !== "tdt") {
+      // 切换到天地图
+      if (current.base) map.removeLayer(current.base);
+      if (current.label) map.removeLayer(current.label);
+      const tdtBase = L.tileLayer(
+        `https://t{s}.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TIANDITU_KEY}`,
+        { subdomains: "01234567", maxZoom: 18, attribution: "© 天地图" }
+      ).addTo(map);
+      const tdtLabel = L.tileLayer(
+        `https://t{s}.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TIANDITU_KEY}`,
+        { subdomains: "01234567", maxZoom: 18 }
+      ).addTo(map);
+      editTileRef.current = { type: "tdt", base: tdtBase, label: tdtLabel };
+    } else if (!isDomestic && current.type !== "esri") {
+      // 切换到 ESRI
+      if (current.base) map.removeLayer(current.base);
+      if (current.label) map.removeLayer(current.label);
+      const esriLayer = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "© Esri", maxZoom: 19 }
+      ).addTo(map);
+      editTileRef.current = { type: "esri", base: esriLayer, label: null };
+    }
+  }, [editingNote.addresses, editingNote.center]);
+
+  // ── 同步地图标记 ──────────────────────────────────────────────
   useEffect(() => {
     const map = editMapInstance.current;
     if (!map) return;
@@ -9137,7 +9318,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
       });
 
       const marker = L.marker([lat, lng], { draggable: true, icon });
-      marker.bindTooltip(addr.name || `打卡点 #${idx + 1}`, { direction: "top", offset: [0, -14] });
+      marker.bindTooltip(addr.name || `足迹点 #${idx + 1}`, { direction: "top", offset: [0, -14] });
       marker.on("dragend", (ev) => {
         const pos = ev.target.getLatLng();
         handleUpdateRef.current?.(idx, "coordinates", { lat: pos.lat, lng: pos.lng });
@@ -9161,6 +9342,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     <div className="travel-edit-dialog-overlay">
       <div className="travel-edit-dialog-wide" onClick={(e) => e.stopPropagation()}>
 
+        {/* ── 顶部标题栏 ── */}
         <div className="tned-header">
           <div className="tned-header-title">
             <span className="tned-eyebrow">旅行记录编辑器</span>
@@ -9171,11 +9353,13 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
           </button>
         </div>
 
+        {/* ── 主体 ── */}
         <div className="tned-body">
 
           {/* ── 左栏：表单 ── */}
           <form onSubmit={handleFormSubmit} className="tned-left">
 
+            {/* 基本信息 */}
             <div className="tned-section">
               <div className="tned-section-label">基本信息</div>
 
@@ -9199,22 +9383,12 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>评分 (1–10)</label>
-                  <input type="number" min="1" max="10" value={editingNote.rating}
-                    onChange={(e) => handleFieldChange("rating", parseInt(e.target.value) || 10)} />
-                </div>
-                <div className="form-group">
-                  <label>卡片封面图</label>
-                  <input type="file" accept="image/*"
-                    onChange={(e) => processImageUpload(e.target.files[0], (d) => handleFieldChange("coverImage", d))} />
-                  {editingNote.coverImage && (
-                    <div className="image-field-preview" style={{ marginTop: 8 }}>
-                      <img src={editingNote.coverImage} alt="封面预览" />
-                    </div>
-                  )}
-                </div>
+              <div className="form-group">
+                <label>评分</label>
+                <StarRating
+                  value={editingNote.rating || 10}
+                  onChange={(v) => handleFieldChange("rating", v)}
+                />
               </div>
 
               <div className="form-group">
@@ -9225,33 +9399,65 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
               </div>
             </div>
 
+            {/* 封面图 */}
+            <div className="tned-section">
+              <div className="tned-section-label">卡片封面图</div>
+              <div className="form-group">
+                <label>选择图片（上传后可拖拽调整裁剪位置）</label>
+                <label className="file-upload-btn">
+                  📷 选择图片
+                  <input type="file" accept="image/*" style={{ display: "none" }}
+                    onChange={(e) => {
+                      processImageUpload(e.target.files[0], (d) => {
+                        handleFieldChange("coverImage", d);
+                        handleFieldChange("coverImagePosition", { x: 50, y: 50 });
+                      });
+                    }} />
+                </label>
+              </div>
+              {editingNote.coverImage ? (
+                <CoverImagePositioner
+                  src={editingNote.coverImage}
+                  position={editingNote.coverImagePosition || { x: 50, y: 50 }}
+                  onChange={(pos) => handleFieldChange("coverImagePosition", pos)}
+                />
+              ) : (
+                <div className="tned-empty-hint" style={{ marginTop: 8 }}>
+                  暂未上传封面图。上传后可拖拽调整图片在卡片上的显示位置。
+                </div>
+              )}
+            </div>
+
+            {/* 足迹点列表 */}
             <div className="tned-section">
               <div className="tned-section-label tned-section-row">
-                <span>打卡点轨迹列表</span>
-                <button onClick={handleAddAddress} className="add-address-btn" type="button">+ 新增打卡点</button>
+                <span>足迹点轨迹列表</span>
+                <button onClick={handleAddAddress} className="add-address-btn" type="button">+ 新增足迹点</button>
               </div>
 
               {editingNote.addresses.length === 0 && (
                 <div className="tned-empty-hint">
-                  暂无打卡点。点击上方「+ 新增打卡点」，或在右侧地图上点击「地图选点」直接标注。
+                  暂无足迹点。点击上方「+ 新增足迹点」，或在右侧地图上点击「地图选点」直接标注。
                 </div>
               )}
 
               {editingNote.addresses.map((addr, idx) => (
                 <div key={addr.id} className={`address-edit-card ${mapPickingIdx === idx ? "addr-card-picking" : ""}`}>
+
                   <div className="address-card-header">
-                    <span className="addr-card-num">📍 打卡点 #{idx + 1}</span>
+                    <span className="addr-card-num">📍 足迹点 #{idx + 1}</span>
                     <button onClick={() => handleRemoveAddress(idx)} className="remove-address-btn" type="button">删除</button>
                   </div>
 
+                  {/* 天数 + 地点名称 */}
                   <div className="form-row">
-                    <div className="form-group" style={{ flex: "0 0 110px" }}>
+                    <div className="form-group" style={{ flex: "0 0 130px" }}>
                       <label>Day</label>
                       <select value={addr.day || 1}
                         onChange={(e) => handleUpdateAddressField(idx, "day", parseInt(e.target.value) || 1)}
                         className="day-select">
-                        {[1,2,3,4,5,6,7,8,9,10].map(d => (
-                          <option key={d} value={d}>第 {d} 天</option>
+                        {dayOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
                     </div>
@@ -9263,54 +9469,63 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                     </div>
                   </div>
 
-                  <div className="addr-coords-row">
-                    <div className="form-group">
-                      <label>纬度 (Lat)</label>
-                      <input type="number" step="any" value={addr.coordinates.lat}
-                        onChange={(e) => handleUpdateAddressField(idx, "coordinates", { ...addr.coordinates, lat: parseFloat(e.target.value) || 0 })} />
-                    </div>
-                    <div className="form-group">
-                      <label>经度 (Lng)</label>
-                      <input type="number" step="any" value={addr.coordinates.lng}
-                        onChange={(e) => handleUpdateAddressField(idx, "coordinates", { ...addr.coordinates, lng: parseFloat(e.target.value) || 0 })} />
+                  {/* 坐标 + 操作按钮 */}
+                  <div className="addr-coords-block">
+                    <div className="addr-coords-inputs">
+                      <div className="form-group">
+                        <label>纬度 (Lat)</label>
+                        <input type="number" step="any" value={addr.coordinates.lat}
+                          onChange={(e) => handleUpdateAddressField(idx, "coordinates", { ...addr.coordinates, lat: parseFloat(e.target.value) || 0 })} />
+                      </div>
+                      <div className="form-group">
+                        <label>经度 (Lng)</label>
+                        <input type="number" step="any" value={addr.coordinates.lng}
+                          onChange={(e) => handleUpdateAddressField(idx, "coordinates", { ...addr.coordinates, lng: parseFloat(e.target.value) || 0 })} />
+                      </div>
                     </div>
                     <div className="addr-action-btns">
                       <button onClick={() => handleGeocodeSearch(idx, addr.name)} className="coords-lookup-btn"
-                        type="button" disabled={searchingIndex === idx} title="通过地名自动解析坐标">
+                        type="button" disabled={searchingIndex === idx}>
                         {searchingIndex === idx ? "解析中…" : "🔍 解析坐标"}
                       </button>
                       <button
                         onClick={() => setMapPickingIdx(mapPickingIdx === idx ? null : idx)}
                         className={`map-pick-btn ${mapPickingIdx === idx ? "active" : ""}`}
-                        type="button" title="在右侧地图上点击手动标注">
+                        type="button">
                         {mapPickingIdx === idx ? "✕ 取消" : "📍 地图选点"}
                       </button>
                     </div>
                   </div>
 
+                  {/* 攻略文字 */}
                   <div className="form-group">
                     <label>攻略 / 旅行日记</label>
                     <textarea value={addr.text}
                       onChange={(e) => { handleUpdateAddressField(idx, "text", e.target.value); adjustHeight(e.target); }}
-                      ref={adjustHeight} placeholder="在这里记录打卡地点的攻略和旅行日记..." rows={3} />
+                      ref={adjustHeight} placeholder="在这里记录足迹点的攻略和旅行日记..." rows={3} />
                   </div>
 
+                  {/* 配图 */}
                   <div className="form-group">
                     <label>点位配图</label>
-                    <input type="file" accept="image/*"
-                      onChange={(e) => processImageUpload(e.target.files[0], (d) => handleUpdateAddressField(idx, "image", d))} />
+                    <label className="file-upload-btn file-upload-btn-sm">
+                      🖼 选择图片
+                      <input type="file" accept="image/*" style={{ display: "none" }}
+                        onChange={(e) => processImageUpload(e.target.files[0], (d) => handleUpdateAddressField(idx, "image", d))} />
+                    </label>
                     {addr.image && (
                       <div className="image-field-preview" style={{ marginTop: 8 }}>
                         <img src={addr.image} alt="配图预览" />
                       </div>
                     )}
                   </div>
+
                 </div>
               ))}
 
               {editingNote.addresses.length > 0 && (
                 <button onClick={handleAddAddress} className="add-address-btn add-address-btn-bottom" type="button">
-                  + 继续新增打卡点
+                  + 继续新增足迹点
                 </button>
               )}
             </div>
@@ -9325,13 +9540,13 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
           <div className="tned-right">
             {mapPickingIdx !== null && (
               <div className="tned-pick-banner">
-                <span>📍 请在地图上点击，为「打卡点 #{mapPickingIdx + 1}{editingNote.addresses[mapPickingIdx]?.name ? " · " + editingNote.addresses[mapPickingIdx].name : ""}」标注位置</span>
+                <span>📍 请在地图上点击，为「足迹点 #{mapPickingIdx + 1}{editingNote.addresses[mapPickingIdx]?.name ? " · " + editingNote.addresses[mapPickingIdx].name : ""}」标注位置</span>
                 <button onClick={() => setMapPickingIdx(null)} type="button">取消</button>
               </div>
             )}
             <div ref={editMapRef} className="tned-map-container" />
             <div className="tned-map-hint">
-              🖱️ 拖拽编号标记可微调坐标 &nbsp;·&nbsp; 点击「地图选点」可在地图上直接标注
+              🖱️ 拖拽编号标记可微调坐标 &nbsp;·&nbsp; 国内城市自动切换天地图 &nbsp;·&nbsp; 点击「地图选点」手动标注
             </div>
           </div>
 

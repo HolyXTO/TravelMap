@@ -6234,3 +6234,145 @@ h2 {
   .tned-left { flex: 0 0 auto; border-right: none; border-bottom: 1px solid #edf2f7; max-height: 55vh; }
   .tned-right { flex: 1; min-height: 220px; }
 }
+
+/* ================================================================
+   旅行记录编辑器 v2 新增样式
+   ================================================================ */
+
+/* 星级评分 */
+.star-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #e2e8f0;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 1;
+  transition: color 0.12s ease, transform 0.1s ease;
+}
+
+.star-btn.filled {
+  color: #c69b55;
+}
+
+.star-btn:hover {
+  transform: scale(1.15);
+}
+
+.star-rating-label {
+  margin-left: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+/* 自定义文件上传按钮 */
+.file-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.file-upload-btn:hover {
+  background: #f1f5f9;
+  border-color: #c69b55;
+  color: #c69b55;
+}
+
+.file-upload-btn-sm {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+
+/* 封面图定位器 */
+.cover-positioner-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cover-positioner-box {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 2px solid #c69b55;
+  cursor: grab;
+  background: #1e293b;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  user-select: none;
+}
+
+.cover-positioner-box:active {
+  cursor: grabbing;
+}
+
+/* 4角边框标记 */
+.cover-crop-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-color: #fff;
+  border-style: solid;
+  z-index: 10;
+  pointer-events: none;
+}
+.cover-crop-corner.tl { top: 6px; left: 6px; border-width: 2px 0 0 2px; }
+.cover-crop-corner.tr { top: 6px; right: 6px; border-width: 2px 2px 0 0; }
+.cover-crop-corner.bl { bottom: 6px; left: 6px; border-width: 0 0 2px 2px; }
+.cover-crop-corner.br { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; }
+
+.cover-crop-label {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.cover-positioner-hint {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* 坐标区块：输入框 + 按钮 左右布局 */
+.addr-coords-block {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.addr-coords-inputs {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+}
+
+.addr-coords-inputs .form-group {
+  flex: 1;
+}
