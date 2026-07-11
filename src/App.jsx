@@ -8215,6 +8215,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
             center: row.center,
             addresses: row.addresses,
             coverImagePosition: row.cover_image_position || { x: 50, y: 50 },
+            author: row.cover_image_position?.author || "Xiao",
           }));
           const merged = [...dbNotes];
           const classicIds = ["note-1", "note-2", "note-3", "note-4", "note-5"];
@@ -8624,7 +8625,11 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
       const noteToSave = {
         ...savedNote,
         coverImage: finalCover,
-        addresses: finalAddresses
+        addresses: finalAddresses,
+        coverImagePosition: {
+          ...(savedNote.coverImagePosition || { x: 50, y: 50 }),
+          author: savedNote.author || "Xiao"
+        }
       };
 
       // 3. 转换字段名：前端 camelCase → 数据库 snake_case

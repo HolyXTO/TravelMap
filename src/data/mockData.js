@@ -291,7 +291,7 @@ export const initialVisits = [
     "placeId": "city-rome",
     "visitedAt": null,
     "type": "旅行",
-    "note": "���啦啦",
+    "note": "啦啦啦",
     "photos": []
   },
   {
