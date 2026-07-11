@@ -6527,8 +6527,9 @@ h2 {
 
 /* ── 多图自适应排版网格 ── */
 .footpoint-photo-grid {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 10px;
   width: 100%;
 }
@@ -6537,78 +6538,49 @@ h2 {
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06);
   background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.footpoint-photo-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.12);
 }
 
 .footpoint-photo-item img {
-  width: 100%;
   height: 100%;
-  object-fit: cover;
+  width: auto; /* 保留原始宽高比，不拉伸，不裁剪 */
   display: block;
   transition: transform 0.3s ease;
 }
 
 .footpoint-photo-item:hover img {
-  transform: scale(1.03);
+  transform: scale(1.02);
 }
 
-/* layout grid-1 */
-.footpoint-photo-grid.grid-1 {
-  grid-template-columns: 1fr;
-}
+/* 针对不同照片总数的自适应高度缩放体系 */
 .footpoint-photo-grid.grid-1 .footpoint-photo-item {
-  aspect-ratio: 4/3;
-  max-height: 380px;
+  height: 320px;
+  max-width: 100%;
 }
 
-/* layout grid-1-tall */
-.footpoint-photo-grid.grid-1-tall {
-  grid-template-columns: 1fr;
-  max-width: 240px;
-}
-.footpoint-photo-grid.grid-1-tall .footpoint-photo-item {
-  aspect-ratio: 3/4;
+.footpoint-photo-grid.grid-2 .footpoint-photo-item,
+.footpoint-photo-grid.grid-3 .footpoint-photo-item {
+  height: 240px;
 }
 
-/* layout grid-2 */
-.footpoint-photo-grid.grid-2 {
-  grid-template-columns: 1fr 1fr;
-}
-.footpoint-photo-grid.grid-2 .footpoint-photo-item {
-  aspect-ratio: 4/3;
+.footpoint-photo-grid.grid-4 .footpoint-photo-item,
+.footpoint-photo-grid.grid-5 .footpoint-photo-item,
+.footpoint-photo-grid.grid-6 .footpoint-photo-item {
+  height: 180px;
 }
 
-/* layout grid-3 */
-.footpoint-photo-grid.grid-3 {
-  grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-.footpoint-photo-grid.grid-3 .footpoint-photo-item:nth-child(1) {
-  grid-row: span 2;
-  aspect-ratio: auto;
-}
-.footpoint-photo-grid.grid-3 .footpoint-photo-item:nth-child(2),
-.footpoint-photo-grid.grid-3 .footpoint-photo-item:nth-child(3) {
-  grid-column: 2;
-  aspect-ratio: 4/3;
-}
-
-/* layout grid-4 */
-.footpoint-photo-grid.grid-4 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
-.footpoint-photo-grid.grid-4 .footpoint-photo-item {
-  aspect-ratio: 4/3;
-}
-
-/* layout grid-many */
-.footpoint-photo-grid.grid-many {
-  grid-template-columns: repeat(3, 1fr);
-}
 .footpoint-photo-grid.grid-many .footpoint-photo-item {
-  aspect-ratio: 1/1;
+  height: 135px;
 }
 
 /* 删除按钮 hover */

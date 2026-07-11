@@ -8180,7 +8180,15 @@ function ProvinceGallery({ regionPlaces = [], filteredVisits = [], placeLookup }
 
 function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTileSource, setMapTileSource }) {
   const canEdit = session ? isEditor : true;
-  const [notes, setNotes] = useState(defaultTravelNotes);
+  const [notes, setNotes] = useState(() => {
+    let deletedIds = [];
+    try {
+      deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
+    } catch (e) {
+      console.error(e);
+    }
+    return defaultTravelNotes.filter((n) => !deletedIds.includes(n.id));
+  });
   const [notesLoading, setNotesLoading] = useState(false);
   
   const [expandedNoteId, setExpandedNoteId] = useState(null);
@@ -8203,7 +8211,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           console.warn("Supabase travel_notes load failed:", error.message);
           return;
         }
-        if (data && data.length > 0) {
+        if (data) {
           const dbNotes = data.map((row) => ({
             id: row.id,
             city: row.city,
@@ -8218,11 +8226,21 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
             author: row.cover_image_position?.author || "Xiao",
           }));
           const merged = [...dbNotes];
+          
+          let deletedIds = [];
+          try {
+            deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
+          } catch (e) {
+            console.error(e);
+          }
+
           const classicIds = ["note-1", "note-2", "note-3", "note-4", "note-5"];
           defaultTravelNotes.forEach((defNote) => {
             if (classicIds.includes(defNote.id)) {
-              if (!merged.some((n) => n.id === defNote.id || n.city === defNote.city)) {
-                merged.push(defNote);
+              if (!deletedIds.includes(defNote.id)) {
+                if (!merged.some((n) => n.id === defNote.id || n.city === defNote.city)) {
+                  merged.push(defNote);
+                }
               }
             }
           });
@@ -8503,9 +8521,19 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   const handleDelete = async (id, e) => {
     e.stopPropagation();
     if (!confirm("确定要删除这篇旅行记录吗？")) return;
-    // 仅对云端记录执行数据库删除（示例记录不在数据库中）
+    
     const isDefault = ["note-1", "note-2", "note-3", "note-4", "note-5"].includes(id);
-    if (!isDefault) {
+    if (isDefault) {
+      try {
+        const deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
+        if (!deletedIds.includes(id)) {
+          deletedIds.push(id);
+          localStorage.setItem("deleted_default_notes", JSON.stringify(deletedIds));
+        }
+      } catch (err) {
+        console.error("Failed to save deleted default note ID:", err);
+      }
+    } else {
       const { error } = await supabase.from("travel_notes").delete().eq("id", id);
       if (error) {
         alert("删除失败：" + error.message);
@@ -8889,7 +8917,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                                         {renderTextWithLinks(note.id, addr.text, note.addresses)}
                                       </p>
                                       {addr.photos && addr.photos.length > 0 ? (
-                                        <div className={`footpoint-photo-grid grid-${addr.photos.length === 1 ? (addr.photos[0].ratio === "3:4" ? "1-tall" : "1") : addr.photos.length === 2 ? "2" : addr.photos.length === 3 ? "3" : addr.photos.length === 4 ? "4" : "many"}`}>
+                                        <div className={`footpoint-photo-grid ${addr.photos.length <= 6 ? `grid-${addr.photos.length}` : "grid-many"}`}>
                                           {addr.photos.map((ph, pIdx) => (
                                             <div key={ph.id || pIdx} className="footpoint-photo-item">
                                               <img src={ph.url || ph.dataUrl} alt={addr.name} loading="lazy" onClick={() => window.open(ph.url || ph.dataUrl, "_blank")} style={{ cursor: "zoom-in" }} />
@@ -9653,7 +9681,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                     </label>
 
                     {addr.photos && addr.photos.length > 0 && (
-                      <div className={`footpoint-photo-grid grid-${addr.photos.length === 1 ? (addr.photos[0].ratio === "3:4" ? "1-tall" : "1") : addr.photos.length === 2 ? "2" : addr.photos.length === 3 ? "3" : addr.photos.length === 4 ? "4" : "many"}`} style={{ marginTop: 8 }}>
+                      <div className={`footpoint-photo-grid ${addr.photos.length <= 6 ? `grid-${addr.photos.length}` : "grid-many"}`} style={{ marginTop: 8 }}>
                         {addr.photos.map((ph) => (
                           <div key={ph.id} className="footpoint-photo-item">
                             <img src={ph.dataUrl || ph.url} alt="" />

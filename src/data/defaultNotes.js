@@ -5,6 +5,159 @@
 
 export const defaultTravelNotes = [
   {
+    "id": "note-1783781916921",
+    "city": "阿拉伯联合酋长国·阿布扎比",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783783991210-lrk9ennvb.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 0,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "2025-06-15",
+    "endDate": "2025-06-15",
+    "rating": 9,
+    "summary": "UAE · Abu Dhabi",
+    "center": [
+      24.411901,
+      54.475201
+    ],
+    "addresses": [
+      {
+        "id": "addr-1783782368420-0",
+        "day": 1,
+        "name": "谢赫扎耶德清真寺，Sheikh Zayed Grand Mosque",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782368420-0-ph-1783782657500-xz7mm-1783783991211-8qzax414m.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783782657500-xz7mm",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782368420-0-ph-1783782657500-xz7mm-1783783991211-8qzax414m.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783782657500-8cdai",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782368420-0-ph-1783782657500-8cdai-1783783991264-envyjmgtp.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783782657609-7kyp6",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782368420-0-ph-1783782657609-7kyp6-1783783991213-clvjb11aq.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783782798329-ak9gu",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782368420-0-ph-1783782798329-ak9gu-1783783991151-3jn3vfxbf.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783782886911-3l15e",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782368420-0-ph-1783782886911-3l15e-1783783991266-kqcuto2j8.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 24.411901,
+          "lng": 54.475201
+        }
+      },
+      {
+        "id": "addr-1783782803206-1",
+        "day": 1,
+        "name": "总统府，Qasr Al Watan",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782803206-1-ph-1783783068135-gaxor-1783783991213-9l5yagtck.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783783068135-gaxor",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782803206-1-ph-1783783068135-gaxor-1783783991213-9l5yagtck.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783783068370-jh126",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782803206-1-ph-1783783068370-jh126-1783783991265-fsubplpf0.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783783068370-0py3y",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783782803206-1-ph-1783783068370-0py3y-1783783991266-3p31csdut.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 24.45984627074283,
+          "lng": 54.30765228942794
+        }
+      },
+      {
+        "id": "addr-1783783732608-2",
+        "day": 1,
+        "name": "海上卢浮宫，Louvre Abu Dhabi",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783732608-2-ph-1783783802917-mxy00-1783783991209-82z9pgusi.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783783802917-mxy00",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783732608-2-ph-1783783802917-mxy00-1783783991209-82z9pgusi.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783783803486-102cw",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783732608-2-ph-1783783803486-102cw-1783783991211-v7imwnh28.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783783974183-xkq4x",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783732608-2-ph-1783783974183-xkq4x-1783783991212-38wy8ayhg.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783783974183-t4rat",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783732608-2-ph-1783783974183-t4rat-1783783991260-q0mnwhr73.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783783974183-cp2n2",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783732608-2-ph-1783783974183-cp2n2-1783783991212-dat26fi62.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783783974278-pxtdy",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783732608-2-ph-1783783974278-pxtdy-1783783991261-6x7nkdvog.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 24.534689,
+          "lng": 54.400817
+        }
+      },
+      {
+        "id": "addr-1783783771103-3",
+        "day": 1,
+        "name": "亚伯拉罕之家，Abrahamic Family House",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783771103-3-ph-1783783987382-6ubkf-1783783991262-g0g6tv7i2.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783783987382-6ubkf",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783771103-3-ph-1783783987382-6ubkf-1783783991262-g0g6tv7i2.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783783987382-9exwi",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783783771103-3-ph-1783783987382-9exwi-1783783991263-opog0gc8h.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 24.530849,
+          "lng": 54.4059264
+        }
+      }
+    ]
+  },
+  {
     "id": "note-2",
     "city": "巴黎 · 经典地标漫步",
     "coverImage": "/TravelMap/paris_louvre_night.jpg",
@@ -52,12 +205,13 @@ export const defaultTravelNotes = [
     "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783761815824-qzobfckxy.jpeg",
     "coverImagePosition": {
       "x": 50,
-      "y": 93
+      "y": 64,
+      "author": "Xiao"
     },
     "author": "Xiao",
     "startDate": "2025-06-08",
     "endDate": "2025-06-08",
-    "rating": 10,
+    "rating": 8,
     "summary": "Qatar · Doha",
     "center": [
       48.8566,
@@ -214,9 +368,10 @@ export const defaultTravelNotes = [
     "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783780836376-x3qqg3llr.jpeg",
     "coverImagePosition": {
       "x": 50,
-      "y": 58
+      "y": 58,
+      "author": "Tang"
     },
-    "author": "Xiao",
+    "author": "Tang",
     "startDate": "2026-07-01",
     "endDate": "2026-07-10",
     "rating": 4,
