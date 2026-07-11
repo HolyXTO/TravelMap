@@ -1581,9 +1581,15 @@ function displayProfileName(name) {
 }
 
 function profileStableIndex(profile) {
-  if (PROFILE_ID_ORDER.has(profile?.id)) return PROFILE_ID_ORDER.get(profile.id);
+  const name = (profile?.name || "").trim().toLowerCase();
+  if (name === "xiao") return 0;
+  if (name === "tang") return 1;
+  if (name === "bobo" || name === "person a") return 2;
+  if (name === "yier" || name === "person b") return 3;
+
+  if (PROFILE_ID_ORDER.has(profile?.id)) return PROFILE_ID_ORDER.get(profile.id) + 4;
   const colorIndex = PROFILE_COLOR_ORDER.get((profile?.color || "").toLowerCase());
-  if (colorIndex !== undefined) return colorIndex;
+  if (colorIndex !== undefined) return colorIndex + 10;
   return 99;
 }
 
@@ -2425,7 +2431,7 @@ function App() {
   }, [mapTileSource]);
 
   const [appProfiles, setAppProfiles] = useState(profiles);
-  const [visits, setVisits] = useState([]);
+  const [visits, setVisits] = useState(initialVisits);
   const [recentInteractions, setRecentInteractions] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [routeMessage, setRouteMessage] = useState("");

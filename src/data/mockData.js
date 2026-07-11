@@ -1496,7 +1496,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "W-2990440",
     "visitedAt": null,
-    "type": "旅行",
+    "type": "���行",
     "note": "",
     "photos": []
   },
@@ -2144,7 +2144,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "CN061080",
     "visitedAt": null,
-    "type": "旅��",
+    "type": "旅行",
     "note": "",
     "photos": []
   },
@@ -2252,7 +2252,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "EXTRA-RIMINI",
     "visitedAt": null,
-    "type": "旅行",
+    "type": "���行",
     "note": "",
     "photos": []
   },
