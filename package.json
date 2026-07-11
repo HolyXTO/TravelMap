@@ -6,7 +6,7 @@
   "packageManager": "pnpm@11.7.0",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --base=/TravelMap/",
-    "build": "vite build --base=/TravelMap/",
+    "build": "node scripts/sync_data.cjs && vite build --base=/TravelMap/",
     "preview": "vite preview --host 127.0.0.1 --base=/TravelMap/"
   },
   "dependencies": {
