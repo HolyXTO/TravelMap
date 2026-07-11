@@ -9007,13 +9007,22 @@ function CoverImagePositioner({ src, position, onChange }) {
 }
 
 function TravelNoteEditDialog({ note, onClose, onSave }) {
-  const [editingNote, setEditingNote] = useState(() => ({
-    ...JSON.parse(JSON.stringify(note)),
-    coverImagePosition: note.coverImagePosition || { x: 50, y: 50 },
-  }));
+  const [editingNote, setEditingNote] = useState(() => {
+    const cloned = JSON.parse(JSON.stringify(note));
+    return {
+      ...cloned,
+      coverImagePosition: cloned.coverImagePosition || { x: 50, y: 50 },
+      // Initialize address.photos list. If the address has a single image but no photos, convert it.
+      addresses: (cloned.addresses || []).map((a) => ({
+        ...a,
+        photos: a.photos || (a.image ? [{ id: `ph-init-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, url: a.image, ratio: "4:3" }] : [])
+      }))
+    };
+  });
   const [searchingIndex, setSearchingIndex] = useState(null);
   const [mapPickingIdx, setMapPickingIdx] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [draggedIdx, setDraggedIdx] = useState(null);
 
   // 地图 refs
   const editMapRef = useRef(null);
@@ -9042,12 +9051,45 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
   useEffect(() => { handleUpdateRef.current = handleUpdateAddressField; });
   useEffect(() => { mapPickingIdxRef.current = mapPickingIdx; }, [mapPickingIdx]);
 
+  // ── Drag and Drop Reordering ──
+  const handleDragStart = (e, index) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIndex) return;
+    setEditingNote((prev) => {
+      const addresses = [...prev.addresses];
+      const [movedItem] = addresses.splice(draggedIdx, 1);
+      addresses.splice(targetIndex, 0, movedItem);
+      return { ...prev, addresses };
+    });
+    setDraggedIdx(null);
+  };
+
+  const moveAddress = (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= editingNote.addresses.length) return;
+    setEditingNote((prev) => {
+      const addresses = [...prev.addresses];
+      const [movedItem] = addresses.splice(index, 1);
+      addresses.splice(targetIndex, 0, movedItem);
+      return { ...prev, addresses };
+    });
+  };
+
   const handleAddAddress = () => {
     setEditingNote((prev) => ({
       ...prev,
       addresses: [
         ...prev.addresses,
-        { id: `addr-${Date.now()}-${prev.addresses.length}`, day: 1, name: "", coordinates: { lat: 0, lng: 0 }, text: "" }
+        { id: `addr-${Date.now()}-${prev.addresses.length}`, day: 1, name: "", coordinates: { lat: 0, lng: 0 }, text: "", photos: [] }
       ]
     }));
   };
@@ -9074,9 +9116,47 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
         }
         canvas.width = width; canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        callback(canvas.toDataURL("image/jpeg", 0.85));
+        
+        // Determine whether landscape (4:3) or portrait (3:4)
+        const ratio = width >= height ? "4:3" : "3:4";
+        callback(canvas.toDataURL("image/jpeg", 0.85), ratio);
       };
     };
+  };
+
+  // Add multiple photos
+  const handleAddPhotos = (idx, files) => {
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      processImageUpload(file, (dataUrl, ratio) => {
+        setEditingNote((prev) => {
+          const updatedAddrs = [...prev.addresses];
+          const currentPhotos = [...(updatedAddrs[idx].photos || [])];
+          currentPhotos.push({
+            id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            dataUrl,
+            ratio
+          });
+          updatedAddrs[idx] = {
+            ...updatedAddrs[idx],
+            photos: currentPhotos
+          };
+          return { ...prev, addresses: updatedAddrs };
+        });
+      });
+    });
+  };
+
+  const handleRemovePhoto = (addrIdx, photoId) => {
+    setEditingNote((prev) => {
+      const updatedAddrs = [...prev.addresses];
+      const currentPhotos = (updatedAddrs[addrIdx].photos || []).filter((p) => p.id !== photoId);
+      updatedAddrs[addrIdx] = {
+        ...updatedAddrs[addrIdx],
+        photos: currentPhotos
+      };
+      return { ...prev, addresses: updatedAddrs };
+    });
   };
 
   // ── Day 下拉框：根据日期范围生成选项 ──
@@ -9152,7 +9232,6 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     setIsSaving(true);
     try {
       const ok = await onSave(editingNote);
-      // If ok is false, handleSaveNote will show alert, but keep dialog open
       if (!ok) {
         setIsSaving(false);
       }
@@ -9170,7 +9249,6 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
 
     const map = L.map(editMapRef.current, { center: [30, 110], zoom: 4, zoomControl: true });
 
-    // 默认 ESRI 底图
     const esriLayer = L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
       { attribution: "© Esri", maxZoom: 19 }
@@ -9202,13 +9280,11 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     const L = window.L;
     if (!L) return;
 
-    // 判断是否国内
     const isDomestic = isNoteDomestic(editingNote);
     const current = editTileRef.current;
     if (!current) return;
 
     if (isDomestic && current.type !== "tdt") {
-      // 切换到天地图
       if (current.base) map.removeLayer(current.base);
       if (current.label) map.removeLayer(current.label);
       const tdtBase = L.tileLayer(
@@ -9221,7 +9297,6 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
       ).addTo(map);
       editTileRef.current = { type: "tdt", base: tdtBase, label: tdtLabel };
     } else if (!isDomestic && current.type !== "esri") {
-      // 切换到 ESRI
       if (current.base) map.removeLayer(current.base);
       if (current.label) map.removeLayer(current.label);
       const esriLayer = L.tileLayer(
@@ -9280,14 +9355,18 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     <div className="travel-edit-dialog-overlay">
       <div className="travel-edit-dialog-wide" onClick={(e) => e.stopPropagation()}>
 
-        {/* ── 顶部标题栏 ── */}
+        {/* ── 顶部标题栏（全新精美设计） ── */}
         <div className="tned-header">
           <div className="tned-header-title">
-            <span className="tned-eyebrow">旅行记录编辑器</span>
-            <h3>{editingNote.city || "新建旅行记录"}</h3>
+            <div className="tned-header-badge">
+              <span className="tned-badge-icon">✈️</span>
+              <span className="tned-badge-text">Travel Map Editor</span>
+            </div>
+            <h2>旅行记录编辑器</h2>
+            {editingNote.city && <p className="tned-subtitle">当前编辑城市：{editingNote.city}</p>}
           </div>
-          <button onClick={onClose} className="close-dialog-btn" type="button" disabled={isSaving}>
-            <X size={18} />
+          <button onClick={onClose} className="tned-close-btn" type="button" disabled={isSaving}>
+            <X size={20} />
           </button>
         </div>
 
@@ -9299,7 +9378,9 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
 
             {/* 基本信息 */}
             <div className="tned-section">
-              <div className="tned-section-label">基本信息</div>
+              <div className="tned-section-label">
+                <span className="tned-section-lbl-icon">📝</span> 基本信息
+              </div>
 
               <div className="form-group">
                 <label>旅行记录标题 / 城市 *</label>
@@ -9339,7 +9420,9 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
 
             {/* 封面图 */}
             <div className="tned-section">
-              <div className="tned-section-label">卡片封面图</div>
+              <div className="tned-section-label">
+                <span className="tned-section-lbl-icon">🖼️</span> 卡片封面图
+              </div>
               <div className="form-group">
                 <label>选择图片（上传后可拖拽调整裁剪位置）</label>
                 <label className="file-upload-btn">
@@ -9369,7 +9452,9 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
             {/* 足迹点列表 */}
             <div className="tned-section">
               <div className="tned-section-label tned-section-row">
-                <span>足迹点轨迹列表</span>
+                <span>
+                  <span className="tned-section-lbl-icon">📍</span> 足迹点轨迹列表
+                </span>
                 <button onClick={handleAddAddress} className="add-address-btn" type="button">+ 新增足迹点</button>
               </div>
 
@@ -9380,11 +9465,46 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
               )}
 
               {editingNote.addresses.map((addr, idx) => (
-                <div key={addr.id} className={`address-edit-card ${mapPickingIdx === idx ? "addr-card-picking" : ""}`}>
-
+                <div
+                  key={addr.id}
+                  className={`address-edit-card ${mapPickingIdx === idx ? "addr-card-picking" : ""}`}
+                  onDragOver={(e) => handleDragOver(e, idx)}
+                  onDrop={(e) => handleDrop(e, idx)}
+                >
                   <div className="address-card-header">
-                    <span className="addr-card-num">📍 足迹点 #{idx + 1}</span>
-                    <button onClick={() => handleRemoveAddress(idx)} className="remove-address-btn" type="button">删除</button>
+                    <div className="address-card-header-left">
+                      <span
+                        className="drag-handle"
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, idx)}
+                        onDragEnd={() => setDraggedIdx(null)}
+                        title="按住拖拽排序"
+                      >
+                        ⠿
+                      </span>
+                      <span className="addr-card-num">📍 足迹点 #{idx + 1}</span>
+                    </div>
+                    <div className="address-card-actions">
+                      <button
+                        type="button"
+                        className="reorder-btn"
+                        disabled={idx === 0}
+                        onClick={() => moveAddress(idx, -1)}
+                        title="上移"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="reorder-btn"
+                        disabled={idx === editingNote.addresses.length - 1}
+                        onClick={() => moveAddress(idx, 1)}
+                        title="下移"
+                      >
+                        ↓
+                      </button>
+                      <button onClick={() => handleRemoveAddress(idx)} className="remove-address-btn" type="button">删除</button>
+                    </div>
                   </div>
 
                   {/* 天数 + 地点名称 */}
@@ -9443,17 +9563,42 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                       ref={adjustHeight} placeholder="在这里记录足迹点的攻略和旅行日记..." rows={3} />
                   </div>
 
-                  {/* 配图 */}
+                  {/* 多图配图上传 */}
                   <div className="form-group">
-                    <label>点位配图</label>
-                    <label className="file-upload-btn file-upload-btn-sm">
-                      🖼 选择图片
-                      <input type="file" accept="image/*" style={{ display: "none" }}
-                        onChange={(e) => processImageUpload(e.target.files[0], (d) => handleUpdateAddressField(idx, "image", d))} />
+                    <label style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>点位配图（可添加多张）</span>
+                      {addr.photos && addr.photos.length > 0 && (
+                        <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+                          已添加 {addr.photos.length} 张图片
+                        </span>
+                      )}
                     </label>
-                    {addr.image && (
-                      <div className="image-field-preview" style={{ marginTop: 8 }}>
-                        <img src={addr.image} alt="配图预览" />
+                    <label className="file-upload-btn file-upload-btn-sm" style={{ alignSelf: "flex-start", marginTop: 4 }}>
+                      🖼 添加图片
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        style={{ display: "none" }}
+                        onChange={(e) => handleAddPhotos(idx, e.target.files)}
+                      />
+                    </label>
+
+                    {addr.photos && addr.photos.length > 0 && (
+                      <div className={`footpoint-photo-grid grid-${addr.photos.length === 1 ? (addr.photos[0].ratio === "3:4" ? "1-tall" : "1") : addr.photos.length === 2 ? "2" : addr.photos.length === 3 ? "3" : addr.photos.length === 4 ? "4" : "many"}`} style={{ marginTop: 8 }}>
+                        {addr.photos.map((ph) => (
+                          <div key={ph.id} className="footpoint-photo-item">
+                            <img src={ph.dataUrl || ph.url} alt="" />
+                            <button
+                              type="button"
+                              className="photo-remove-btn"
+                              onClick={() => handleRemovePhoto(idx, ph.id)}
+                              title="删除图片"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

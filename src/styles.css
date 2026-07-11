@@ -6005,35 +6005,84 @@ h2 {
   animation: dialog-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── 头部全新设计 ── */
 .tned-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 28px;
+  padding: 24px 32px;
   border-bottom: 1px solid #edf2f7;
-  background: linear-gradient(135deg, #fafbfc 0%, #f8f5f0 100%);
+  background: linear-gradient(135deg, #f8f6f0 0%, #ffffff 100%);
   flex-shrink: 0;
 }
 
-.tned-header-title { display: flex; flex-direction: column; gap: 2px; }
+.tned-header-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
-.tned-eyebrow {
-  font-size: 0.72rem;
+.tned-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(198, 155, 85, 0.1);
+  border: 1px solid rgba(198, 155, 85, 0.2);
+  padding: 4px 10px;
+  border-radius: 20px;
+  align-self: flex-start;
+}
+
+.tned-badge-icon {
+  font-size: 0.9rem;
+}
+
+.tned-badge-text {
+  font-size: 0.65rem;
   font-weight: 700;
-  color: #c69b55;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  color: #c69b55;
 }
 
-.tned-header h3 {
+.tned-header h2 {
   margin: 0;
-  font-family: var(--prophet-serif);
-  font-size: 1.25rem;
-  font-weight: 900;
+  font-size: 1.6rem;
+  font-weight: 800;
   color: #0f172a;
-  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
+.tned-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.tned-close-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.tned-close-btn:hover {
+  background: #f8fafc;
+  color: #ef4444;
+  border-color: #fca5a5;
+  transform: rotate(90deg);
+}
+
+/* ── 主体 ── */
 .tned-body {
   display: flex;
   flex: 1;
@@ -6045,20 +6094,21 @@ h2 {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  padding: 24px 28px;
+  padding: 28px 32px;
   gap: 0;
   border-right: 1px solid #edf2f7;
 }
 
-.tned-left::-webkit-scrollbar { width: 5px; }
+.tned-left::-webkit-scrollbar { width: 6px; }
 .tned-left::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 
+/* ── 区域块 ── */
 .tned-section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-bottom: 20px;
-  margin-bottom: 20px;
+  gap: 16px;
+  padding-bottom: 24px;
+  margin-bottom: 24px;
   border-bottom: 1px dashed #e2e8f0;
 }
 
@@ -6067,11 +6117,19 @@ h2 {
 }
 
 .tned-section-label {
-  font-size: 0.78rem;
-  font-weight: 900;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 3.5px solid #c69b55;
+  padding-left: 10px;
+  letter-spacing: 0.02em;
+}
+
+.tned-section-lbl-icon {
+  font-size: 1.05rem;
 }
 
 .tned-section-row {
@@ -6081,19 +6139,108 @@ h2 {
 }
 
 .tned-empty-hint {
-  padding: 20px;
-  border: 2px dashed #e2e8f0;
+  padding: 24px;
+  border: 2px dashed #cbd5e1;
   border-radius: 12px;
   text-align: center;
   font-size: 0.85rem;
   color: #94a3b8;
   line-height: 1.6;
+  background: #f8fafc;
+}
+
+/* ── 拖拽和排序足迹卡片 ── */
+.address-edit-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 16px;
+}
+
+.address-edit-card:hover {
+  border-color: #c69b55;
+  box-shadow: 0 6px 18px rgba(198, 155, 85, 0.08);
+}
+
+.address-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+
+.address-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.drag-handle {
+  font-size: 1.2rem;
+  color: #cbd5e1;
+  cursor: grab;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.drag-handle:hover {
+  background: #f1f5f9;
+  color: #c69b55;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .addr-card-num {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 800;
   color: #c69b55;
+}
+
+.address-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 排序按钮 */
+.reorder-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+}
+
+.reorder-btn:hover:not(:disabled) {
+  border-color: #c69b55;
+  background: #fdfbf7;
+  color: #c69b55;
+}
+
+.reorder-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: #f8fafc;
 }
 
 .addr-card-picking {
@@ -6375,4 +6522,117 @@ h2 {
 
 .addr-coords-inputs .form-group {
   flex: 1;
+}
+
+/* ── 多图自适应排版网格 ── */
+.footpoint-photo-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.footpoint-photo-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  background: #f8fafc;
+}
+
+.footpoint-photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.footpoint-photo-item:hover img {
+  transform: scale(1.03);
+}
+
+/* layout grid-1 */
+.footpoint-photo-grid.grid-1 {
+  grid-template-columns: 1fr;
+}
+.footpoint-photo-grid.grid-1 .footpoint-photo-item {
+  aspect-ratio: 4/3;
+  max-height: 380px;
+}
+
+/* layout grid-1-tall */
+.footpoint-photo-grid.grid-1-tall {
+  grid-template-columns: 1fr;
+  max-width: 240px;
+}
+.footpoint-photo-grid.grid-1-tall .footpoint-photo-item {
+  aspect-ratio: 3/4;
+}
+
+/* layout grid-2 */
+.footpoint-photo-grid.grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+.footpoint-photo-grid.grid-2 .footpoint-photo-item {
+  aspect-ratio: 4/3;
+}
+
+/* layout grid-3 */
+.footpoint-photo-grid.grid-3 {
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.footpoint-photo-grid.grid-3 .footpoint-photo-item:nth-child(1) {
+  grid-row: span 2;
+  aspect-ratio: auto;
+}
+.footpoint-photo-grid.grid-3 .footpoint-photo-item:nth-child(2),
+.footpoint-photo-grid.grid-3 .footpoint-photo-item:nth-child(3) {
+  grid-column: 2;
+  aspect-ratio: 4/3;
+}
+
+/* layout grid-4 */
+.footpoint-photo-grid.grid-4 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+.footpoint-photo-grid.grid-4 .footpoint-photo-item {
+  aspect-ratio: 4/3;
+}
+
+/* layout grid-many */
+.footpoint-photo-grid.grid-many {
+  grid-template-columns: repeat(3, 1fr);
+}
+.footpoint-photo-grid.grid-many .footpoint-photo-item {
+  aspect-ratio: 1/1;
+}
+
+/* 删除按钮 hover */
+.photo-remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
+.photo-remove-btn:hover {
+  background: #ef4444;
+  transform: scale(1.1);
+  opacity: 1;
 }

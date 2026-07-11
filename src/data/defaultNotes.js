@@ -6,7 +6,7 @@
 export const defaultTravelNotes = [
   {
     "id": "note-1783761190292",
-    "city": "卡塔尔",
+    "city": "卡塔尔·多哈",
     "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783761815824-qzobfckxy.jpeg",
     "coverImagePosition": {
       "x": 50,
@@ -15,7 +15,7 @@ export const defaultTravelNotes = [
     "startDate": "2025-06-08",
     "endDate": "2025-06-08",
     "rating": 10,
-    "summary": "QATAR",
+    "summary": "Qatar · Doha",
     "center": [
       48.8566,
       2.3522
