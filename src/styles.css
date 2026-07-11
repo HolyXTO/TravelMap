@@ -6526,12 +6526,22 @@ h2 {
 }
 
 /* ── 多图自适应排版网格 ── */
+/* ── 横/竖自适应多图排版 ── */
 .footpoint-photo-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 10px;
   width: 100%;
+}
+
+.footpoint-photo-grid.layout-landscape .footpoint-photo-item {
+  width: calc(50% - 5px); /* 每行 2 个 */
+  aspect-ratio: 4/3;
+}
+
+.footpoint-photo-grid.layout-portrait .footpoint-photo-item {
+  width: calc(33.333% - 6.666px); /* 每行 3 个 */
+  aspect-ratio: 3/4;
 }
 
 .footpoint-photo-item {
@@ -6552,35 +6562,15 @@ h2 {
 }
 
 .footpoint-photo-item img {
+  width: 100%;
   height: 100%;
-  width: auto; /* 保留原始宽高比，不拉伸，不裁剪 */
+  object-fit: cover; /* 完美裁剪对齐以填满 4:3 或 3:4 容器 */
   display: block;
   transition: transform 0.3s ease;
 }
 
 .footpoint-photo-item:hover img {
   transform: scale(1.02);
-}
-
-/* 针对不同照片总数的自适应高度缩放体系 */
-.footpoint-photo-grid.grid-1 .footpoint-photo-item {
-  height: 320px;
-  max-width: 100%;
-}
-
-.footpoint-photo-grid.grid-2 .footpoint-photo-item,
-.footpoint-photo-grid.grid-3 .footpoint-photo-item {
-  height: 240px;
-}
-
-.footpoint-photo-grid.grid-4 .footpoint-photo-item,
-.footpoint-photo-grid.grid-5 .footpoint-photo-item,
-.footpoint-photo-grid.grid-6 .footpoint-photo-item {
-  height: 180px;
-}
-
-.footpoint-photo-grid.grid-many .footpoint-photo-item {
-  height: 135px;
 }
 
 /* 删除按钮 hover */

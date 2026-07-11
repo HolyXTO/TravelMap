@@ -8917,13 +8917,32 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                                         {renderTextWithLinks(note.id, addr.text, note.addresses)}
                                       </p>
                                       {addr.photos && addr.photos.length > 0 ? (
-                                        <div className={`footpoint-photo-grid ${addr.photos.length <= 6 ? `grid-${addr.photos.length}` : "grid-many"}`}>
-                                          {addr.photos.map((ph, pIdx) => (
-                                            <div key={ph.id || pIdx} className="footpoint-photo-item">
-                                              <img src={ph.url || ph.dataUrl} alt={addr.name} loading="lazy" onClick={() => window.open(ph.url || ph.dataUrl, "_blank")} style={{ cursor: "zoom-in" }} />
+                                        (() => {
+                                          const landscapes = addr.photos.filter(p => (p.ratio || "4:3") === "4:3");
+                                          const portraits = addr.photos.filter(p => p.ratio === "3:4");
+                                          return (
+                                            <div className="address-photos-wrapper">
+                                              {landscapes.length > 0 && (
+                                                <div className="footpoint-photo-grid layout-landscape">
+                                                  {landscapes.map((ph, pIdx) => (
+                                                    <div key={ph.id || `l-${pIdx}`} className="footpoint-photo-item">
+                                                      <img src={ph.url || ph.dataUrl} alt={addr.name} loading="lazy" onClick={() => window.open(ph.url || ph.dataUrl, "_blank")} style={{ cursor: "zoom-in" }} />
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+                                              {portraits.length > 0 && (
+                                                <div className="footpoint-photo-grid layout-portrait" style={{ marginTop: landscapes.length > 0 ? "10px" : "0" }}>
+                                                  {portraits.map((ph, pIdx) => (
+                                                    <div key={ph.id || `p-${pIdx}`} className="footpoint-photo-item">
+                                                      <img src={ph.url || ph.dataUrl} alt={addr.name} loading="lazy" onClick={() => window.open(ph.url || ph.dataUrl, "_blank")} style={{ cursor: "zoom-in" }} />
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
                                             </div>
-                                          ))}
-                                        </div>
+                                          );
+                                        })()
                                       ) : addr.image ? (
                                         <div className="address-image-container">
                                           <img src={addr.image} alt={addr.name} onClick={() => window.open(addr.image, "_blank")} style={{ cursor: "zoom-in" }} />
@@ -9681,21 +9700,48 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                     </label>
 
                     {addr.photos && addr.photos.length > 0 && (
-                      <div className={`footpoint-photo-grid ${addr.photos.length <= 6 ? `grid-${addr.photos.length}` : "grid-many"}`} style={{ marginTop: 8 }}>
-                        {addr.photos.map((ph) => (
-                          <div key={ph.id} className="footpoint-photo-item">
-                            <img src={ph.dataUrl || ph.url} alt="" />
-                            <button
-                              type="button"
-                              className="photo-remove-btn"
-                              onClick={() => handleRemovePhoto(idx, ph.id)}
-                              title="删除图片"
-                            >
-                              ✕
-                            </button>
+                      (() => {
+                        const landscapes = addr.photos.filter(p => (p.ratio || "4:3") === "4:3");
+                        const portraits = addr.photos.filter(p => p.ratio === "3:4");
+                        return (
+                          <div className="address-photos-wrapper" style={{ marginTop: 8 }}>
+                            {landscapes.length > 0 && (
+                              <div className="footpoint-photo-grid layout-landscape">
+                                {landscapes.map((ph) => (
+                                  <div key={ph.id} className="footpoint-photo-item">
+                                    <img src={ph.dataUrl || ph.url} alt="" />
+                                    <button
+                                      type="button"
+                                      className="photo-remove-btn"
+                                      onClick={() => handleRemovePhoto(idx, ph.id)}
+                                      title="删除图片"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {portraits.length > 0 && (
+                              <div className="footpoint-photo-grid layout-portrait" style={{ marginTop: landscapes.length > 0 ? "10px" : "0" }}>
+                                {portraits.map((ph) => (
+                                  <div key={ph.id} className="footpoint-photo-item">
+                                    <img src={ph.dataUrl || ph.url} alt="" />
+                                    <button
+                                      type="button"
+                                      className="photo-remove-btn"
+                                      onClick={() => handleRemovePhoto(idx, ph.id)}
+                                      title="删除图片"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })()
                     )}
                   </div>
 
