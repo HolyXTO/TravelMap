@@ -1496,7 +1496,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "W-2990440",
     "visitedAt": null,
-    "type": "旅行",
+    "type": "���行",
     "note": "",
     "photos": []
   },

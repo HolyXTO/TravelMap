@@ -8518,23 +8518,24 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   };
 
   const handleSaveNote = async (savedNote) => {
-    // 辅助：Base64 转 Blob
-    const base64ToBlob = (base64Data, contentType = 'image/jpeg') => {
-      const sliceSize = 1024;
-      const block = base64Data.split(';');
-      const realData = block.length > 1 ? block[1].split(',')[1] : base64Data;
-      const byteCharacters = atob(realData);
-      const byteArrays = [];
-      for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-        const slice = byteCharacters.slice(offset, offset + sliceSize);
-        const byteNumbers = new Array(slice.length);
-        for (let i = 0; i < slice.length; i++) {
-          byteNumbers[i] = slice.charCodeAt(i);
+    // 辅助：Base64 转 Blob (使用 Fetch API 异步解析，完全避免 CPU 密集型循环以防止大图和多图造成的内存崩溃)
+    const base64ToBlob = async (base64Str) => {
+      try {
+        const res = await fetch(base64Str);
+        return await res.blob();
+      } catch (e) {
+        // Fallback for environment constraints
+        const block = base64Str.split(';');
+        const mime = block[0].split(':')[1] || 'image/jpeg';
+        const realData = block.length > 1 ? block[1].split(',')[1] : base64Str;
+        const byteString = atob(realData);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        byteArrays.push(byteArray);
+        return new Blob([ab], { type: mime });
       }
-      return new Blob(byteArrays, { type: contentType });
     };
 
     // 辅助：上传 Base64 到 Supabase Storage 并返回公开 URL
@@ -8543,7 +8544,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
       try {
         const mime = base64Str.split(';')[0].split(':')[1];
         const ext = mime.split('/')[1] || 'jpg';
-        const blob = base64ToBlob(base64Str, mime);
+        const blob = await base64ToBlob(base64Str);
         const fileName = `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
         const storagePath = `travel_notes/${fileName}`;
         
@@ -8564,24 +8565,58 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     };
 
     try {
+      const uploadPromises = [];
+
       // 1. 上传封面图（如果是 base64）
       let finalCover = savedNote.coverImage;
       if (finalCover && finalCover.startsWith("data:")) {
-        finalCover = await uploadBase64(finalCover, "cover");
+        uploadPromises.push(
+          uploadBase64(finalCover, "cover").then((url) => {
+            finalCover = url;
+          })
+        );
       }
 
-      // 2. 上传每个足迹点的配图（如果是 base64）
-      const finalAddresses = [];
-      for (const addr of savedNote.addresses) {
-        let finalAddrImg = addr.image;
-        if (finalAddrImg && finalAddrImg.startsWith("data:")) {
-          finalAddrImg = await uploadBase64(finalAddrImg, `addr-${addr.id}`);
-        }
-        finalAddresses.push({
-          ...addr,
-          image: finalAddrImg
+      // 2. 收集所有足迹点配图的上传任务以并发执行
+      const finalAddresses = savedNote.addresses.map((addr) => {
+        const finalPhotos = [];
+        // 如果没有 photos 属性，利用已有的 image 字段创建 fallback photo
+        const addrPhotos = addr.photos || (addr.image ? [{ id: `ph-init-${Date.now()}`, dataUrl: addr.image, ratio: "4:3" }] : []);
+        
+        addrPhotos.forEach((photo) => {
+          const photoObj = {
+            id: photo.id,
+            url: photo.url || null,
+            ratio: photo.ratio || "4:3"
+          };
+          finalPhotos.push(photoObj);
+
+          const finalPhotoUrl = photo.dataUrl || photo.url;
+          if (finalPhotoUrl && finalPhotoUrl.startsWith("data:")) {
+            const task = uploadBase64(finalPhotoUrl, `addr-photo-${addr.id}-${photo.id}`)
+              .then((uploadedUrl) => {
+                photoObj.url = uploadedUrl;
+              });
+            uploadPromises.push(task);
+          } else {
+            photoObj.url = finalPhotoUrl;
+          }
         });
-      }
+
+        return {
+          ...addr,
+          photos: finalPhotos,
+          image: null // 稍后在 Promise.all 之后填充
+        };
+      });
+
+      // 并发上传所有图片
+      await Promise.all(uploadPromises);
+
+      // 后置处理：为了保持向后兼容，将 photos 的第一张图的 url 挂载到 image 上
+      finalAddresses.forEach((addr) => {
+        addr.image = addr.photos.length > 0 ? addr.photos[0].url : null;
+      });
 
       const noteToSave = {
         ...savedNote,
@@ -8842,11 +8877,19 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                                       <p className="address-text">
                                         {renderTextWithLinks(note.id, addr.text, note.addresses)}
                                       </p>
-                                      {addr.image && (
-                                        <div className="address-image-container">
-                                          <img src={addr.image} alt={addr.name} />
+                                      {addr.photos && addr.photos.length > 0 ? (
+                                        <div className={`footpoint-photo-grid grid-${addr.photos.length === 1 ? (addr.photos[0].ratio === "3:4" ? "1-tall" : "1") : addr.photos.length === 2 ? "2" : addr.photos.length === 3 ? "3" : addr.photos.length === 4 ? "4" : "many"}`}>
+                                          {addr.photos.map((ph, pIdx) => (
+                                            <div key={ph.id || pIdx} className="footpoint-photo-item">
+                                              <img src={ph.url || ph.dataUrl} alt={addr.name} loading="lazy" onClick={() => window.open(ph.url || ph.dataUrl, "_blank")} style={{ cursor: "zoom-in" }} />
+                                            </div>
+                                          ))}
                                         </div>
-                                      )}
+                                      ) : addr.image ? (
+                                        <div className="address-image-container">
+                                          <img src={addr.image} alt={addr.name} onClick={() => window.open(addr.image, "_blank")} style={{ cursor: "zoom-in" }} />
+                                        </div>
+                                      ) : null}
                                     </div>
                                   ))}
                                 </div>
