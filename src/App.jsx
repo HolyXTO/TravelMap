@@ -8217,9 +8217,12 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
             coverImagePosition: row.cover_image_position || { x: 50, y: 50 },
           }));
           const merged = [...dbNotes];
+          const classicIds = ["note-1", "note-2", "note-3", "note-4", "note-5"];
           defaultTravelNotes.forEach((defNote) => {
-            if (!merged.some((n) => n.id === defNote.id || n.city === defNote.city)) {
-              merged.push(defNote);
+            if (classicIds.includes(defNote.id)) {
+              if (!merged.some((n) => n.id === defNote.id || n.city === defNote.city)) {
+                merged.push(defNote);
+              }
             }
           });
           setNotes(merged);
@@ -8500,7 +8503,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     e.stopPropagation();
     if (!confirm("确定要删除这篇旅行记录吗？")) return;
     // 仅对云端记录执行数据库删除（示例记录不在数据库中）
-    const isDefault = defaultTravelNotes.some((n) => n.id === id);
+    const isDefault = ["note-1", "note-2", "note-3", "note-4", "note-5"].includes(id);
     if (!isDefault) {
       const { error } = await supabase.from("travel_notes").delete().eq("id", id);
       if (error) {
@@ -8747,10 +8750,10 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
               
               <div className="note-card-body">
                 <h3>{note.city}</h3>
-                <p className="note-card-summary">
-                  {note.summary}
+                <p className="note-card-summary">{note.summary}</p>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "6px" }}>
                   <span className="note-card-author">Author: {note.author || note.coverImagePosition?.author || "Xiao"}</span>
-                </p>
+                </div>
 
                 {isExpanded && (
                   <div className="expanded-note-layout">

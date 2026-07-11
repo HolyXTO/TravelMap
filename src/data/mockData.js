@@ -1991,7 +1991,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "CN045030",
     "visitedAt": null,
-    "type": "���行",
+    "type": "旅行",
     "note": "",
     "photos": []
   },

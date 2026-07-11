@@ -5,6 +5,48 @@
 
 export const defaultTravelNotes = [
   {
+    "id": "note-2",
+    "city": "巴黎 · 经典地标漫步",
+    "coverImage": "/TravelMap/paris_louvre_night.jpg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 50
+    },
+    "author": "Xiao",
+    "startDate": "2024-06-01",
+    "endDate": "2024-06-05",
+    "rating": 9,
+    "summary": "在夏乐宫远眺铁塔的壮丽，穿过凯旋门俯瞰十二条放射状的大街，尽享巴黎的宏伟。",
+    "center": [
+      48.8584,
+      2.2945
+    ],
+    "addresses": [
+      {
+        "id": "addr-2-1",
+        "name": "埃菲尔铁塔",
+        "text": "🗼 登塔攻略：建议提前1个月在官网买票。日落时分登塔最美，可以看到金色的巴黎市区 and 闪耀的铁塔灯光。",
+        "image": null,
+        "photos": [],
+        "coordinates": {
+          "lat": 48.8584,
+          "lng": 2.2945
+        }
+      },
+      {
+        "id": "addr-2-2",
+        "name": "凯旋门",
+        "text": "登顶凯旋门可以看到放射状的十二条大道，非常震撼！门票可以用博物馆通票。",
+        "image": null,
+        "photos": [],
+        "coordinates": {
+          "lat": 48.8738,
+          "lng": 2.295
+        }
+      }
+    ]
+  },
+  {
     "id": "note-1783761190292",
     "city": "卡塔尔·多哈",
     "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783761815824-qzobfckxy.jpeg",
@@ -370,43 +412,6 @@ export const defaultTravelNotes = [
           "lng": 2.3553
         },
         "text": "2024年5月10日 14:30 抵达。"
-      }
-    ]
-  },
-  {
-    "id": "note-2",
-    "city": "巴黎 · 经典地标漫步",
-    "coverImage": "/TravelMap/paris_louvre_night.jpg",
-    "coverImagePosition": {
-      "x": 50,
-      "y": 50
-    },
-    "startDate": "2024-06-01",
-    "endDate": "2024-06-05",
-    "rating": 9,
-    "summary": "在夏乐宫远眺铁塔的壮丽，穿过凯旋门俯瞰十二条放射状的大街，尽享巴黎的宏伟。",
-    "center": [
-      48.8584,
-      2.2945
-    ],
-    "addresses": [
-      {
-        "id": "addr-2-1",
-        "name": "埃菲尔铁塔",
-        "coordinates": {
-          "lat": 48.8584,
-          "lng": 2.2945
-        },
-        "text": "🗼 登塔攻略：建议提前1个月在官网买票。日落时分登塔最美，可以看到金色的巴黎市区 and 闪耀的铁塔灯光。"
-      },
-      {
-        "id": "addr-2-2",
-        "name": "凯旋门",
-        "coordinates": {
-          "lat": 48.8738,
-          "lng": 2.295
-        },
-        "text": "登顶凯旋门可以看到放射状的十二条大道，非常震撼！门票可以用博物馆通票。"
       }
     ]
   },
