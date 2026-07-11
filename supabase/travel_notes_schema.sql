@@ -5,19 +5,25 @@
 
 -- 创建旅行记录表
 create table if not exists public.travel_notes (
-  id          text primary key,
-  city        text not null,
-  cover_image text,
-  start_date  text,
-  end_date    text,
-  rating      integer default 10,
-  summary     text,
-  center      double precision[] default '{0,0}',
-  addresses   jsonb not null default '[]',
-  created_by  uuid references auth.users(id) on delete set null,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  id                    text primary key,
+  city                  text not null,
+  cover_image           text,
+  cover_image_position  jsonb default '{"x":50,"y":50}'::jsonb,
+  start_date            text,
+  end_date              text,
+  rating                integer default 10,
+  summary               text,
+  center                double precision[] default '{0,0}',
+  addresses             jsonb not null default '[]',
+  created_by            uuid references auth.users(id) on delete set null,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
 );
+
+-- 如果表已存在（旧版），执行此迁移语句补充新字段：
+-- ALTER TABLE public.travel_notes
+--   ADD COLUMN IF NOT EXISTS cover_image_position jsonb DEFAULT '{"x":50,"y":50}'::jsonb;
+
 
 -- 启用 Row Level Security
 alter table public.travel_notes enable row level security;
