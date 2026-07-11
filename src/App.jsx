@@ -42,6 +42,21 @@ import { supabase } from "./lib/supabase";
 import { defaultTravelNotes } from "./data/defaultNotes";
 
 
+const staticVisits = initialVisits.map((v) => {
+  return {
+    id: v.id,
+    profileId: v.profileId || v.profile_id,
+    placeId: v.placeId || v.place_id,
+    visitedAt: v.visitedAt || v.visited_at,
+    dateDisplay: v.dateDisplay || v.visitedAt || v.visited_at,
+    datePrecision: v.datePrecision || "day",
+    type: v.type || v.trip_type,
+    note: v.note || "",
+    rating: v.rating || 10,
+    photos: v.photos || [],
+  };
+});
+
 const PHOTO_BUCKET = "travel-photos";
 const isProd = import.meta.env.PROD;
 const ASSET_BASE_URL = isProd
@@ -2436,7 +2451,7 @@ function App() {
   }, [mapTileSource]);
 
   const [appProfiles, setAppProfiles] = useState(() => normalizeProfilesForDisplay(profiles));
-  const [visits, setVisits] = useState(initialVisits);
+  const [visits, setVisits] = useState(staticVisits);
   const [recentInteractions, setRecentInteractions] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [routeMessage, setRouteMessage] = useState("");
@@ -8144,7 +8159,13 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
             addresses: row.addresses,
             coverImagePosition: row.cover_image_position || { x: 50, y: 50 },
           }));
-          setNotes(dbNotes);
+          const merged = [...dbNotes];
+          defaultTravelNotes.forEach((defNote) => {
+            if (!merged.some((n) => n.id === defNote.id || n.city === defNote.city)) {
+              merged.push(defNote);
+            }
+          });
+          setNotes(merged);
         }
       } catch (e) {
         console.warn("Error loading travel notes from Supabase:", e);
