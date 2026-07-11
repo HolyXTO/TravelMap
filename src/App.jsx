@@ -2506,9 +2506,25 @@ function App() {
       if (profilesResult.error) throw profilesResult.error;
       if (visitsResult.error) throw visitsResult.error;
 
-      const nextProfiles = normalizeProfilesForDisplay(profilesResult.data.map(mapProfile));
-      setAppProfiles(nextProfiles.length > 0 ? nextProfiles : profiles);
-      setVisits(visitsResult.data.map(mapVisit));
+      // 智能合并 profiles 成员，避免精美示例打卡丢失
+      const dbProfiles = normalizeProfilesForDisplay(profilesResult.data.map(mapProfile));
+      const mergedProfiles = [...dbProfiles];
+      profiles.forEach((def) => {
+        if (!mergedProfiles.some((p) => p.id === def.id)) {
+          mergedProfiles.push(def);
+        }
+      });
+      setAppProfiles(mergedProfiles);
+
+      // 智能合并 visits 打卡
+      const dbVisits = visitsResult.data.map(mapVisit);
+      const mergedVisits = [...dbVisits];
+      initialVisits.forEach((def) => {
+        if (!mergedVisits.some((v) => v.id === def.id || (v.placeId === def.placeId && v.profileId === def.profileId))) {
+          mergedVisits.push(def);
+        }
+      });
+      setVisits(mergedVisits);
       const routesResult = await withTimeout(supabase
         .from("travel_routes")
         .select("id, profile_id, start_place_id, end_place_id, traveled_at, note, created_by, created_at")
