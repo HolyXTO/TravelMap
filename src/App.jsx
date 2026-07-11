@@ -166,6 +166,23 @@ const outOfChina = (lat, lng) => {
   return false;
 };
 
+const withTimeout = (promise, ms = 4000) => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Supabase 连接超时，可能是由于未开启代理加速器或网络限制。"));
+    }, ms);
+    promise
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+};
+
 const isNoteDomestic = (note) => {
   if (!note) return false;
   if (note.center) {
@@ -2471,7 +2488,7 @@ function App() {
   const loadTravelData = async () => {
     try {
       setDataStatus("正在同步 Supabase 数据");
-      const [profilesResult, visitsResult] = await Promise.all([
+      const [profilesResult, visitsResult] = await withTimeout(Promise.all([
         supabase
           .from("travel_profiles")
           .select("id, display_name, color, created_at")
@@ -2482,7 +2499,7 @@ function App() {
             "id, profile_id, place_id, visited_at, trip_type, note, visit_photos(id, storage_path, caption)",
           )
           .order("visited_at", { ascending: false }),
-      ]);
+      ]), 3500);
 
       if (profilesResult.error) throw profilesResult.error;
       if (visitsResult.error) throw visitsResult.error;
@@ -2490,10 +2507,10 @@ function App() {
       const nextProfiles = normalizeProfilesForDisplay(profilesResult.data.map(mapProfile));
       setAppProfiles(nextProfiles.length > 0 ? nextProfiles : profiles);
       setVisits(visitsResult.data.map(mapVisit));
-      const routesResult = await supabase
+      const routesResult = await withTimeout(supabase
         .from("travel_routes")
         .select("id, profile_id, start_place_id, end_place_id, traveled_at, note, created_by, created_at")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }), 3500);
       if (routesResult.error) {
         console.warn("travel_routes is not ready yet", routesResult.error);
         setRoutes([]);
@@ -2579,8 +2596,12 @@ function App() {
 
     async function boot() {
       await loadTravelData();
-      const { data } = await supabase.auth.getSession();
-      if (!cancelled) setSession(data.session);
+      try {
+        const { data } = await withTimeout(supabase.auth.getSession(), 3500);
+        if (!cancelled) setSession(data.session);
+      } catch (err) {
+        console.warn("supabase auth session timed out:", err);
+      }
     }
 
     boot();
@@ -8345,10 +8366,10 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   useEffect(() => {
     const loadNotes = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await withTimeout(supabase
           .from("travel_notes")
           .select("*")
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false }), 3500);
         if (error) {
           console.warn("Supabase travel_notes load failed:", error.message);
           return;
