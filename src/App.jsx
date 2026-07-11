@@ -60,7 +60,7 @@ const staticVisits = initialVisits.map((v) => {
 const PHOTO_BUCKET = "travel-photos";
 const isProd = import.meta.env.PROD;
 const ASSET_BASE_URL = isProd
-  ? "https://fastly.jsdelivr.net/gh/HolyXTO/TravelMap@main/public/"
+  ? "https://jsd.cdn.zzko.cn/gh/HolyXTO/TravelMap@main/public/"
   : (import.meta.env.BASE_URL || "/");
 
 const GLOBE_SPEEDS = [0.25, 0.5, 1, 2, 4, 8];

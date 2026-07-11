@@ -2144,7 +2144,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "CN061080",
     "visitedAt": null,
-    "type": "���行",
+    "type": "旅行",
     "note": "",
     "photos": []
   },
