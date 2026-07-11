@@ -58,10 +58,7 @@ const staticVisits = initialVisits.map((v) => {
 });
 
 const PHOTO_BUCKET = "travel-photos";
-const isProd = import.meta.env.PROD;
-const ASSET_BASE_URL = isProd
-  ? "https://jsd.cdn.zzko.cn/gh/HolyXTO/TravelMap@main/public/"
-  : (import.meta.env.BASE_URL || "/");
+const ASSET_BASE_URL = import.meta.env.BASE_URL || "/";
 
 const GLOBE_SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
 const routeTransportOptions = [
@@ -368,7 +365,11 @@ function useNearViewport(rootMargin = "320px") {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsNear(entry.isIntersecting);
+        if (entry.isIntersecting) {
+          setIsNear(true);
+          // 锁定为加载状态后，立即注销对该元素的观察，降低浏览器开销
+          observer.unobserve(node);
+        }
       },
       { root: null, rootMargin, threshold: 0.01 },
     );

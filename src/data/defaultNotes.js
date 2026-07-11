@@ -34,7 +34,7 @@ export const defaultTravelNotes = [
       {
         "id": "addr-1783749775760-1",
         "day": 1,
-        "name": "湖南师���",
+        "name": "湖南师大",
         "text": "",
         "coordinates": {
           "lat": 28.190329,
