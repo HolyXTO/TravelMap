@@ -43,6 +43,11 @@ import { defaultTravelNotes } from "./data/defaultNotes";
 
 
 const PHOTO_BUCKET = "travel-photos";
+const isProd = import.meta.env.PROD;
+const ASSET_BASE_URL = isProd
+  ? "https://fastly.jsdelivr.net/gh/HolyXTO/TravelMap@main/public/"
+  : (import.meta.env.BASE_URL || "/");
+
 const GLOBE_SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
 const routeTransportOptions = [
   { id: "flight", label: "飞机" },
@@ -937,7 +942,7 @@ const COUNTRY_GLOBE_ANCHORS = {
 };
 
 function antarcticaGlobePoint() {
-  const basePath = import.meta.env.BASE_URL || "/";
+  const basePath = ASSET_BASE_URL;
   return {
     id: "ATA-SOUTH-POLE",
     lat: -90,
@@ -1554,7 +1559,7 @@ function countryGallerySubtitle(country, galleryKey) {
 }
 
 function circularFlagIconUrls(country) {
-  const basePath = import.meta.env.BASE_URL || "/";
+  const basePath = ASSET_BASE_URL;
   const code = country?.id || country?.countryCode;
   const names = [
     displayCountryName(country),
@@ -2430,7 +2435,7 @@ function App() {
     localStorage.setItem("map_tile_source", mapTileSource);
   }, [mapTileSource]);
 
-  const [appProfiles, setAppProfiles] = useState(profiles);
+  const [appProfiles, setAppProfiles] = useState(() => normalizeProfilesForDisplay(profiles));
   const [visits, setVisits] = useState(initialVisits);
   const [recentInteractions, setRecentInteractions] = useState([]);
   const [routes, setRoutes] = useState([]);
@@ -2529,7 +2534,7 @@ function App() {
     let cancelled = false;
     async function loadMaps() {
       try {
-        const base = import.meta.env.BASE_URL;
+        const base = ASSET_BASE_URL;
         const [
           countriesResponse,
           statesResponse,
@@ -3336,7 +3341,7 @@ function App() {
       <header className="topbar">
         <div className="prophet-brand">
           <span className="prophet-brand-icon" aria-hidden="true">
-            <img src={`${import.meta.env.BASE_URL}brand/travelmap-icon.png`} alt="" />
+            <img src={`${ASSET_BASE_URL}brand/travelmap-icon.png`} alt="" />
           </span>
           <div>
             <h1>足迹地图</h1>
@@ -4605,7 +4610,7 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
     controlsRef.current = controls;
     mount.style.setProperty("--satellite-zoom", satelliteZoomRef.current.toFixed(2));
 
-    const basePath = import.meta.env.BASE_URL || "/";
+    const basePath = ASSET_BASE_URL;
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin("anonymous");
     const earthTexture = textureLoader.load(`${basePath}textures/earth-blue-marble.jpg`);
@@ -7293,7 +7298,7 @@ function CountryGalleryCard({ country }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [wasHovered, setWasHovered] = useState(false);
   const images = country.images || [];
-  const basePath = import.meta.env.BASE_URL || "/";
+  const basePath = ASSET_BASE_URL;
 
   function handlePhotoLeave() {
     if (!wasHovered || images.length <= 1) return;
@@ -7495,7 +7500,7 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
           {imagePath ? (
             <img
               alt=""
-              src={`${import.meta.env.BASE_URL}${imagePath}`}
+              src={`${ASSET_BASE_URL}${imagePath}`}
             />
           ) : (
             <svg viewBox="0 0 64 50" focusable="false">
@@ -7960,7 +7965,7 @@ function ProvinceGalleryCard({ province }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [wasHovered, setWasHovered] = useState(false);
   const images = province.images || [];
-  const basePath = import.meta.env.BASE_URL || "/";
+  const basePath = ASSET_BASE_URL;
 
   function handlePhotoLeave() {
     if (!wasHovered || images.length <= 1) return;
