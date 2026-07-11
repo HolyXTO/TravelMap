@@ -1596,21 +1596,7 @@ function sortProfilesStable(items = []) {
 }
 
 function normalizeProfilesForDisplay(items = []) {
-  const ordered = sortProfilesStable(items);
-  if (ordered.length >= 2) {
-    const [first, second] = ordered;
-    const firstName = (first.name || "").trim().toLowerCase();
-    const secondName = (second.name || "").trim().toLowerCase();
-    if (
-      profileStableIndex(first) === 0 &&
-      profileStableIndex(second) === 1 &&
-      firstName === "tang" &&
-      secondName === "xiao"
-    ) {
-      return [{ ...first, name: "Xiao" }, { ...second, name: "Tang" }, ...ordered.slice(2)];
-    }
-  }
-  return ordered;
+  return sortProfilesStable(items);
 }
 
 function parseVisitMeta(note) {
