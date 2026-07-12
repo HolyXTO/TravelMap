@@ -5026,11 +5026,13 @@ h2 {
 
 .note-card-banner {
   position: relative;
-  height: 200px;
+  width: 100%;
+  aspect-ratio: 400 / 235;
   overflow: hidden;
 }
 
 .travel-note-card.expanded .note-card-banner {
+  aspect-ratio: unset;
   height: 320px;
 }
 

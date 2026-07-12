@@ -5,6 +5,26 @@
 
 export const defaultTravelNotes = [
   {
+    "id": "note-1783860848331",
+    "city": "四川·成都",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783860950282-ey1qewwf0.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 53,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "2026-06-01",
+    "endDate": "2026-06-01",
+    "rating": 8,
+    "summary": "",
+    "center": [
+      48.8566,
+      2.3522
+    ],
+    "addresses": []
+  },
+  {
     "id": "note-1783850751847",
     "city": "比利时·布鲁塞尔",
     "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783850972064-7l5b2l4e7.jpeg",
@@ -14,8 +34,8 @@ export const defaultTravelNotes = [
       "author": "Xiao"
     },
     "author": "Xiao",
-    "startDate": "",
-    "endDate": "",
+    "startDate": "2026-06-02",
+    "endDate": "2025-06-02",
     "rating": 10,
     "summary": "Belgium · Brussels",
     "center": [
@@ -527,7 +547,7 @@ export const defaultTravelNotes = [
     "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783783991210-lrk9ennvb.jpeg",
     "coverImagePosition": {
       "x": 50,
-      "y": 0,
+      "y": 22,
       "author": "Xiao"
     },
     "author": "Xiao",
