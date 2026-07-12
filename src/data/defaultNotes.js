@@ -5,6 +5,523 @@
 
 export const defaultTravelNotes = [
   {
+    "id": "note-1783850751847",
+    "city": "比利时·布鲁塞尔",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783850972064-7l5b2l4e7.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 100,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "",
+    "endDate": "",
+    "rating": 10,
+    "summary": "Belgium · Brussels",
+    "center": [
+      48.8566,
+      2.3522
+    ],
+    "addresses": []
+  },
+  {
+    "id": "note-1783849907506",
+    "city": "法国·巴黎",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783850383720-2c516noye.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 25,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "2026-06-03",
+    "endDate": "2026-06-04",
+    "rating": 10,
+    "summary": "France · Paris",
+    "center": [
+      48.8566,
+      2.3522
+    ],
+    "addresses": []
+  },
+  {
+    "id": "note-1783849198270",
+    "city": "德国·德累斯顿",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783849379754-e7vqrijib.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 13,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "2025-06-09",
+    "endDate": "2025-06-14",
+    "rating": 10,
+    "summary": "Germany · Dresden",
+    "center": [
+      48.8566,
+      2.3522
+    ],
+    "addresses": []
+  },
+  {
+    "id": "note-1783848551428",
+    "city": "德国·法兰克福",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783848672983-rdfzgqs93.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 25,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "2025-06-14",
+    "endDate": "2025-06-14",
+    "rating": 6,
+    "summary": "Germany · Frankfurt",
+    "center": [
+      50.1095332,
+      8.7021267
+    ],
+    "addresses": [
+      {
+        "id": "addr-1783856747128-0",
+        "day": 1,
+        "name": "欧元塔，Europäische Zentralbank",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783856747128-0-ph-1783857107102-rzohl-1783857191398-xy55z6ehq.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783857107102-rzohl",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783856747128-0-ph-1783857107102-rzohl-1783857191398-xy55z6ehq.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783857185269-x5pm9",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783856747128-0-ph-1783857185269-x5pm9-1783857191361-ek0rpbw2l.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783857185269-eszeg",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783856747128-0-ph-1783857185269-eszeg-1783857191428-5mn5wiavw.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 50.10941921280944,
+          "lng": 8.671314008485947
+        }
+      },
+      {
+        "id": "addr-1783857371136-1",
+        "day": 1,
+        "name": "歌德故居，Frankfurter Goethe-Haus",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857371136-1-ph-1783857420476-atb33-1783857425189-azl1jwquk.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783857420476-atb33",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857371136-1-ph-1783857420476-atb33-1783857425189-azl1jwquk.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783857420576-clxrz",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857371136-1-ph-1783857420576-clxrz-1783857425173-dibtoc5t7.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 50.1111,
+          "lng": 8.6775
+        }
+      },
+      {
+        "id": "addr-1783857436145-2",
+        "day": 1,
+        "name": "罗马广场，Römerberg",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857436145-2-ph-1783857641966-2fkdb-1783857646769-yavoxr9h6.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783857641966-2fkdb",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857436145-2-ph-1783857641966-2fkdb-1783857646769-yavoxr9h6.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783857641966-t23wo",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857436145-2-ph-1783857641966-t23wo-1783857646784-dirsk4er9.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 50.1102096,
+          "lng": 8.6821665
+        }
+      },
+      {
+        "id": "addr-1783857728724-3",
+        "day": 1,
+        "name": "铁桥，Eiserner Steg",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857728724-3-ph-1783857918326-se6t5-1783857921814-5ovuf3nek.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783857918326-se6t5",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857728724-3-ph-1783857918326-se6t5-1783857921814-5ovuf3nek.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783857918326-y5n08",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857728724-3-ph-1783857918326-y5n08-1783857921830-e5x6ufhwj.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 50.108087549233964,
+          "lng": 8.68216039674377
+        }
+      },
+      {
+        "id": "addr-1783857984359-4",
+        "day": 1,
+        "name": "Alte Brücke",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857984359-4-ph-1783858196962-cwt2f-1783858308217-60e9y52ls.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783858196962-cwt2f",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857984359-4-ph-1783858196962-cwt2f-1783858308217-60e9y52ls.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783858197472-psnwp",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857984359-4-ph-1783858197472-psnwp-1783858308251-chnyh730w.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783858291072-fucfz",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857984359-4-ph-1783858291072-fucfz-1783858308250-ppjf60h5y.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783858291072-0fh8c",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857984359-4-ph-1783858291072-0fh8c-1783858308251-f6qsz3by6.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 50.1086377,
+          "lng": 8.6877267
+        }
+      },
+      {
+        "id": "addr-1783858328388-5",
+        "day": 1,
+        "name": "教堂，Kaiserdom St. Bartholomäus",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858328388-5-ph-1783858457869-msjdl-1783858578354-z3basrwzs.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783858457869-msjdl",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858328388-5-ph-1783858457869-msjdl-1783858578354-z3basrwzs.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783858457869-blqoy",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858328388-5-ph-1783858457869-blqoy-1783858578371-jq7cmane0.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 50.1106445,
+          "lng": 8.6848567
+        }
+      },
+      {
+        "id": "addr-1783858475615-6",
+        "day": 1,
+        "name": "Römer Pils Brunnen",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858475615-6-ph-1783858573453-65tqi-1783858578372-gqf38z1xk.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783858573453-65tqi",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858475615-6-ph-1783858573453-65tqi-1783858578372-gqf38z1xk.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783858573569-d549c",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858475615-6-ph-1783858573569-d549c-1783858578372-idyq13wqw.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 50.11329,
+          "lng": 8.68372
+        }
+      },
+      {
+        "id": "addr-1783858665278-7",
+        "day": 1,
+        "name": "法兰克福机场，Flughafen Frankfurt",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858665278-7-ph-1783858873450-coi2a-1783858882314-nbf2voqjy.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783858873450-coi2a",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858665278-7-ph-1783858873450-coi2a-1783858882314-nbf2voqjy.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783858873450-q0wwr",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858665278-7-ph-1783858873450-q0wwr-1783858882331-0a23gssjf.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783858873450-sa247",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858665278-7-ph-1783858873450-sa247-1783858882332-yytrezxxo.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783858873450-apg64",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783858665278-7-ph-1783858873450-apg64-1783858882332-56vz21i9y.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 50.055907489,
+          "lng": 8.596769245
+        }
+      }
+    ]
+  },
+  {
+    "id": "note-1783790352412",
+    "city": "马耳他",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783790463406-6a9aope7f.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 29,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "2025-06-10",
+    "endDate": "2025-06-11",
+    "rating": 8,
+    "summary": "Malta",
+    "center": [
+      35.9128409,
+      14.5014361
+    ],
+    "addresses": [
+      {
+        "id": "addr-1783854650081-3",
+        "day": 1,
+        "name": "GIORGIO Boutique Hotel",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854650081-3-ph-1783854717673-7h78m-1783855280162-tcircm4sh.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783854717673-7h78m",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854650081-3-ph-1783854717673-7h78m-1783855280162-tcircm4sh.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783854840981-hhp5z",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854650081-3-ph-1783854840981-hhp5z-1783855280198-f9ikf6s1d.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 35.912445268032904,
+          "lng": 14.504871278615392
+        }
+      },
+      {
+        "id": "addr-1783854736549-4",
+        "day": 1,
+        "name": "游轮",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854736549-4-ph-1783854919471-xljrp-1783855280200-sbq2ivr6v.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783854919471-xljrp",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854736549-4-ph-1783854919471-xljrp-1783855280200-sbq2ivr6v.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783854959859-plwxx",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854736549-4-ph-1783854959859-plwxx-1783855280200-d7uhyh3se.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783855021961-4fzaz",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854736549-4-ph-1783855021961-4fzaz-1783855280232-l92vjamna.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783855066607-ds8gj",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854736549-4-ph-1783855066607-ds8gj-1783855280230-rrfqh1t5s.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 35.90420592735081,
+          "lng": 14.509160593874407
+        }
+      },
+      {
+        "id": "addr-1783855125136-5",
+        "day": 1,
+        "name": "Valletta Ferry",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855125136-5-ph-1783855216586-r2w0p-1783855280231-e99vrs20e.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783855216586-r2w0p",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855125136-5-ph-1783855216586-r2w0p-1783855280231-e99vrs20e.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783855216586-3eht5",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855125136-5-ph-1783855216586-3eht5-1783855280233-qal5ql4ei.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 35.900409691204324,
+          "lng": 14.510219858338512
+        }
+      },
+      {
+        "id": "addr-1783853717016-2",
+        "day": 1,
+        "name": "Old Mint Street",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783853717016-2-ph-1783853935877-9j1yl-1783854079997-py25wilfm.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783853935877-9j1yl",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783853717016-2-ph-1783853935877-9j1yl-1783854079997-py25wilfm.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783854064719-9rv9d",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783853717016-2-ph-1783854064719-9rv9d-1783854080030-r9727b0vd.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 35.898697665492485,
+          "lng": 14.510106995508869
+        }
+      },
+      {
+        "id": "addr-1783852909747-1",
+        "day": 1,
+        "name": "瓦莱塔，Valletta",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783852909747-1-ph-1783854123845-pjr1o-1783854437172-o42270a2d.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783854123845-pjr1o",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783852909747-1-ph-1783854123845-pjr1o-1783854437172-o42270a2d.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783854185554-ra187",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783852909747-1-ph-1783854185554-ra187-1783854437190-v2qo5hf6q.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783854258658-b5rbc",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783852909747-1-ph-1783854258658-b5rbc-1783854437207-lllofbc9q.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783854431911-43rbk",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783852909747-1-ph-1783854431911-43rbk-1783854437189-6rlni2maz.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 35.898333,
+          "lng": 14.5125512
+        }
+      },
+      {
+        "id": "addr-1783851540418-0",
+        "day": 1,
+        "name": "蓝洞，Blue Grotto",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783851807122-l4n9g-1783851811815-eur8hvlo2.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783851807122-l4n9g",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783851807122-l4n9g-1783851811815-eur8hvlo2.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783852061871-zyar2",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852061871-zyar2-1783852610404-tlyfrdg1q.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783852099274-fyyic",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852099274-fyyic-1783852610418-698szoqw2.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783852605746-r5ex5",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852605746-r5ex5-1783852610419-nkkx6wb74.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783852670492-7elrx",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852670492-7elrx-1783852886747-ucwf23vsc.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783852826884-g5apy",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852826884-g5apy-1783852886748-zitqw8onl.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783852870733-xv25v",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852870733-xv25v-1783852886717-38rx8hcpu.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 35.819622,
+          "lng": 14.450858
+        }
+      },
+      {
+        "id": "addr-1783855229351-6",
+        "day": 1,
+        "name": "Malta Airport",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855229351-6-ph-1783855276152-ppfru-1783855280199-gxaabiyui.jpeg",
+        "photos": [
+          {
+            "id": "ph-1783855276152-ppfru",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855229351-6-ph-1783855276152-ppfru-1783855280199-gxaabiyui.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783855276152-1ys67",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855229351-6-ph-1783855276152-1ys67-1783855280199-ylr5gnk4v.jpeg",
+            "ratio": "4:3"
+          }
+        ],
+        "coordinates": {
+          "lat": 35.8493126,
+          "lng": 14.4956649
+        }
+      }
+    ]
+  },
+  {
     "id": "note-1783781916921",
     "city": "阿拉伯联合酋长国·阿布扎比",
     "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783783991210-lrk9ennvb.jpeg",
@@ -276,13 +793,8 @@ export const defaultTravelNotes = [
         "day": 1,
         "name": "伊斯兰艺术博物馆",
         "text": "",
-        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-addr-1783761401547-0-1783762091855-6jypayxis.jpeg",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783761401547-0-ph-1783773868521-ad6k4-1783775000571-gdv7ldf76.jpeg",
         "photos": [
-          {
-            "id": "ph-init-1783773837110-x6jpv",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-addr-1783761401547-0-1783762091855-6jypayxis.jpeg",
-            "ratio": "4:3"
-          },
           {
             "id": "ph-1783773868521-ad6k4",
             "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783761401547-0-ph-1783773868521-ad6k4-1783775000571-gdv7ldf76.jpeg",
@@ -296,6 +808,11 @@ export const defaultTravelNotes = [
           {
             "id": "ph-1783773868694-8m6h6",
             "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783761401547-0-ph-1783773868694-8m6h6-1783775000577-hdbajg73f.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1783834633347-2a8t6",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783761401547-0-ph-1783834633347-2a8t6-1783834643267-i20uju44m.jpeg",
             "ratio": "3:4"
           }
         ],
@@ -358,141 +875,6 @@ export const defaultTravelNotes = [
         "coordinates": {
           "lat": 25.284076,
           "lng": 51.550108
-        }
-      }
-    ]
-  },
-  {
-    "id": "note-1783698705862",
-    "city": "武汉",
-    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783780836376-x3qqg3llr.jpeg",
-    "coverImagePosition": {
-      "x": 50,
-      "y": 58,
-      "author": "Tang"
-    },
-    "author": "Tang",
-    "startDate": "2026-07-01",
-    "endDate": "2026-07-10",
-    "rating": 4,
-    "summary": "111111111111111111111111",
-    "center": [
-      30.54458,
-      114.3619
-    ],
-    "addresses": [
-      {
-        "id": "addr-1783698725737-0",
-        "day": 1,
-        "name": "武汉大学",
-        "text": "",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 30.54458,
-          "lng": 114.3619
-        }
-      },
-      {
-        "id": "addr-1783698733802-1",
-        "day": 1,
-        "name": "华中科技大学",
-        "text": "21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn21342它y6ruyjfbgfcn",
-        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783698733802-1-ph-init-1783780829525-5pwk8-1783780836322-s3ofrzgpb.jpeg",
-        "photos": [
-          {
-            "id": "ph-init-1783780829525-5pwk8",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783698733802-1-ph-init-1783780829525-5pwk8-1783780836322-s3ofrzgpb.jpeg",
-            "ratio": "4:3"
-          }
-        ],
-        "coordinates": {
-          "lat": 30.52088,
-          "lng": 114.40281
-        }
-      },
-      {
-        "id": "addr-1783698746629-2",
-        "day": 1,
-        "name": "华中师范大学",
-        "text": "",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 30.50849,
-          "lng": 114.35008
-        }
-      },
-      {
-        "id": "addr-1783698757961-3",
-        "day": 2,
-        "name": "黄鹤楼",
-        "text": "",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 30.547,
-          "lng": 114.29702
-        }
-      },
-      {
-        "id": "addr-1783698768067-4",
-        "day": 2,
-        "name": "武汉长江大桥",
-        "text": "",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 30.54891,
-          "lng": 114.28799
-        }
-      },
-      {
-        "id": "addr-1783698782145-5",
-        "day": 3,
-        "name": "昙华林",
-        "text": "",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 30.555221,
-          "lng": 114.302123
-        }
-      },
-      {
-        "id": "addr-1783698797078-6",
-        "day": 3,
-        "name": "螃蟹岬",
-        "text": "",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 30.556226,
-          "lng": 114.311867
-        }
-      },
-      {
-        "id": "addr-1783698806832-7",
-        "day": 3,
-        "name": "武商梦时代",
-        "text": "",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 30.530935,
-          "lng": 114.334627
-        }
-      },
-      {
-        "id": "addr-1783698825956-8",
-        "day": 3,
-        "name": "光谷广场",
-        "text": "",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 30.509212499,
-          "lng": 114.3992159
         }
       }
     ]

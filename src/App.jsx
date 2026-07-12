@@ -8199,6 +8199,26 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   const isExpanding = useRef(false);
   const mapInstances = useRef({});
 
+  const [activeZoomPhoto, setActiveZoomPhoto] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setActiveZoomPhoto(null);
+      }
+    };
+    if (activeZoomPhoto) {
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [activeZoomPhoto]);
+
   // 从 Supabase 云端加载旅行记录（仅在已登录的编辑者电脑上静默同步更新）
   useEffect(() => {
     const loadNotes = async () => {
@@ -8767,7 +8787,17 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                 }
               }}
             >
-              <div className="note-card-banner">
+              <div 
+                className="note-card-banner"
+                onClick={(e) => {
+                  if (isExpanded) {
+                    e.stopPropagation();
+                    setExpandedNoteId(null);
+                  }
+                }}
+                style={{ cursor: isExpanded ? "pointer" : "default" }}
+                title={isExpanded ? "点击收起此旅行记录" : undefined}
+              >
                 <img src={note.coverImage} alt={note.city}
                   style={note.coverImagePosition ? { objectPosition: `${note.coverImagePosition.x}% ${note.coverImagePosition.y}%` } : undefined} />
                 <div className="note-card-meta">
@@ -8793,9 +8823,17 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
               <div className="note-card-body">
                 <h3>{note.city}</h3>
                 <p className="note-card-summary">{note.summary}</p>
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "6px" }}>
-                  <span className="note-card-author">Author: {note.author || note.coverImagePosition?.author || "Xiao"}</span>
-                </div>
+                {(() => {
+                  const stats = getNoteStats(note);
+                  return (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", borderTop: "1px dashed rgba(200, 200, 200, 0.2)", paddingTop: "8px" }}>
+                      <span className="note-card-stats">
+                        📷 {stats.photoCount} Photos &nbsp;·&nbsp; ✍️ {stats.wordCount} Words
+                      </span>
+                      <span className="note-card-author">Author: {note.author || note.coverImagePosition?.author || "Xiao"}</span>
+                    </div>
+                  );
+                })()}
 
                 {isExpanded && (
                   <div className="expanded-note-layout">
@@ -8925,7 +8963,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
                                       <p className="address-text">
                                         {renderTextWithLinks(note.id, addr.text, note.addresses)}
                                       </p>
-                                      {renderAddressPhotos(addr, note.addresses.findIndex(a => a.id === addr.id), false)}
+                                      {renderAddressPhotos(addr, note.addresses.findIndex(a => a.id === addr.id), false, null, (url) => setActiveZoomPhoto(url))}
                                     </div>
                                   ))}
                                 </div>
@@ -8964,6 +9002,15 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           }}
           onSave={handleSaveNote}
         />
+      )}
+
+      {activeZoomPhoto && (
+        <div className="lightbox-overlay" onClick={() => setActiveZoomPhoto(null)}>
+          <button className="lightbox-close" onClick={() => setActiveZoomPhoto(null)}>✕</button>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={activeZoomPhoto} alt="Enlarged view" />
+          </div>
+        </div>
       )}
     </section>
   );
@@ -9103,6 +9150,54 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
   const [mapPickingIdx, setMapPickingIdx] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [draggedIdx, setDraggedIdx] = useState(null);
+
+  const draggedPhotoRef = useRef(null);
+
+  const handlePhotoDragStart = (addrIdx, photo) => {
+    draggedPhotoRef.current = { addrIdx, photo };
+  };
+
+  const handlePhotoDragOver = (e, addrIdx, targetPhoto) => {
+    const dragged = draggedPhotoRef.current;
+    if (dragged && dragged.addrIdx === addrIdx && dragged.photo.ratio === targetPhoto.ratio) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePhotoDrop = (addrIdx, targetPhoto) => {
+    const dragged = draggedPhotoRef.current;
+    if (dragged && dragged.addrIdx === addrIdx && dragged.photo.ratio === targetPhoto.ratio) {
+      if (dragged.photo.id === targetPhoto.id) return;
+      setEditingNote((prev) => {
+        const updatedAddrs = [...prev.addresses];
+        const photos = [...(updatedAddrs[addrIdx].photos || [])];
+        const draggedIndex = photos.findIndex((p) => p.id === dragged.photo.id);
+        const targetIndex = photos.findIndex((p) => p.id === targetPhoto.id);
+        if (draggedIndex > -1 && targetIndex > -1) {
+          const [moved] = photos.splice(draggedIndex, 1);
+          photos.splice(targetIndex, 0, moved);
+        }
+        updatedAddrs[addrIdx] = {
+          ...updatedAddrs[addrIdx],
+          photos
+        };
+        return { ...prev, addresses: updatedAddrs };
+      });
+    }
+    draggedPhotoRef.current = null;
+  };
+
+  const hasNewImages = useMemo(() => {
+    if (editingNote.coverImage && editingNote.coverImage.startsWith("data:")) {
+      return true;
+    }
+    return (editingNote.addresses || []).some((addr) =>
+      (addr.photos || []).some((photo) =>
+        (photo.dataUrl && photo.dataUrl.startsWith("data:")) ||
+        (photo.url && photo.url.startsWith("data:"))
+      )
+    );
+  }, [editingNote]);
 
   // 地图 refs
   const editMapRef = useRef(null);
@@ -9679,7 +9774,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                       />
                     </label>
 
-                    {renderAddressPhotos(addr, idx, true, handleRemovePhoto)}
+                    {renderAddressPhotos(addr, idx, true, handleRemovePhoto, null, handlePhotoDragStart, handlePhotoDragOver, handlePhotoDrop)}
                   </div>
 
                 </div>
@@ -9695,7 +9790,7 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
             <div className="dialog-footer">
               <button onClick={onClose} className="cancel-btn" type="button" disabled={isSaving}>取消</button>
               <button type="submit" className="save-btn" disabled={isSaving}>
-                {isSaving ? "正在上传图片并保存..." : "保存旅行记录"}
+                {isSaving ? (hasNewImages ? "正在上传图片并保存..." : "正在保存...") : "保存旅行记录"}
               </button>
             </div>
           </form>
@@ -9720,12 +9815,12 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
   );
 }
 
-const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null) => {
+const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null, onPhotoClick = null, onPhotoDragStart = null, onPhotoDragOver = null, onPhotoDrop = null) => {
   if (!addr.photos || addr.photos.length === 0) {
     if (!isEditMode && addr.image) {
       return (
         <div className="address-image-container">
-          <img src={addr.image} alt={addr.name} onClick={() => window.open(addr.image, "_blank")} style={{ cursor: "zoom-in" }} />
+          <img src={addr.image} alt={addr.name} onClick={() => { if (onPhotoClick) onPhotoClick(addr.image); else window.open(addr.image, "_blank"); }} style={{ cursor: "zoom-in" }} />
         </div>
       );
     }
@@ -9740,14 +9835,26 @@ const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null
     return (
       <div className="address-photos-wrapper" style={{ marginTop: isEditMode ? 8 : 0 }}>
         <div className="footpoint-photo-grid layout-mixed-one-each">
-          <div className="footpoint-photo-item item-4-3">
-            <img src={landscapes[0].url || landscapes[0].dataUrl} alt="" onClick={!isEditMode ? () => window.open(landscapes[0].url || landscapes[0].dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
+          <div 
+            className="footpoint-photo-item item-4-3"
+            draggable={isEditMode}
+            onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, landscapes[0]) : undefined}
+            onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, landscapes[0]) : undefined}
+            onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, landscapes[0]) : undefined}
+          >
+            <img src={landscapes[0].url || landscapes[0].dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(landscapes[0].url || landscapes[0].dataUrl); else window.open(landscapes[0].url || landscapes[0].dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
             {isEditMode && onRemovePhoto && (
               <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, landscapes[0].id)}>✕</button>
             )}
           </div>
-          <div className="footpoint-photo-item item-3-4">
-            <img src={portraits[0].url || portraits[0].dataUrl} alt="" onClick={!isEditMode ? () => window.open(portraits[0].url || portraits[0].dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
+          <div 
+            className="footpoint-photo-item item-3-4"
+            draggable={isEditMode}
+            onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, portraits[0]) : undefined}
+            onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, portraits[0]) : undefined}
+            onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, portraits[0]) : undefined}
+          >
+            <img src={portraits[0].url || portraits[0].dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(portraits[0].url || portraits[0].dataUrl); else window.open(portraits[0].url || portraits[0].dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
             {isEditMode && onRemovePhoto && (
               <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, portraits[0].id)}>✕</button>
             )}
@@ -9765,8 +9872,15 @@ const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null
       {landscapes.length > 0 && (
         <div className="footpoint-photo-grid layout-landscape">
           {landscapes.map((ph, pIdx) => (
-            <div key={ph.id || `l-${pIdx}`} className="footpoint-photo-item">
-              <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => window.open(ph.url || ph.dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
+            <div 
+              key={ph.id || `l-${pIdx}`} 
+              className="footpoint-photo-item"
+              draggable={isEditMode}
+              onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, ph) : undefined}
+              onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, ph) : undefined}
+              onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, ph) : undefined}
+            >
+              <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(ph.url || ph.dataUrl); else window.open(ph.url || ph.dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
               {isEditMode && onRemovePhoto && (
                 <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, ph.id)}>✕</button>
               )}
@@ -9779,8 +9893,15 @@ const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null
           {portraits.map((ph, pIdx) => {
             const isLastTwo = isPortraitStretch && (pIdx >= portraits.length - 2);
             return (
-              <div key={ph.id || `p-${pIdx}`} className={`footpoint-photo-item ${isLastTwo ? "portrait-stretch-50" : ""}`}>
-                <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => window.open(ph.url || ph.dataUrl, "_blank") : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "default" }} />
+              <div 
+                key={ph.id || `p-${pIdx}`} 
+                className={`footpoint-photo-item ${isLastTwo ? "portrait-stretch-50" : ""}`}
+                draggable={isEditMode}
+                onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, ph) : undefined}
+                onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, ph) : undefined}
+                onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, ph) : undefined}
+              >
+                <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(ph.url || ph.dataUrl); else window.open(ph.url || ph.dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
                 {isEditMode && onRemovePhoto && (
                   <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, ph.id)}>✕</button>
                 )}
@@ -9791,6 +9912,33 @@ const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null
       )}
     </div>
   );
+};
+
+const getNoteStats = (note) => {
+  let photoCount = 0;
+  let wordCount = 0;
+  
+  (note.addresses || []).forEach((addr) => {
+    if (addr.photos && addr.photos.length > 0) {
+      photoCount += addr.photos.length;
+    } else if (addr.image) {
+      photoCount += 1;
+    }
+    
+    const text = addr.text || "";
+    if (text.trim()) {
+      const cnMatches = text.match(/[\u4e00-\u9fa5]/g);
+      const cnCount = cnMatches ? cnMatches.length : 0;
+      
+      const nonCnText = text.replace(/[\u4e00-\u9fa5]/g, " ");
+      const enWords = nonCnText.trim().split(/\s+/).filter(w => w.length > 0);
+      const enCount = enWords.length;
+      
+      wordCount += (cnCount + enCount);
+    }
+  });
+  
+  return { photoCount, wordCount };
 };
 
 export default App;
