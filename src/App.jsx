@@ -8187,7 +8187,23 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     } catch (e) {
       console.error(e);
     }
-    return defaultTravelNotes.filter((n) => !deletedIds.includes(n.id));
+    const initial = defaultTravelNotes.filter((n) => !deletedIds.includes(n.id));
+    try {
+      const order = JSON.parse(localStorage.getItem("travel_notes_order") || "[]");
+      if (order.length > 0) {
+        return initial.sort((a, b) => {
+          const idxA = order.indexOf(a.id);
+          const idxB = order.indexOf(b.id);
+          if (idxA === -1 && idxB === -1) return 0;
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return initial;
   });
   const [notesLoading, setNotesLoading] = useState(false);
   
@@ -8218,6 +8234,54 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
       document.body.style.overflow = "";
     };
   }, [activeZoomPhoto]);
+
+  const [draggedCardId, setDraggedCardId] = useState(null);
+  const [dragOverCardId, setDragOverCardId] = useState(null);
+
+  const handleCardDragStart = (e, noteId) => {
+    if (!session) return;
+    setDraggedCardId(noteId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleCardDragOver = (e, noteId) => {
+    if (!session || draggedCardId === null) return;
+    if (draggedCardId !== noteId) {
+      e.preventDefault();
+      setDragOverCardId(noteId);
+    }
+  };
+
+  const handleCardDragLeave = () => {
+    setDragOverCardId(null);
+  };
+
+  const handleCardDrop = (e, targetNoteId) => {
+    if (!session || draggedCardId === null || draggedCardId === targetNoteId) return;
+    e.preventDefault();
+    setNotes((prev) => {
+      const list = [...prev];
+      const draggedIndex = list.findIndex((n) => n.id === draggedCardId);
+      const targetIndex = list.findIndex((n) => n.id === targetNoteId);
+      if (draggedIndex > -1 && targetIndex > -1) {
+        const [moved] = list.splice(draggedIndex, 1);
+        list.splice(targetIndex, 0, moved);
+      }
+      try {
+        localStorage.setItem("travel_notes_order", JSON.stringify(list.map((n) => n.id)));
+      } catch (err) {
+        console.error(err);
+      }
+      return list;
+    });
+    setDraggedCardId(null);
+    setDragOverCardId(null);
+  };
+
+  const handleCardDragEnd = () => {
+    setDraggedCardId(null);
+    setDragOverCardId(null);
+  };
 
   // 从 Supabase 云端加载旅行记录（仅在已登录的编辑者电脑上静默同步更新）
   useEffect(() => {
@@ -8263,6 +8327,22 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
               }
             }
           });
+          let order = [];
+          try {
+            order = JSON.parse(localStorage.getItem("travel_notes_order") || "[]");
+          } catch (e) {
+            console.error(e);
+          }
+          if (order.length > 0) {
+            merged.sort((a, b) => {
+              const idxA = order.indexOf(a.id);
+              const idxB = order.indexOf(b.id);
+              if (idxA === -1 && idxB === -1) return 0;
+              if (idxA === -1) return 1;
+              if (idxB === -1) return -1;
+              return idxA - idxB;
+            });
+          }
           setNotes(merged);
         }
       } catch (e) {
@@ -8780,7 +8860,13 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
             <div
               id={`travel-note-card-${note.id}`}
               key={note.id}
-              className={`travel-note-card ${isExpanded ? "expanded" : ""}`}
+              className={`travel-note-card ${isExpanded ? "expanded" : ""} ${draggedCardId === note.id ? "dragging" : ""} ${dragOverCardId === note.id ? "drag-over" : ""}`}
+              draggable={!!session && !isExpanded}
+              onDragStart={(e) => handleCardDragStart(e, note.id)}
+              onDragOver={(e) => handleCardDragOver(e, note.id)}
+              onDragLeave={handleCardDragLeave}
+              onDrop={(e) => handleCardDrop(e, note.id)}
+              onDragEnd={handleCardDragEnd}
               onClick={() => {
                 if (!isExpanded) {
                   setExpandedNoteId(note.id);
@@ -9151,23 +9237,44 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
   const [isSaving, setIsSaving] = useState(false);
   const [draggedIdx, setDraggedIdx] = useState(null);
 
+  const [draggedPhotoId, setDraggedPhotoId] = useState(null);
+  const [dragOverPhotoId, setDragOverPhotoId] = useState(null);
+
   const draggedPhotoRef = useRef(null);
 
   const handlePhotoDragStart = (addrIdx, photo) => {
     draggedPhotoRef.current = { addrIdx, photo };
+    setDraggedPhotoId(photo.id);
   };
 
   const handlePhotoDragOver = (e, addrIdx, targetPhoto) => {
     const dragged = draggedPhotoRef.current;
     if (dragged && dragged.addrIdx === addrIdx && dragged.photo.ratio === targetPhoto.ratio) {
       e.preventDefault();
+      if (dragOverPhotoId !== targetPhoto.id) {
+        setDragOverPhotoId(targetPhoto.id);
+      }
     }
+  };
+
+  const handlePhotoDragLeave = () => {
+    setDragOverPhotoId(null);
+  };
+
+  const handlePhotoDragEnd = () => {
+    draggedPhotoRef.current = null;
+    setDraggedPhotoId(null);
+    setDragOverPhotoId(null);
   };
 
   const handlePhotoDrop = (addrIdx, targetPhoto) => {
     const dragged = draggedPhotoRef.current;
     if (dragged && dragged.addrIdx === addrIdx && dragged.photo.ratio === targetPhoto.ratio) {
-      if (dragged.photo.id === targetPhoto.id) return;
+      if (dragged.photo.id === targetPhoto.id) {
+        setDraggedPhotoId(null);
+        setDragOverPhotoId(null);
+        return;
+      }
       setEditingNote((prev) => {
         const updatedAddrs = [...prev.addresses];
         const photos = [...(updatedAddrs[addrIdx].photos || [])];
@@ -9185,6 +9292,8 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
       });
     }
     draggedPhotoRef.current = null;
+    setDraggedPhotoId(null);
+    setDragOverPhotoId(null);
   };
 
   const hasNewImages = useMemo(() => {
@@ -9774,7 +9883,20 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
                       />
                     </label>
 
-                    {renderAddressPhotos(addr, idx, true, handleRemovePhoto, null, handlePhotoDragStart, handlePhotoDragOver, handlePhotoDrop)}
+                    {renderAddressPhotos(
+                      addr,
+                      idx,
+                      true,
+                      handleRemovePhoto,
+                      null,
+                      handlePhotoDragStart,
+                      handlePhotoDragOver,
+                      handlePhotoDrop,
+                      draggedPhotoId,
+                      dragOverPhotoId,
+                      handlePhotoDragEnd,
+                      handlePhotoDragLeave
+                    )}
                   </div>
 
                 </div>
@@ -9815,7 +9937,20 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
   );
 }
 
-const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null, onPhotoClick = null, onPhotoDragStart = null, onPhotoDragOver = null, onPhotoDrop = null) => {
+const renderAddressPhotos = (
+  addr,
+  idx,
+  isEditMode = false,
+  onRemovePhoto = null,
+  onPhotoClick = null,
+  onPhotoDragStart = null,
+  onPhotoDragOver = null,
+  onPhotoDrop = null,
+  draggedPhotoId = null,
+  dragOverPhotoId = null,
+  onPhotoDragEnd = null,
+  onPhotoDragLeave = null
+) => {
   if (!addr.photos || addr.photos.length === 0) {
     if (!isEditMode && addr.image) {
       return (
@@ -9832,31 +9967,37 @@ const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null
 
   if (landscapes.length === 1 && portraits.length === 1) {
     // 规则 1：当仅有一个 4:3 和一个 3:4 时，并排占满一行
+    const phL = landscapes[0];
+    const phP = portraits[0];
     return (
       <div className="address-photos-wrapper" style={{ marginTop: isEditMode ? 8 : 0 }}>
         <div className="footpoint-photo-grid layout-mixed-one-each">
           <div 
-            className="footpoint-photo-item item-4-3"
+            className={`footpoint-photo-item item-4-3 ${phL.id === draggedPhotoId ? "dragging" : ""} ${phL.id === dragOverPhotoId ? "drag-over" : ""}`}
             draggable={isEditMode}
-            onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, landscapes[0]) : undefined}
-            onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, landscapes[0]) : undefined}
-            onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, landscapes[0]) : undefined}
+            onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, phL) : undefined}
+            onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, phL) : undefined}
+            onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, phL) : undefined}
+            onDragEnd={isEditMode && onPhotoDragEnd ? onPhotoDragEnd : undefined}
+            onDragLeave={isEditMode && onPhotoDragLeave ? onPhotoDragLeave : undefined}
           >
-            <img src={landscapes[0].url || landscapes[0].dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(landscapes[0].url || landscapes[0].dataUrl); else window.open(landscapes[0].url || landscapes[0].dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
+            <img src={phL.url || phL.dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(phL.url || phL.dataUrl); else window.open(phL.url || phL.dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
             {isEditMode && onRemovePhoto && (
-              <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, landscapes[0].id)}>✕</button>
+              <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, phL.id)}>✕</button>
             )}
           </div>
           <div 
-            className="footpoint-photo-item item-3-4"
+            className={`footpoint-photo-item item-3-4 ${phP.id === draggedPhotoId ? "dragging" : ""} ${phP.id === dragOverPhotoId ? "drag-over" : ""}`}
             draggable={isEditMode}
-            onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, portraits[0]) : undefined}
-            onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, portraits[0]) : undefined}
-            onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, portraits[0]) : undefined}
+            onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, phP) : undefined}
+            onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, phP) : undefined}
+            onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, phP) : undefined}
+            onDragEnd={isEditMode && onPhotoDragEnd ? onPhotoDragEnd : undefined}
+            onDragLeave={isEditMode && onPhotoDragLeave ? onPhotoDragLeave : undefined}
           >
-            <img src={portraits[0].url || portraits[0].dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(portraits[0].url || portraits[0].dataUrl); else window.open(portraits[0].url || portraits[0].dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
+            <img src={phP.url || phP.dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(phP.url || phP.dataUrl); else window.open(phP.url || phP.dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
             {isEditMode && onRemovePhoto && (
-              <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, portraits[0].id)}>✕</button>
+              <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(idx, phP.id)}>✕</button>
             )}
           </div>
         </div>
@@ -9874,11 +10015,13 @@ const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null
           {landscapes.map((ph, pIdx) => (
             <div 
               key={ph.id || `l-${pIdx}`} 
-              className="footpoint-photo-item"
+              className={`footpoint-photo-item ${ph.id === draggedPhotoId ? "dragging" : ""} ${ph.id === dragOverPhotoId ? "drag-over" : ""}`}
               draggable={isEditMode}
               onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, ph) : undefined}
               onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, ph) : undefined}
               onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, ph) : undefined}
+              onDragEnd={isEditMode && onPhotoDragEnd ? onPhotoDragEnd : undefined}
+              onDragLeave={isEditMode && onPhotoDragLeave ? onPhotoDragLeave : undefined}
             >
               <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(ph.url || ph.dataUrl); else window.open(ph.url || ph.dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
               {isEditMode && onRemovePhoto && (
@@ -9895,11 +10038,13 @@ const renderAddressPhotos = (addr, idx, isEditMode = false, onRemovePhoto = null
             return (
               <div 
                 key={ph.id || `p-${pIdx}`} 
-                className={`footpoint-photo-item ${isLastTwo ? "portrait-stretch-50" : ""}`}
+                className={`footpoint-photo-item ${isLastTwo ? "portrait-stretch-50" : ""} ${ph.id === draggedPhotoId ? "dragging" : ""} ${ph.id === dragOverPhotoId ? "drag-over" : ""}`}
                 draggable={isEditMode}
                 onDragStart={isEditMode && onPhotoDragStart ? (e) => onPhotoDragStart(idx, ph) : undefined}
                 onDragOver={isEditMode && onPhotoDragOver ? (e) => onPhotoDragOver(e, idx, ph) : undefined}
                 onDrop={isEditMode && onPhotoDrop ? (e) => onPhotoDrop(idx, ph) : undefined}
+                onDragEnd={isEditMode && onPhotoDragEnd ? onPhotoDragEnd : undefined}
+                onDragLeave={isEditMode && onPhotoDragLeave ? onPhotoDragLeave : undefined}
               >
                 <img src={ph.url || ph.dataUrl} alt="" onClick={!isEditMode ? () => { if (onPhotoClick) onPhotoClick(ph.url || ph.dataUrl); else window.open(ph.url || ph.dataUrl, "_blank"); } : undefined} style={{ cursor: !isEditMode ? "zoom-in" : "grab" }} />
                 {isEditMode && onRemovePhoto && (

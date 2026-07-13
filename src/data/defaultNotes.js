@@ -5,8 +5,68 @@
 
 export const defaultTravelNotes = [
   {
+    "id": "note-1783864539101",
+    "city": "比利时·根特",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783864695237-tf066y1tl.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 0,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "2026-06-02",
+    "endDate": "2026-06-07",
+    "rating": 7,
+    "summary": "Belgium · Ghent",
+    "center": [
+      48.8566,
+      2.3522
+    ],
+    "addresses": []
+  },
+  {
+    "id": "note-1783862389370",
+    "city": "荷兰·鹿特丹",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783862572565-ydj1ssrfq.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 55,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "2026-06-06",
+    "endDate": "2026-06-06",
+    "rating": 6,
+    "summary": "Netherlands · Rotterdam",
+    "center": [
+      48.8566,
+      2.3522
+    ],
+    "addresses": []
+  },
+  {
+    "id": "note-1783861866741",
+    "city": "比利时·安特卫普",
+    "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783862167376-6f49ea877.jpeg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 100,
+      "author": "Xiao"
+    },
+    "author": "Xiao",
+    "startDate": "2026-06-06",
+    "endDate": "2026-06-06",
+    "rating": 9,
+    "summary": "Belgium · Antwerpen",
+    "center": [
+      48.8566,
+      2.3522
+    ],
+    "addresses": []
+  },
+  {
     "id": "note-1783860848331",
-    "city": "四川·成都",
+    "city": "四川省·成都",
     "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783860950282-ey1qewwf0.jpeg",
     "coverImagePosition": {
       "x": 50,
@@ -16,8 +76,8 @@ export const defaultTravelNotes = [
     "author": "Xiao",
     "startDate": "2026-06-01",
     "endDate": "2026-06-01",
-    "rating": 8,
-    "summary": "",
+    "rating": 7,
+    "summary": "China · Sichuan Province · Chengdu",
     "center": [
       48.8566,
       2.3522
@@ -36,7 +96,7 @@ export const defaultTravelNotes = [
     "author": "Xiao",
     "startDate": "2026-06-02",
     "endDate": "2025-06-02",
-    "rating": 10,
+    "rating": 8,
     "summary": "Belgium · Brussels",
     "center": [
       48.8566,
@@ -56,7 +116,7 @@ export const defaultTravelNotes = [
     "author": "Xiao",
     "startDate": "2026-06-03",
     "endDate": "2026-06-04",
-    "rating": 10,
+    "rating": 9,
     "summary": "France · Paris",
     "center": [
       48.8566,
@@ -76,7 +136,7 @@ export const defaultTravelNotes = [
     "author": "Xiao",
     "startDate": "2025-06-09",
     "endDate": "2025-06-14",
-    "rating": 10,
+    "rating": 9,
     "summary": "Germany · Dresden",
     "center": [
       48.8566,
@@ -547,7 +607,7 @@ export const defaultTravelNotes = [
     "coverImage": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/cover-1783783991210-lrk9ennvb.jpeg",
     "coverImagePosition": {
       "x": 50,
-      "y": 22,
+      "y": 5,
       "author": "Xiao"
     },
     "author": "Xiao",
