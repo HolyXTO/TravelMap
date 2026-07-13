@@ -5416,11 +5416,13 @@ function DotWorldJourneyMap({ arcs, points, worldDots }) {
 function Metric({ detail, icon, label, popover, value }) {
   return (
     <article className="metric">
-      <span>{icon}</span>
-      <div>
+      <div className="metric-header">
+        <span>{icon}</span>
         <p>{label}</p>
-        <strong>{value}</strong>
-        {detail && <small>{detail}</small>}
+      </div>
+      <div className="metric-body">
+        <strong className="metric-value">{value}</strong>
+        {detail && <span className="metric-detail">{detail}</span>}
       </div>
       {popover && popover}
     </article>
@@ -5430,18 +5432,20 @@ function Metric({ detail, icon, label, popover, value }) {
 function ComparisonMetric({ icon, label, popover, rows }) {
   return (
     <article className="metric comparison-metric">
-      <span>{icon}</span>
-      <div>
+      <div className="metric-header">
+        <span>{icon}</span>
         <p>{label}</p>
-        <div className="metric-comparison-rows">
-          {rows.map((row) => (
-            <strong key={row.label}>
-              <span>{row.label}</span>
-              <em>{row.value}</em>
-              {row.detail && <small>{row.detail}</small>}
-            </strong>
-          ))}
-        </div>
+      </div>
+      <div className="metric-comparison-rows">
+        {rows.map((row) => (
+          <div key={row.label} className="metric-row">
+            <span className="metric-row-label">{row.label}</span>
+            <div className="metric-row-values">
+              {row.detail && <span className="metric-row-detail">{row.detail}</span>}
+              <strong className="metric-row-value">{row.value}</strong>
+            </div>
+          </div>
+        ))}
       </div>
       {popover && popover}
     </article>
@@ -7792,7 +7796,6 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
                   <User size={18} />
                 </div>
                 <div className="profile-info">
-                  <span className="profile-label">旅行家 Profile</span>
                   <strong className="profile-name">{profile.name}</strong>
                 </div>
               </div>
