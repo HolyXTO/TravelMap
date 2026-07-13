@@ -176,13 +176,13 @@ export const defaultTravelNotes = [
             "ratio": "3:4"
           },
           {
-            "id": "ph-1783857185269-x5pm9",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783856747128-0-ph-1783857185269-x5pm9-1783857191361-ek0rpbw2l.jpeg",
+            "id": "ph-1783857185269-eszeg",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783856747128-0-ph-1783857185269-eszeg-1783857191428-5mn5wiavw.jpeg",
             "ratio": "3:4"
           },
           {
-            "id": "ph-1783857185269-eszeg",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783856747128-0-ph-1783857185269-eszeg-1783857191428-5mn5wiavw.jpeg",
+            "id": "ph-1783857185269-x5pm9",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783856747128-0-ph-1783857185269-x5pm9-1783857191361-ek0rpbw2l.jpeg",
             "ratio": "3:4"
           }
         ],
@@ -278,13 +278,13 @@ export const defaultTravelNotes = [
             "ratio": "4:3"
           },
           {
-            "id": "ph-1783858291072-fucfz",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857984359-4-ph-1783858291072-fucfz-1783858308250-ppjf60h5y.jpeg",
+            "id": "ph-1783858291072-0fh8c",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857984359-4-ph-1783858291072-0fh8c-1783858308251-f6qsz3by6.jpeg",
             "ratio": "4:3"
           },
           {
-            "id": "ph-1783858291072-0fh8c",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857984359-4-ph-1783858291072-0fh8c-1783858308251-f6qsz3by6.jpeg",
+            "id": "ph-1783858291072-fucfz",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783857984359-4-ph-1783858291072-fucfz-1783858308250-ppjf60h5y.jpeg",
             "ratio": "4:3"
           }
         ],
@@ -398,16 +398,16 @@ export const defaultTravelNotes = [
         "day": 1,
         "name": "GIORGIO Boutique Hotel",
         "text": "",
-        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854650081-3-ph-1783854717673-7h78m-1783855280162-tcircm4sh.jpeg",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854650081-3-ph-1783854840981-hhp5z-1783855280198-f9ikf6s1d.jpeg",
         "photos": [
-          {
-            "id": "ph-1783854717673-7h78m",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854650081-3-ph-1783854717673-7h78m-1783855280162-tcircm4sh.jpeg",
-            "ratio": "4:3"
-          },
           {
             "id": "ph-1783854840981-hhp5z",
             "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854650081-3-ph-1783854840981-hhp5z-1783855280198-f9ikf6s1d.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783854717673-7h78m",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783854650081-3-ph-1783854717673-7h78m-1783855280162-tcircm4sh.jpeg",
             "ratio": "4:3"
           }
         ],
@@ -541,14 +541,24 @@ export const defaultTravelNotes = [
             "ratio": "4:3"
           },
           {
-            "id": "ph-1783852061871-zyar2",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852061871-zyar2-1783852610404-tlyfrdg1q.jpeg",
+            "id": "ph-1783852870733-xv25v",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852870733-xv25v-1783852886717-38rx8hcpu.jpeg",
             "ratio": "4:3"
           },
           {
             "id": "ph-1783852099274-fyyic",
             "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852099274-fyyic-1783852610418-698szoqw2.jpeg",
             "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783852061871-zyar2",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852061871-zyar2-1783852610404-tlyfrdg1q.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783852826884-g5apy",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852826884-g5apy-1783852886748-zitqw8onl.jpeg",
+            "ratio": "3:4"
           },
           {
             "id": "ph-1783852605746-r5ex5",
@@ -559,16 +569,6 @@ export const defaultTravelNotes = [
             "id": "ph-1783852670492-7elrx",
             "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852670492-7elrx-1783852886747-ucwf23vsc.jpeg",
             "ratio": "3:4"
-          },
-          {
-            "id": "ph-1783852826884-g5apy",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852826884-g5apy-1783852886748-zitqw8onl.jpeg",
-            "ratio": "3:4"
-          },
-          {
-            "id": "ph-1783852870733-xv25v",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783851540418-0-ph-1783852870733-xv25v-1783852886717-38rx8hcpu.jpeg",
-            "ratio": "4:3"
           }
         ],
         "coordinates": {
@@ -581,16 +581,16 @@ export const defaultTravelNotes = [
         "day": 1,
         "name": "Malta Airport",
         "text": "",
-        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855229351-6-ph-1783855276152-ppfru-1783855280199-gxaabiyui.jpeg",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855229351-6-ph-1783855276152-1ys67-1783855280199-ylr5gnk4v.jpeg",
         "photos": [
-          {
-            "id": "ph-1783855276152-ppfru",
-            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855229351-6-ph-1783855276152-ppfru-1783855280199-gxaabiyui.jpeg",
-            "ratio": "4:3"
-          },
           {
             "id": "ph-1783855276152-1ys67",
             "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855229351-6-ph-1783855276152-1ys67-1783855280199-ylr5gnk4v.jpeg",
+            "ratio": "4:3"
+          },
+          {
+            "id": "ph-1783855276152-ppfru",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1783855229351-6-ph-1783855276152-ppfru-1783855280199-gxaabiyui.jpeg",
             "ratio": "4:3"
           }
         ],

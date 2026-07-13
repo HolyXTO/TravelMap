@@ -7784,8 +7784,19 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
           </h2>
         </div>
         <div className="comparison-head">
-          {normalized.slice(0, 2).map(({ profile }) => (
-            <strong key={profile.id}>{profile.name}</strong>
+          {normalized.slice(0, 2).map(({ profile }, idx) => (
+            <div key={profile.id} className={`comparison-profile-card profile-theme-${idx}`}>
+              <div className="profile-card-glow" />
+              <div className="profile-card-content">
+                <div className="profile-avatar">
+                  <User size={18} />
+                </div>
+                <div className="profile-info">
+                  <span className="profile-label">旅行家 Profile</span>
+                  <strong className="profile-name">{profile.name}</strong>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
         <div className="comparison-continent-stack">
