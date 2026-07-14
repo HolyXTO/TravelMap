@@ -7190,6 +7190,14 @@ h2 {
   flex: 1;
 }
 
+.ratings-row-left.draggable-handle {
+  cursor: grab;
+}
+
+.ratings-row-left.draggable-handle:active {
+  cursor: grabbing;
+}
+
 .ratings-row-left .flag {
   width: 17px;
   height: 12px;

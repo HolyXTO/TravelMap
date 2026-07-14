@@ -9725,13 +9725,12 @@ function TravelRatingsSection({
                     const rank = ratingItems.indexOf(item) + 1;
                     const canEditRow = session && isEditor;
                     const isColumnEditable = session && isEditor && !!editableColumns[profile.id];
+                    const hasTie = isColumnEditable && ratingItems.some((other) => other.id !== item.id && other.rating === item.rating);
 
                     return (
                       <div
                         key={item.id}
                         className={`ratings-row ${dragOverRatingId === item.id ? "drag-over" : ""}`}
-                        draggable={isColumnEditable}
-                        onDragStart={(e) => handleRatingDragStart(e, item.id)}
                         onDragOver={(e) => handleRatingDragOver(e, item, profile.id)}
                         onDragLeave={handleRatingDragLeave}
                         onDrop={(e) => handleRatingDrop(e, item.id, profile.id)}
@@ -9768,7 +9767,17 @@ function TravelRatingsSection({
                           }
                         }}
                       >
-                        <div className="ratings-row-left">
+                        <div
+                          className={`ratings-row-left ${hasTie ? "draggable-handle" : ""}`}
+                          draggable={hasTie}
+                          onDragStart={(e) => {
+                            if (hasTie) {
+                              handleRatingDragStart(e, item.id);
+                            } else {
+                              e.preventDefault();
+                            }
+                          }}
+                        >
                           <span className={`ratings-rank ${rank <= 3 ? "top-rank" : ""}`}>
                             #{rank}
                           </span>
@@ -9776,7 +9785,7 @@ function TravelRatingsSection({
                           <span className="ratings-label-text">{item.label}</span>
                         </div>
 
-                        <div className="ratings-row-right">
+                        <div className="ratings-row-right" draggable={false} onDragStart={(e) => e.preventDefault()}>
                           {(() => {
                             const currentVal = slidingRatings[item.id] !== undefined ? slidingRatings[item.id] : item.rating;
                             return (
