@@ -9261,6 +9261,7 @@ function TravelRatingsSection({
   const [mergeTarget, setMergeTarget] = useState(null);
   const [selectedCities, setSelectedCities] = useState({});
   const [editableColumns, setEditableColumns] = useState({});
+  const [frozenOrders, setFrozenOrders] = useState({});
 
   useEffect(() => {
     function handleOutsideClick() {
@@ -9383,8 +9384,43 @@ function TravelRatingsSection({
       }
     });
 
-    ratingItems.sort((a, b) => b.rating - a.rating);
+    const frozenList = frozenOrders[profileId];
+    if (frozenList) {
+      ratingItems.sort((a, b) => {
+        const idxA = frozenList.indexOf(a.id);
+        const idxB = frozenList.indexOf(b.id);
+        if (idxA === -1 && idxB === -1) return b.rating - a.rating;
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+      });
+    } else {
+      ratingItems.sort((a, b) => b.rating - a.rating);
+    }
     return ratingItems;
+  }
+
+  function toggleEditColumn(profileId) {
+    setEditableColumns((prev) => {
+      const isNowEditing = !prev[profileId];
+      if (isNowEditing) {
+        const currentItems = getProfileRatingItems(profileId);
+        setFrozenOrders((prevFrozen) => ({
+          ...prevFrozen,
+          [profileId]: currentItems.map((item) => item.id),
+        }));
+      } else {
+        setFrozenOrders((prevFrozen) => {
+          const updated = { ...prevFrozen };
+          delete updated[profileId];
+          return updated;
+        });
+      }
+      return {
+        ...prev,
+        [profileId]: isNowEditing,
+      };
+    });
   }
 
   function handleUpgradeToCountry(countryCode) {
@@ -9514,12 +9550,7 @@ function TravelRatingsSection({
                 {session && isEditor && (
                   <button
                     className={`ratings-column-edit-btn ${editableColumns[profile.id] ? "active" : ""}`}
-                    onClick={() =>
-                      setEditableColumns((prev) => ({
-                        ...prev,
-                        [profile.id]: !prev[profile.id],
-                      }))
-                    }
+                    onClick={() => toggleEditColumn(profile.id)}
                     type="button"
                     title={editableColumns[profile.id] ? "退出编辑评分" : "编辑评分"}
                   >

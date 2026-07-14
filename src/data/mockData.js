@@ -1485,7 +1485,7 @@ export const initialVisits = [
     "placeId": "W-3191281",
     "visitedAt": null,
     "type": "旅行",
-    "note": "{\"dateDisplay\":\"\",\"datePrecision\":\"none\",\"rating\":8,\"text\":\"\",\"transportMode\":\"\"}",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"none\",\"rating\":8.9,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -1753,15 +1753,6 @@ export const initialVisits = [
     "id": "9b346025-3136-4b6c-8aca-a6fecaa35410",
     "profileId": "person-b",
     "placeId": "W-264371",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "",
-    "photos": []
-  },
-  {
-    "id": "2e729aff-b9ee-48cc-9636-f50877bafc6e",
-    "profileId": "person-b",
-    "placeId": "W-3191281",
     "visitedAt": null,
     "type": "旅行",
     "note": "",
@@ -2197,6 +2188,15 @@ export const initialVisits = [
     "visitedAt": null,
     "type": "旅行",
     "note": "",
+    "photos": []
+  },
+  {
+    "id": "2e729aff-b9ee-48cc-9636-f50877bafc6e",
+    "profileId": "person-b",
+    "placeId": "W-3191281",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":10,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
