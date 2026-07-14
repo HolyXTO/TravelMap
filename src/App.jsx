@@ -3191,6 +3191,40 @@ function App() {
     }
   }
 
+  async function updateVisitRatings(visitIds, newRating) {
+    if (!session || !isEditor) return false;
+    const normalizedRating = Math.max(0, Math.min(10, Number(newRating) || 0));
+    // Immediately update local state for responsive UI
+    setVisits((prev) =>
+      prev.map((v) => (visitIds.includes(v.id) ? { ...v, rating: normalizedRating } : v)),
+    );
+    try {
+      setIsSaving(true);
+      for (const id of visitIds) {
+        const oldVisit = visits.find((v) => v.id === id);
+        if (!oldVisit) continue;
+        await supabase
+          .from("visits")
+          .update({
+            note: buildVisitNote({
+              dateDisplay: oldVisit.dateDisplay,
+              datePrecision: oldVisit.datePrecision,
+              rating: normalizedRating,
+              text: oldVisit.note || "",
+            }),
+          })
+          .eq("id", id);
+      }
+      await loadTravelData();
+      return true;
+    } catch (error) {
+      console.error("Failed to batch update ratings:", error);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function saveRoute({ endPlaceId, id, profileId, startPlaceId, transportMode, traveledAt }) {
     if (!session || !isEditor) {
       setRouteMessage("请先用已授权账号登录后再保存轨迹。");
@@ -3313,7 +3347,7 @@ function App() {
   }
 
   function scrollToPageSection(sectionId) {
-    if ((sectionId === "travel-notes-section" || sectionId === "visual-journey-section") && !journeyVisualsLoaded) {
+    if ((sectionId === "travel-notes-section" || sectionId === "visual-journey-section" || sectionId === "travel-ratings-section") && !journeyVisualsLoaded) {
       setJourneyVisualsLoaded(true);
       setTimeout(() => {
         const target = document.getElementById(sectionId);
@@ -3406,6 +3440,9 @@ function App() {
           </button>
           <button onClick={() => scrollToPageSection("travel-notes-section")} type="button">
             旅行记录
+          </button>
+          <button onClick={() => scrollToPageSection("travel-ratings-section")} type="button">
+            评分
           </button>
         </nav>
         
@@ -3760,6 +3797,16 @@ function App() {
         profiles={appProfiles}
         mapTileSource={mapTileSource}
         setMapTileSource={setMapTileSource}
+      />
+      {/* 评分功能 */}
+      <TravelRatingsSection
+        isEditor={isEditor}
+        session={session}
+        activeProfile={activeProfile}
+        profiles={appProfiles}
+        visits={visits}
+        onUpdateVisitRatings={updateVisitRatings}
+        placeLookup={placeLookup}
       />
       {editingVisit && (
         <VisitEditDialog
@@ -7209,6 +7256,59 @@ function AuthMiniPanel({ authMessage, isEditor, onSignIn, onSignOut, session }) 
   );
 }
 
+function DecimalStarSelector({ rating, onChange, isEditable = false }) {
+  const roundedRating = Math.max(0, Math.min(10, Number(rating) || 0));
+
+  if (!isEditable) {
+    const starSize = 14;
+    const starGap = 2;
+    const itemWidth = starSize + starGap;
+    const containerWidth = roundedRating * itemWidth;
+    return (
+      <div
+        className="decimal-star-display-container"
+        style={{ width: `${containerWidth}px` }}
+        title={`${roundedRating.toFixed(1)}/10`}
+      >
+        <div className="decimal-star-display-inner" style={{ gap: `${starGap}px` }}>
+          {Array.from({ length: 10 }).map((_, i) => (
+            <Star key={i} size={starSize} fill="var(--prophet-gold)" color="var(--prophet-gold)" style={{ flexShrink: 0 }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const starSize = 18;
+  const starGap = 2;
+  const itemWidth = starSize + starGap;
+  const activeWidth = roundedRating * itemWidth;
+  return (
+    <div className="decimal-star-rater" style={{ height: `${starSize}px`, width: `${10 * itemWidth}px` }}>
+      <div className="star-rater-bg" style={{ gap: `${starGap}px` }}>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <Star key={i} size={starSize} color="#cbd5e1" style={{ flexShrink: 0 }} />
+        ))}
+      </div>
+      <div className="star-rater-fg" style={{ width: `${activeWidth}px`, gap: `${starGap}px` }}>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <Star key={i} size={starSize} fill="var(--prophet-gold)" color="var(--prophet-gold)" style={{ flexShrink: 0 }} />
+        ))}
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="10"
+        step="0.1"
+        value={roundedRating}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="star-rater-input"
+        aria-label="滑动评分"
+      />
+    </div>
+  );
+}
+
 function VisitEditDialog({
   authMessage,
   isSaving,
@@ -7271,18 +7371,12 @@ function VisitEditDialog({
             ))}
           </select>
         </label>
-        <div className="rating-row" aria-label="评分">
-          {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
-            <button
-              aria-label={`${value} 星`}
-              className={rating >= value ? "active" : ""}
-              key={value}
-              onClick={() => setRating(value)}
-              type="button"
-            >
-              <Star size={18} />
-            </button>
-          ))}
+        <div className="rating-row" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "6px 0" }} aria-label="评分">
+          <span style={{ fontSize: "0.9rem", fontWeight: "700", color: "#475569" }}>评分</span>
+          <DecimalStarSelector rating={rating} onChange={setRating} isEditable={true} />
+          <span style={{ fontSize: "0.95rem", fontFamily: "var(--prophet-code)", fontWeight: "800", color: "var(--prophet-gold)" }}>
+            {rating ? `${Number(rating).toFixed(1)}` : "未评分"}
+          </span>
         </div>
         <label>
           上传照片
@@ -9112,28 +9206,521 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   );
 }
 
+// -------------------------------------------------------------
+// 评分展示与交互系统模块实现 (Travel Ratings Section)
+// -------------------------------------------------------------
+function TravelRatingsSection({
+  isEditor,
+  session,
+  activeProfile,
+  profiles,
+  visits,
+  onUpdateVisitRatings,
+  placeLookup,
+}) {
+  const [ratingsConfig, setRatingsConfig] = useState(() => {
+    const saved = localStorage.getItem("travel_ratings_config");
+    if (!saved) return { upgraded: [], merged: {} };
+    try {
+      const parsed = JSON.parse(saved);
+      // Migrate old format (profile-indexed) to new shared format
+      const upgraded = Array.isArray(parsed.upgraded)
+        ? parsed.upgraded
+        : Array.from(new Set(Object.values(parsed.upgraded || {}).flat()));
+      
+      const merged = {};
+      if (parsed.merged && typeof parsed.merged === "object" && !Array.isArray(parsed.merged)) {
+        Object.values(parsed.merged).forEach((item) => {
+          if (item && typeof item === "object" && !Array.isArray(item)) {
+            Object.entries(item).forEach(([countryCode, cityIds]) => {
+              merged[countryCode] = Array.from(new Set([...(merged[countryCode] || []), ...cityIds]));
+            });
+          }
+        });
+        Object.entries(parsed.merged).forEach(([key, val]) => {
+          if (Array.isArray(val)) {
+            merged[key] = Array.from(new Set([...(merged[key] || []), ...val]));
+          }
+        });
+      }
+      return { upgraded, merged };
+    } catch (e) {
+      return { upgraded: [], merged: {} };
+    }
+  });
+
+  const [expandedProfiles, setExpandedProfiles] = useState({});
+  const [contextMenu, setContextMenu] = useState(null);
+  const [mergeTarget, setMergeTarget] = useState(null);
+  const [selectedCities, setSelectedCities] = useState({});
+
+  useEffect(() => {
+    function handleOutsideClick() {
+      if (contextMenu) setContextMenu(null);
+    }
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, [contextMenu]);
+
+  function getProfileRatingItems(profileId) {
+    const profileVisits = visits.filter((v) => v.profileId === profileId);
+
+    const cityGroups = {};
+    profileVisits.forEach((visit) => {
+      const cityPlace = resolvePlaceForLevel(visit.placeId, "city", placeLookup) || findPlace(visit.placeId, placeLookup);
+      const countryPlace = resolvePlaceForLevel(visit.placeId, "country", placeLookup);
+      if (!cityPlace || !countryPlace) return;
+
+      const cityId = cityPlace.id;
+      if (!cityGroups[cityId]) {
+        cityGroups[cityId] = {
+          city: cityPlace,
+          country: countryPlace,
+          visits: [],
+        };
+      }
+      cityGroups[cityId].visits.push(visit);
+    });
+
+    const upgradedList = ratingsConfig.upgraded || [];
+    const mergedMap = ratingsConfig.merged || {};
+
+    const ratingItems = [];
+
+    const countryGroups = {};
+    Object.values(cityGroups).forEach((group) => {
+      const countryCode = group.country.id;
+      if (!countryGroups[countryCode]) {
+        countryGroups[countryCode] = {
+          country: group.country,
+          cityGroups: [],
+        };
+      }
+      countryGroups[countryCode].cityGroups.push(group);
+    });
+
+    Object.keys(countryGroups).forEach((countryCode) => {
+      const group = countryGroups[countryCode];
+      const country = group.country;
+      const isUpgraded = upgradedList.includes(countryCode);
+      const mergedCityIds = mergedMap[countryCode] || [];
+      const hasMerges = mergedCityIds.length > 0;
+
+      if (isUpgraded) {
+        const allVisits = group.cityGroups.flatMap((g) => g.visits);
+        const firstRating = allVisits[0]?.rating || 0;
+        ratingItems.push({
+          type: "upgraded",
+          id: `upgraded-${profileId}-${countryCode}`,
+          countryCode,
+          country,
+          label: displayCountryName(country),
+          rating: firstRating,
+          visits: allVisits,
+        });
+      } else if (hasMerges) {
+        const mergedGroups = [];
+        const unmergedGroups = [];
+
+        group.cityGroups.forEach((cg) => {
+          if (mergedCityIds.includes(cg.city.id)) {
+            mergedGroups.push(cg);
+          } else {
+            unmergedGroups.push(cg);
+          }
+        });
+
+        if (mergedGroups.length > 0) {
+          const allVisits = mergedGroups.flatMap((g) => g.visits);
+          const firstRating = allVisits[0]?.rating || 0;
+          ratingItems.push({
+            type: "merged",
+            id: `merged-${profileId}-${countryCode}`,
+            countryCode,
+            country,
+            label: displayCountryName(country),
+            rating: firstRating,
+            visits: allVisits,
+            mergedCityIds,
+          });
+        }
+
+        unmergedGroups.forEach((cg) => {
+          const firstRating = cg.visits[0]?.rating || 0;
+          ratingItems.push({
+            type: "city",
+            id: `city-${profileId}-${cg.city.id}`,
+            countryCode,
+            country,
+            city: cg.city,
+            label: `${displayCountryName(country)} · ${displayPlaceName(cg.city)}`,
+            rating: firstRating,
+            visits: cg.visits,
+          });
+        });
+      } else {
+        group.cityGroups.forEach((cg) => {
+          const firstRating = cg.visits[0]?.rating || 0;
+          ratingItems.push({
+            type: "city",
+            id: `city-${profileId}-${cg.city.id}`,
+            countryCode,
+            country,
+            city: cg.city,
+            label: `${displayCountryName(country)} · ${displayPlaceName(cg.city)}`,
+            rating: firstRating,
+            visits: cg.visits,
+          });
+        });
+      }
+    });
+
+    ratingItems.sort((a, b) => b.rating - a.rating);
+    return ratingItems;
+  }
+
+  function handleUpgradeToCountry(countryCode) {
+    setRatingsConfig((prev) => {
+      const updated = {
+        ...prev,
+        upgraded: Array.from(new Set([...(prev.upgraded || []), countryCode])),
+      };
+      localStorage.setItem("travel_ratings_config", JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  function handleOpenMergeModal(profileId, countryCode, clickedCity, allCityGroups) {
+    const otherCities = allCityGroups
+      .map((cg) => cg.city)
+      .filter((city) => city.id !== clickedCity.id);
+
+    const initialCheckboxes = { [clickedCity.id]: true };
+    otherCities.forEach((city) => {
+      initialCheckboxes[city.id] = true;
+    });
+
+    setSelectedCities(initialCheckboxes);
+    setMergeTarget({
+      profileId,
+      countryCode,
+      clickedCity,
+      otherCities,
+      allCityGroups,
+    });
+  }
+
+  function handleConfirmMerge() {
+    if (!mergeTarget) return;
+    const { countryCode, clickedCity, allCityGroups } = mergeTarget;
+    const targetCityIds = Object.keys(selectedCities).filter((id) => selectedCities[id]);
+
+    setRatingsConfig((prev) => {
+      const updated = {
+        ...prev,
+        merged: {
+          ...(prev.merged || {}),
+          [countryCode]: targetCityIds,
+        },
+      };
+      localStorage.setItem("travel_ratings_config", JSON.stringify(updated));
+      return updated;
+    });
+
+    const visitsToSync = allCityGroups
+      .filter((cg) => targetCityIds.includes(cg.city.id))
+      .flatMap((cg) => cg.visits);
+
+    const clickedCityRating = allCityGroups.find((cg) => cg.city.id === clickedCity.id)?.visits[0]?.rating || 10;
+    
+    onUpdateVisitRatings(visitsToSync.map((v) => v.id), clickedCityRating);
+    setMergeTarget(null);
+  }
+
+  function handleRestore(countryCode) {
+    setRatingsConfig((prev) => {
+      const upgradedList = prev.upgraded || [];
+      const mergedMap = prev.merged || {};
+
+      const nextUpgraded = upgradedList.filter((c) => c !== countryCode);
+      const nextMerged = { ...mergedMap };
+      delete nextMerged[countryCode];
+
+      const updated = {
+        upgraded: nextUpgraded,
+        merged: nextMerged,
+      };
+      localStorage.setItem("travel_ratings_config", JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  async function handleRatingChange(item, newRating) {
+    const visitIds = item.visits.map((v) => v.id);
+    await onUpdateVisitRatings(visitIds, newRating);
+  }
+
+  const activeProfiles =
+    activeProfile === "all"
+      ? profiles.slice(0, 2)
+      : profiles.filter((p) => p.id === activeProfile);
+
+  return (
+    <section
+      className="country-gallery-section"
+      id="travel-ratings-section"
+      aria-label="评分"
+      style={{ borderTop: "1px dashed #dbe4ee", paddingTop: "40px", marginTop: "40px" }}
+    >
+      <div className="country-gallery-title">
+        <h2>
+          评分·<span className="major-title-en">Ratings</span>
+        </h2>
+      </div>
+
+      <div className={`ratings-grid ${activeProfile === "all" ? "dual-column" : "single-column"}`}>
+        {activeProfiles.map((profile, idx) => {
+          const ratingItems = getProfileRatingItems(profile.id);
+          const totalCount = ratingItems.length;
+          const isExpanded = !!expandedProfiles[profile.id];
+          const shouldTruncate = totalCount > 15 && !isExpanded;
+
+          let renderedItems = [];
+          if (shouldTruncate) {
+            renderedItems = [
+              ...ratingItems.slice(0, 10),
+              { type: "ellipsis", id: `ellipsis-${profile.id}`, middleCount: totalCount - 15 },
+              ...ratingItems.slice(totalCount - 5),
+            ];
+          } else {
+            renderedItems = ratingItems;
+          }
+
+          return (
+            <div key={profile.id} className="ratings-column">
+              {activeProfile === "all" && (
+                <div className={`ratings-column-header profile-theme-${idx}`}>
+                  <div className="ratings-column-avatar">
+                    <User size={16} />
+                  </div>
+                  <h3>{profile.name}</h3>
+                </div>
+              )}
+
+              {totalCount === 0 ? (
+                <div className="ratings-empty">暂无足迹记录</div>
+              ) : (
+                <div className="ratings-list">
+                  {renderedItems.map((item) => {
+                    if (item.type === "ellipsis") {
+                      return (
+                        <button
+                          key={item.id}
+                          className="ratings-ellipsis-btn"
+                          onClick={() =>
+                            setExpandedProfiles((prev) => ({
+                              ...prev,
+                              [profile.id]: true,
+                            }))
+                          }
+                          type="button"
+                        >
+                          展开其余 {item.middleCount} 个城市/国家
+                        </button>
+                      );
+                    }
+
+                    const rank = ratingItems.indexOf(item) + 1;
+                    const canEditRow = session && isEditor;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="ratings-row"
+                        onContextMenu={(e) => {
+                          if (canEditRow) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const profileVisits = visits.filter((v) => v.profileId === profile.id);
+                            const cityGroupsMap = {};
+                            profileVisits.forEach((visit) => {
+                              const cityPlace = resolvePlaceForLevel(visit.placeId, "city", placeLookup) || findPlace(visit.placeId, placeLookup);
+                              const countryPlace = resolvePlaceForLevel(visit.placeId, "country", placeLookup);
+                              if (cityPlace && countryPlace) {
+                                cityGroupsMap[cityPlace.id] = { city: cityPlace, country: countryPlace, visits: [] };
+                              }
+                            });
+                            profileVisits.forEach((visit) => {
+                              const cityPlace = resolvePlaceForLevel(visit.placeId, "city", placeLookup) || findPlace(visit.placeId, placeLookup);
+                              if (cityPlace && cityGroupsMap[cityPlace.id]) {
+                                cityGroupsMap[cityPlace.id].visits.push(visit);
+                              }
+                            });
+                            const allCitiesInCountry = Object.values(cityGroupsMap).filter(
+                              (g) => g.country.id === item.countryCode
+                            );
+
+                            setContextMenu({
+                              x: e.clientX,
+                              y: e.clientY,
+                              item,
+                              profileId: profile.id,
+                              allCitiesInCountry,
+                            });
+                          }
+                        }}
+                      >
+                        <div className="ratings-row-left">
+                          <span className={`ratings-rank ${rank <= 3 ? "top-rank" : ""}`}>
+                            #{rank}
+                          </span>
+                          <FlagIcon place={item.country} />
+                          <span className="ratings-label-text">{item.label}</span>
+                          {item.type === "upgraded" && (
+                            <span className="ratings-badge">国</span>
+                          )}
+                          {item.type === "merged" && (
+                            <span className="ratings-badge merged">融</span>
+                          )}
+                        </div>
+
+                        <div className="ratings-row-right">
+                          <DecimalStarSelector
+                            rating={item.rating}
+                            isEditable={canEditRow}
+                            onChange={(val) => handleRatingChange(item, val)}
+                          />
+                          <span className="ratings-score-value">
+                            {item.rating > 0 ? Number(item.rating).toFixed(1) : "未评分"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {isExpanded && totalCount > 15 && (
+                    <button
+                      className="ratings-ellipsis-btn collapse"
+                      onClick={() =>
+                        setExpandedProfiles((prev) => ({
+                          ...prev,
+                          [profile.id]: false,
+                        }))
+                      }
+                      type="button"
+                    >
+                      收起列表
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {contextMenu && (
+        <div
+          className="ratings-ctx-menu"
+          style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenu.item.type === "city" ? (
+            <>
+              <button
+                onClick={() => {
+                  handleUpgradeToCountry(contextMenu.item.countryCode);
+                  setContextMenu(null);
+                }}
+                type="button"
+              >
+                城市升级为国家
+              </button>
+              {contextMenu.allCitiesInCountry.length > 1 && (
+                <button
+                  onClick={() => {
+                    handleOpenMergeModal(
+                      contextMenu.profileId,
+                      contextMenu.item.countryCode,
+                      contextMenu.item.city,
+                      contextMenu.allCitiesInCountry
+                    );
+                    setContextMenu(null);
+                  }}
+                  type="button"
+                >
+                  融合其他城市
+                </button>
+              )}
+            </>
+          ) : (
+            <button
+              onClick={() => {
+                handleRestore(contextMenu.item.countryCode);
+                setContextMenu(null);
+              }}
+              type="button"
+            >
+              复原为城市显示
+            </button>
+          )}
+        </div>
+      )}
+
+      {mergeTarget && (
+        <div className="merge-dialog-overlay" onClick={() => setMergeTarget(null)}>
+          <div className="merge-dialog-content" onClick={(e) => e.stopPropagation()}>
+            <h3>融合其他城市</h3>
+            <p>
+              将以 <strong>{displayCountryName(mergeTarget.clickedCity)}</strong> 国进行显示。请选择要进行融合的城市：
+            </p>
+            <div className="merge-cities-list">
+              <label className="merge-city-checkbox disabled">
+                <input type="checkbox" checked disabled />
+                <span>{displayPlaceName(mergeTarget.clickedCity)} (当前城市)</span>
+              </label>
+              {mergeTarget.otherCities.map((city) => (
+                <label key={city.id} className="merge-city-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={!!selectedCities[city.id]}
+                    onChange={(e) =>
+                      setSelectedCities((prev) => ({
+                        ...prev,
+                        [city.id]: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span>{displayPlaceName(city)}</span>
+                </label>
+              ))}
+            </div>
+            <div className="merge-dialog-actions">
+              <button className="btn-cancel" onClick={() => setMergeTarget(null)} type="button">
+                取消
+              </button>
+              <button className="btn-confirm" onClick={handleConfirmMerge} type="button">
+                确认融合并升级
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 
 // -------------------------------------------------------------
 // 添加/编辑旅行记录弹窗组件（双栏布局 + 内嵌地图 v2）
 // -------------------------------------------------------------
 function StarRating({ value, onChange }) {
-  const [hovered, setHovered] = useState(0);
   return (
-    <div className="star-rating-row">
-      {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-        <button
-          key={n}
-          type="button"
-          className={`star-btn ${n <= (hovered || value) ? "filled" : ""}`}
-          onMouseEnter={() => setHovered(n)}
-          onMouseLeave={() => setHovered(0)}
-          onClick={() => onChange(n)}
-          aria-label={`${n}星`}
-        >
-          ★
-        </button>
-      ))}
-      <span className="star-rating-label">{value} / 10</span>
+    <div className="star-rating-row" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <DecimalStarSelector rating={value} onChange={onChange} isEditable={true} />
+      <span className="star-rating-label" style={{ fontSize: "1rem", fontFamily: "var(--prophet-code)", fontWeight: "800", color: "var(--prophet-gold)" }}>
+        {Number(value).toFixed(1)} / 10
+      </span>
     </div>
   );
 }
