@@ -1,13 +1,13 @@
 :root {
   color: #111827;
   background: #f5f7fb;
-  --prophet-serif: "STZhongsong", "华文中宋", "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
-  --prophet-code: "Bahnschrift SemiCondensed", "Bahnschrift", "DIN Condensed", "Arial Narrow", "Cascadia Mono", Consolas, monospace;
+  --prophet-serif: "Ubuntu", "STZhongsong", "华文中宋", "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+  --prophet-code: "Ubuntu Mono", "Bahnschrift SemiCondensed", "Bahnschrift", "DIN Condensed", "Arial Narrow", "Cascadia Mono", Consolas, monospace;
   --prophet-ink: #182235;
   --prophet-muted: #8490a3;
   --prophet-gold: #b88615;
   font-family:
-    Inter, "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    "Ubuntu", Inter, "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
   font-synthesis: none;
   line-height: 1.5;
   text-rendering: geometricPrecision;
@@ -7015,10 +7015,10 @@ h2 {
 .ratings-column-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 24px;
-  padding: 14px 20px;
-  border-radius: 14px;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 8px 16px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(226, 232, 240, 0.7);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
@@ -7070,9 +7070,9 @@ h2 {
 .ratings-column-avatar {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.9);
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
@@ -7099,10 +7099,10 @@ h2 {
 .ratings-column-header h3 {
   font-family: var(--prophet-serif);
   font-weight: 900;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   margin: 0;
   color: #1e293b;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   z-index: 1;
 }
 
@@ -7112,9 +7112,9 @@ h2 {
   border: 1px solid rgba(226, 232, 240, 0.8);
   color: #64748b;
   cursor: pointer;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7183,6 +7183,17 @@ h2 {
   flex: 1;
 }
 
+.ratings-row-left .flag {
+  width: 17px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.ratings-row-left .flag img {
+  width: 17px;
+  height: 12px;
+}
+
 .ratings-rank {
   font-family: var(--prophet-code);
   font-weight: 700;
@@ -7227,6 +7238,13 @@ h2 {
   flex-shrink: 0;
 }
 
+.ratings-score-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .ratings-score-value {
   font-family: var(--prophet-code);
   font-weight: 800;
@@ -7234,6 +7252,42 @@ h2 {
   color: var(--prophet-gold);
   min-width: 32px;
   text-align: right;
+}
+
+.ratings-score-adjust-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.ratings-score-wrapper.editable:hover .ratings-score-adjust-btns {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ratings-score-btn {
+  background: transparent;
+  border: 0;
+  color: #64748b;
+  cursor: pointer;
+  padding: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.ratings-score-btn:hover {
+  background: rgba(226, 232, 240, 0.8);
+  color: #1e293b;
+}
+
+.ratings-score-btn:active {
+  transform: scale(0.9);
 }
 
 .ratings-empty {

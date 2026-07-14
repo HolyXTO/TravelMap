@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Database,
   Globe2,
   Layers3,
@@ -7256,7 +7257,7 @@ function AuthMiniPanel({ authMessage, isEditor, onSignIn, onSignOut, session }) 
   );
 }
 
-function DecimalStarSelector({ rating, onChange, isEditable = false }) {
+function DecimalStarSelector({ rating, onChange, onSlide, isEditable = false }) {
   const roundedRating = Math.max(0, Math.min(10, Number(rating) || 0));
   const [tempRating, setTempRating] = useState(roundedRating);
 
@@ -7306,7 +7307,11 @@ function DecimalStarSelector({ rating, onChange, isEditable = false }) {
         max="10"
         step="0.1"
         value={tempRating}
-        onChange={(e) => setTempRating(Number(e.target.value))}
+        onChange={(e) => {
+          const val = Number(e.target.value);
+          setTempRating(val);
+          onSlide?.(val);
+        }}
         onMouseUp={(e) => onChange(Number(e.target.value))}
         onTouchEnd={(e) => onChange(Number(e.target.value))}
         className="star-rater-input"
@@ -9262,6 +9267,7 @@ function TravelRatingsSection({
   const [selectedCities, setSelectedCities] = useState({});
   const [editableColumns, setEditableColumns] = useState({});
   const [frozenOrders, setFrozenOrders] = useState({});
+  const [slidingRatings, setSlidingRatings] = useState({});
 
   useEffect(() => {
     function handleOutsideClick() {
@@ -9413,6 +9419,14 @@ function TravelRatingsSection({
         setFrozenOrders((prevFrozen) => {
           const updated = { ...prevFrozen };
           delete updated[profileId];
+          return updated;
+        });
+        setSlidingRatings((prevSliding) => {
+          const updated = { ...prevSliding };
+          const currentItems = getProfileRatingItems(profileId);
+          currentItems.forEach((item) => {
+            delete updated[item.id];
+          });
           return updated;
         });
       }
@@ -9632,14 +9646,54 @@ function TravelRatingsSection({
                         </div>
 
                         <div className="ratings-row-right">
-                          <DecimalStarSelector
-                            rating={item.rating}
-                            isEditable={isColumnEditable}
-                            onChange={(val) => handleRatingChange(item, val)}
-                          />
-                          <span className="ratings-score-value">
-                            {item.rating > 0 ? Number(item.rating).toFixed(1) : "未评分"}
-                          </span>
+                          {(() => {
+                            const currentVal = slidingRatings[item.id] !== undefined ? slidingRatings[item.id] : item.rating;
+                            return (
+                              <>
+                                <DecimalStarSelector
+                                  rating={currentVal}
+                                  isEditable={isColumnEditable}
+                                  onSlide={(val) => setSlidingRatings((prev) => ({ ...prev, [item.id]: val }))}
+                                  onChange={(val) => handleRatingChange(item, val)}
+                                />
+                                <div className={`ratings-score-wrapper ${isColumnEditable ? "editable" : ""}`}>
+                                  <span className="ratings-score-value">
+                                    {currentVal > 0 ? Number(currentVal).toFixed(1) : "未评分"}
+                                  </span>
+                                  {isColumnEditable && (
+                                    <div className="ratings-score-adjust-btns">
+                                      <button
+                                        className="ratings-score-btn"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const newVal = Math.min(10, Math.max(0, Number((currentVal + 0.1).toFixed(1))));
+                                          setSlidingRatings((prev) => ({ ...prev, [item.id]: newVal }));
+                                          handleRatingChange(item, newVal);
+                                        }}
+                                        type="button"
+                                        title="增加 0.1 分"
+                                      >
+                                        <ChevronUp size={12} />
+                                      </button>
+                                      <button
+                                        className="ratings-score-btn"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const newVal = Math.min(10, Math.max(0, Number((currentVal - 0.1).toFixed(1))));
+                                          setSlidingRatings((prev) => ({ ...prev, [item.id]: newVal }));
+                                          handleRatingChange(item, newVal);
+                                        }}
+                                        type="button"
+                                        title="减少 0.1 分"
+                                      >
+                                        <ChevronDown size={12} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     );
