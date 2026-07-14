@@ -2683,44 +2683,47 @@ function App() {
     };
   }, [session]);
 
-  const [isEditorChecking, setIsEditorChecking] = useState(false);
+  const hasRoundedRef = useRef(false);
 
   useEffect(() => {
-    if (session && isEditor && visits.length > 0) {
-      const needsRounding = visits.filter((v) => v.rating > 0 && (v.rating * 10) % 5 !== 0);
-      if (needsRounding.length > 0) {
-        console.log(`Rounding ${needsRounding.length} visits to nearest 0.5...`);
-        setVisits((prev) =>
-          prev.map((v) => {
-            if (v.rating > 0 && (v.rating * 10) % 5 !== 0) {
-              return { ...v, rating: Math.round(v.rating * 2) / 2 };
-            }
-            return v;
-          })
-        );
-        (async () => {
-          for (const v of needsRounding) {
-            const rounded = Math.round(v.rating * 2) / 2;
-            try {
-              await supabase
-                .from("visits")
-                .update({
-                  note: buildVisitNote({
-                    dateDisplay: v.dateDisplay,
-                    datePrecision: v.datePrecision,
-                    rating: rounded,
-                    text: v.note || "",
-                  }),
-                })
-                .eq("id", v.id);
-            } catch (e) {
-              console.error("Failed to round rating in DB:", e);
-            }
-          }
-          loadTravelData();
-        })();
+    if (!session || !isEditor || visits.length === 0 || hasRoundedRef.current) return;
+    const needsRounding = visits.filter((v) => v.rating > 0 && (v.rating * 10) % 5 !== 0);
+    if (needsRounding.length === 0) return;
+
+    hasRoundedRef.current = true;
+    console.log(`Rounding ${needsRounding.length} visits to nearest 0.5...`);
+
+    setVisits((prev) =>
+      prev.map((v) => {
+        if (v.rating > 0 && (v.rating * 10) % 5 !== 0) {
+          return { ...v, rating: Math.round(v.rating * 2) / 2 };
+        }
+        return v;
+      })
+    );
+
+    (async () => {
+      for (const v of needsRounding) {
+        const rounded = Math.round(v.rating * 2) / 2;
+        try {
+          await supabase
+            .from("visits")
+            .update({
+              note: buildVisitNote({
+                dateDisplay: v.dateDisplay,
+                datePrecision: v.datePrecision,
+                rating: rounded,
+                text: v.note || "",
+              }),
+            })
+            .eq("id", v.id);
+        } catch (e) {
+          console.error("Failed to round rating in DB:", e);
+        }
       }
-    }
+      console.log("Rating rounding complete.");
+      loadTravelData();
+    })();
   }, [session, isEditor, visits]);
 
   const cityPlaces = useMemo(
@@ -3240,7 +3243,6 @@ function App() {
       prev.map((v) => (visitIds.includes(v.id) ? { ...v, rating: normalizedRating } : v)),
     );
     try {
-      setIsSaving(true);
       for (const id of visitIds) {
         const oldVisit = visits.find((v) => v.id === id);
         if (!oldVisit) continue;
@@ -3256,13 +3258,13 @@ function App() {
           })
           .eq("id", id);
       }
-      await loadTravelData();
+      // No loadTravelData() — local state is already up to date from the optimistic setVisits above.
+      // Calling loadTravelData() here previously caused a full re-fetch and re-render of all 100+ visits,
+      // which was the root cause of severe lag after rating many cities.
       return true;
     } catch (error) {
       console.error("Failed to batch update ratings:", error);
       return false;
-    } finally {
-      setIsSaving(false);
     }
   }
 
