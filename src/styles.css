@@ -7175,6 +7175,13 @@ h2 {
   box-shadow: 0 6px 14px rgba(18, 60, 48, 0.05);
 }
 
+.ratings-row.drag-over {
+  border-color: var(--prophet-gold) !important;
+  background: rgba(198, 155, 85, 0.05) !important;
+  transform: scale(1.02);
+  box-shadow: 0 8px 18px rgba(198, 155, 85, 0.1) !important;
+}
+
 .ratings-row-left {
   display: flex;
   align-items: center;

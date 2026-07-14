@@ -135,7 +135,7 @@ export const defaultTravelNotes = [
         "id": "addr-5-9",
         "day": 3,
         "name": "牛车水 (Chinatown)",
-        "text": "🏮 新加坡的唐人街。老式排屋和街巷布满了各种手工艺品店与地道中餐馆，红灯笼高挂，充满历史韵味。",
+        "text": "🏮 新加坡的唐人街。老式排屋和街巷布满了各种手工艺品店与地道中餐��，红灯笼高挂，充满历史韵味。",
         "image": null,
         "photos": [],
         "coordinates": {

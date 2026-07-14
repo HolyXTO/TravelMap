@@ -2683,6 +2683,46 @@ function App() {
     };
   }, [session]);
 
+  const [isEditorChecking, setIsEditorChecking] = useState(false);
+
+  useEffect(() => {
+    if (session && isEditor && visits.length > 0) {
+      const needsRounding = visits.filter((v) => v.rating > 0 && (v.rating * 10) % 5 !== 0);
+      if (needsRounding.length > 0) {
+        console.log(`Rounding ${needsRounding.length} visits to nearest 0.5...`);
+        setVisits((prev) =>
+          prev.map((v) => {
+            if (v.rating > 0 && (v.rating * 10) % 5 !== 0) {
+              return { ...v, rating: Math.round(v.rating * 2) / 2 };
+            }
+            return v;
+          })
+        );
+        (async () => {
+          for (const v of needsRounding) {
+            const rounded = Math.round(v.rating * 2) / 2;
+            try {
+              await supabase
+                .from("visits")
+                .update({
+                  note: buildVisitNote({
+                    dateDisplay: v.dateDisplay,
+                    datePrecision: v.datePrecision,
+                    rating: rounded,
+                    text: v.note || "",
+                  }),
+                })
+                .eq("id", v.id);
+            } catch (e) {
+              console.error("Failed to round rating in DB:", e);
+            }
+          }
+          loadTravelData();
+        })();
+      }
+    }
+  }, [session, isEditor, visits]);
+
   const cityPlaces = useMemo(
     () => searchPlaces.filter((place) => place.level === "city" && place.countryCode === "CHN"),
     [searchPlaces],
@@ -7305,7 +7345,7 @@ function DecimalStarSelector({ rating, onChange, onSlide, isEditable = false }) 
         type="range"
         min="0"
         max="10"
-        step="0.1"
+        step="0.5"
         value={tempRating}
         onChange={(e) => {
           const val = Number(e.target.value);
@@ -9268,6 +9308,12 @@ function TravelRatingsSection({
   const [editableColumns, setEditableColumns] = useState({});
   const [frozenOrders, setFrozenOrders] = useState({});
   const [slidingRatings, setSlidingRatings] = useState({});
+  const [customTieBreakers, setCustomTieBreakers] = useState(() => {
+    const saved = localStorage.getItem("travel_ratings_tiebreakers");
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [draggedRatingId, setDraggedRatingId] = useState(null);
+  const [dragOverRatingId, setDragOverRatingId] = useState(null);
 
   useEffect(() => {
     function handleOutsideClick() {
@@ -9391,6 +9437,7 @@ function TravelRatingsSection({
     });
 
     const frozenList = frozenOrders[profileId];
+    const tieBreakerList = customTieBreakers[profileId];
     if (frozenList) {
       ratingItems.sort((a, b) => {
         const idxA = frozenList.indexOf(a.id);
@@ -9401,7 +9448,19 @@ function TravelRatingsSection({
         return idxA - idxB;
       });
     } else {
-      ratingItems.sort((a, b) => b.rating - a.rating);
+      ratingItems.sort((a, b) => {
+        if (b.rating !== a.rating) {
+          return b.rating - a.rating;
+        }
+        if (tieBreakerList) {
+          const idxA = tieBreakerList.indexOf(a.id);
+          const idxB = tieBreakerList.indexOf(b.id);
+          if (idxA !== -1 && idxB !== -1) {
+            return idxA - idxB;
+          }
+        }
+        return 0;
+      });
     }
     return ratingItems;
   }
@@ -9435,6 +9494,63 @@ function TravelRatingsSection({
         [profileId]: isNowEditing,
       };
     });
+  }
+
+  function handleRatingDragStart(e, itemId) {
+    setDraggedRatingId(itemId);
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function handleRatingDragOver(e, item, profileId) {
+    e.preventDefault();
+    if (draggedRatingId && draggedRatingId !== item.id) {
+      const items = getProfileRatingItems(profileId);
+      const draggedItem = items.find((i) => i.id === draggedRatingId);
+      if (draggedItem && draggedItem.rating === item.rating) {
+        setDragOverRatingId(item.id);
+      }
+    }
+  }
+
+  function handleRatingDragLeave() {
+    setDragOverRatingId(null);
+  }
+
+  function handleRatingDrop(e, targetId, profileId) {
+    e.preventDefault();
+    setDragOverRatingId(null);
+    if (!draggedRatingId || draggedRatingId === targetId) return;
+
+    const items = getProfileRatingItems(profileId);
+    const draggedItem = items.find((i) => i.id === draggedRatingId);
+    const targetItem = items.find((i) => i.id === targetId);
+
+    if (!draggedItem || !targetItem) return;
+    if (draggedItem.rating !== targetItem.rating) return;
+
+    const currentOrder = items.map((i) => i.id);
+    const dragIdx = currentOrder.indexOf(draggedRatingId);
+    const targetIdx = currentOrder.indexOf(targetId);
+
+    if (dragIdx !== -1 && targetIdx !== -1) {
+      const newOrder = [...currentOrder];
+      newOrder.splice(dragIdx, 1);
+      newOrder.splice(targetIdx, 0, draggedRatingId);
+
+      setFrozenOrders((prev) => ({
+        ...prev,
+        [profileId]: newOrder,
+      }));
+
+      setCustomTieBreakers((prev) => {
+        const updated = {
+          ...prev,
+          [profileId]: newOrder,
+        };
+        localStorage.setItem("travel_ratings_tiebreakers", JSON.stringify(updated));
+        return updated;
+      });
+    }
   }
 
   function handleUpgradeToCountry(countryCode) {
@@ -9518,6 +9634,14 @@ function TravelRatingsSection({
     await onUpdateVisitRatings(visitIds, newRating);
   }
 
+  const ratingItemsByProfile = useMemo(() => {
+    const results = {};
+    profiles.forEach((p) => {
+      results[p.id] = getProfileRatingItems(p.id);
+    });
+    return results;
+  }, [visits, ratingsConfig, frozenOrders, customTieBreakers]);
+
   const activeProfiles =
     activeProfile === "all"
       ? profiles.slice(0, 2)
@@ -9538,7 +9662,7 @@ function TravelRatingsSection({
 
       <div className={`ratings-grid ${activeProfile === "all" ? "dual-column" : "single-column"}`}>
         {activeProfiles.map((profile, idx) => {
-          const ratingItems = getProfileRatingItems(profile.id);
+          const ratingItems = ratingItemsByProfile[profile.id] || [];
           const totalCount = ratingItems.length;
           const isExpanded = !!expandedProfiles[profile.id];
           const shouldTruncate = totalCount > 15 && !isExpanded;
@@ -9603,7 +9727,12 @@ function TravelRatingsSection({
                     return (
                       <div
                         key={item.id}
-                        className="ratings-row"
+                        className={`ratings-row ${dragOverRatingId === item.id ? "drag-over" : ""}`}
+                        draggable={isColumnEditable}
+                        onDragStart={(e) => handleRatingDragStart(e, item.id)}
+                        onDragOver={(e) => handleRatingDragOver(e, item, profile.id)}
+                        onDragLeave={handleRatingDragLeave}
+                        onDrop={(e) => handleRatingDrop(e, item.id, profile.id)}
                         onContextMenu={(e) => {
                           if (canEditRow) {
                             e.preventDefault();
@@ -9666,12 +9795,12 @@ function TravelRatingsSection({
                                         className="ratings-score-btn"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          const newVal = Math.min(10, Math.max(0, Number((currentVal + 0.1).toFixed(1))));
+                                          const newVal = Math.min(10, Math.max(0, Number((currentVal + 0.5).toFixed(1))));
                                           setSlidingRatings((prev) => ({ ...prev, [item.id]: newVal }));
                                           handleRatingChange(item, newVal);
                                         }}
                                         type="button"
-                                        title="增加 0.1 分"
+                                        title="增加 0.5 分"
                                       >
                                         <ChevronUp size={12} />
                                       </button>
@@ -9679,12 +9808,12 @@ function TravelRatingsSection({
                                         className="ratings-score-btn"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          const newVal = Math.min(10, Math.max(0, Number((currentVal - 0.1).toFixed(1))));
+                                          const newVal = Math.min(10, Math.max(0, Number((currentVal - 0.5).toFixed(1))));
                                           setSlidingRatings((prev) => ({ ...prev, [item.id]: newVal }));
                                           handleRatingChange(item, newVal);
                                         }}
                                         type="button"
-                                        title="减少 0.1 分"
+                                        title="减少 0.5 分"
                                       >
                                         <ChevronDown size={12} />
                                       </button>
