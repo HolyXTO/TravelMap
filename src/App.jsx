@@ -7258,6 +7258,11 @@ function AuthMiniPanel({ authMessage, isEditor, onSignIn, onSignOut, session }) 
 
 function DecimalStarSelector({ rating, onChange, isEditable = false }) {
   const roundedRating = Math.max(0, Math.min(10, Number(rating) || 0));
+  const [tempRating, setTempRating] = useState(roundedRating);
+
+  useEffect(() => {
+    setTempRating(roundedRating);
+  }, [roundedRating]);
 
   if (!isEditable) {
     const starSize = 14;
@@ -7282,7 +7287,7 @@ function DecimalStarSelector({ rating, onChange, isEditable = false }) {
   const starSize = 18;
   const starGap = 2;
   const itemWidth = starSize + starGap;
-  const activeWidth = roundedRating * itemWidth;
+  const activeWidth = tempRating * itemWidth;
   return (
     <div className="decimal-star-rater" style={{ height: `${starSize}px`, width: `${10 * itemWidth}px` }}>
       <div className="star-rater-bg" style={{ gap: `${starGap}px` }}>
@@ -7300,8 +7305,10 @@ function DecimalStarSelector({ rating, onChange, isEditable = false }) {
         min="0"
         max="10"
         step="0.1"
-        value={roundedRating}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={tempRating}
+        onChange={(e) => setTempRating(Number(e.target.value))}
+        onMouseUp={(e) => onChange(Number(e.target.value))}
+        onTouchEnd={(e) => onChange(Number(e.target.value))}
         className="star-rater-input"
         aria-label="滑动评分"
       />
@@ -9253,6 +9260,7 @@ function TravelRatingsSection({
   const [contextMenu, setContextMenu] = useState(null);
   const [mergeTarget, setMergeTarget] = useState(null);
   const [selectedCities, setSelectedCities] = useState({});
+  const [editableColumns, setEditableColumns] = useState({});
 
   useEffect(() => {
     function handleOutsideClick() {
@@ -9498,14 +9506,27 @@ function TravelRatingsSection({
 
           return (
             <div key={profile.id} className="ratings-column">
-              {activeProfile === "all" && (
-                <div className={`ratings-column-header profile-theme-${idx}`}>
-                  <div className="ratings-column-avatar">
-                    <User size={16} />
-                  </div>
-                  <h3>{profile.name}</h3>
+              <div className={`ratings-column-header profile-theme-${idx}`}>
+                <div className="ratings-column-avatar">
+                  <User size={16} />
                 </div>
-              )}
+                <h3>{profile.name}</h3>
+                {session && isEditor && (
+                  <button
+                    className={`ratings-column-edit-btn ${editableColumns[profile.id] ? "active" : ""}`}
+                    onClick={() =>
+                      setEditableColumns((prev) => ({
+                        ...prev,
+                        [profile.id]: !prev[profile.id],
+                      }))
+                    }
+                    type="button"
+                    title={editableColumns[profile.id] ? "退出编辑评分" : "编辑评分"}
+                  >
+                    <Pencil size={14} />
+                  </button>
+                )}
+              </div>
 
               {totalCount === 0 ? (
                 <div className="ratings-empty">暂无足迹记录</div>
@@ -9532,6 +9553,7 @@ function TravelRatingsSection({
 
                     const rank = ratingItems.indexOf(item) + 1;
                     const canEditRow = session && isEditor;
+                    const isColumnEditable = session && isEditor && !!editableColumns[profile.id];
 
                     return (
                       <div
@@ -9576,18 +9598,12 @@ function TravelRatingsSection({
                           </span>
                           <FlagIcon place={item.country} />
                           <span className="ratings-label-text">{item.label}</span>
-                          {item.type === "upgraded" && (
-                            <span className="ratings-badge">国</span>
-                          )}
-                          {item.type === "merged" && (
-                            <span className="ratings-badge merged">融</span>
-                          )}
                         </div>
 
                         <div className="ratings-row-right">
                           <DecimalStarSelector
                             rating={item.rating}
-                            isEditable={canEditRow}
+                            isEditable={isColumnEditable}
                             onChange={(val) => handleRatingChange(item, val)}
                           />
                           <span className="ratings-score-value">

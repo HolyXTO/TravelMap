@@ -61,9 +61,9 @@ button {
   z-index: 1200;
   top: 0;
   display: grid;
-  grid-template-columns: auto minmax(360px, 1fr) auto;
+  grid-template-columns: auto minmax(280px, 1fr) auto;
   align-items: center;
-  gap: clamp(28px, 4vw, 58px);
+  gap: clamp(12px, 2.5vw, 36px);
   border: 1px solid rgba(203, 213, 225, 0.68);
   border-radius: 0 0 8px 8px;
   background:
@@ -135,8 +135,9 @@ button {
   align-items: center;
   justify-content: flex-start;
   min-width: 0;
-  gap: clamp(10px, 1.4vw, 18px);
+  gap: clamp(6px, 1.2vw, 16px);
   justify-self: start;
+  flex-wrap: nowrap;
 }
 
 .prophet-theme-nav {
@@ -164,10 +165,12 @@ button {
   border: 0;
   border-radius: 999px;
   background: transparent;
-  padding: 11px 18px;
+  padding: 10px clamp(10px, 1.1vw, 16px);
   color: #5b6678;
   font-family: var(--prophet-serif);
-  font-size: clamp(0.92rem, 1.2vw, 1.1rem);
+  font-size: clamp(0.92rem, 1.1vw, 1.1rem);
+  white-space: nowrap;
+  flex-shrink: 0;
   font-weight: 900;
   line-height: 1;
   transition:
@@ -6992,6 +6995,8 @@ h2 {
   gap: 24px;
   width: min(1240px, 100%);
   margin: 0 auto;
+  padding: 0 clamp(10px, 2vw, 24px);
+  box-sizing: border-box;
 }
 
 .ratings-grid.dual-column {
@@ -7008,6 +7013,41 @@ h2 {
   border-radius: 16px;
   padding: 24px;
   backdrop-filter: blur(8px);
+}
+
+.ratings-column-edit-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: #64748b;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.ratings-column-header:hover .ratings-column-edit-btn,
+.ratings-column-edit-btn.active {
+  opacity: 1;
+}
+
+.ratings-column-edit-btn:hover {
+  background: rgba(226, 232, 240, 0.6);
+  color: #1e293b;
+}
+
+.profile-theme-0 .ratings-column-edit-btn.active {
+  color: var(--prophet-gold);
+  background: rgba(198, 155, 85, 0.1);
+}
+
+.profile-theme-1 .ratings-column-edit-btn.active {
+  color: #14b8a6;
+  background: rgba(20, 184, 166, 0.1);
 }
 
 .ratings-column-header {
