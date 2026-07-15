@@ -6949,6 +6949,11 @@ h2 {
   white-space: nowrap;
 }
 
+.decimal-star-display-inner svg {
+  fill: var(--prophet-gold) !important;
+  stroke: var(--prophet-gold) !important;
+}
+
 .decimal-star-rater {
   position: relative;
   display: inline-flex;
@@ -6963,6 +6968,11 @@ h2 {
   pointer-events: none;
 }
 
+.star-rater-bg svg {
+  fill: transparent !important;
+  stroke: #cbd5e1 !important;
+}
+
 .star-rater-fg {
   position: absolute;
   top: 0;
@@ -6973,6 +6983,11 @@ h2 {
   pointer-events: none;
   height: 100%;
   align-items: center;
+}
+
+.star-rater-fg svg {
+  fill: var(--prophet-gold) !important;
+  stroke: var(--prophet-gold) !important;
 }
 
 .star-rater-input {

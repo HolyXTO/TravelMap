@@ -72,8 +72,8 @@ const provinceGalleryImages = {
     "province-gallery/province-014-3.webp"
   ],
   "新疆": [
-    "province-gallery/province-015-1.webp",
     "province-gallery/province-015-2.webp",
+    "province-gallery/province-015-1.webp",
     "province-gallery/province-015-3.webp"
   ],
   "江苏": [
@@ -142,9 +142,9 @@ const provinceGalleryImages = {
     "province-gallery/province-028-3.webp"
   ],
   "辽宁": [
-    "province-gallery/province-029-1.webp",
+    "province-gallery/province-029-3.webp",
     "province-gallery/province-029-2.webp",
-    "province-gallery/province-029-3.webp"
+    "province-gallery/province-029-1.webp"
   ],
   "重庆": [
     "province-gallery/province-030-1.webp",
@@ -157,8 +157,8 @@ const provinceGalleryImages = {
     "province-gallery/province-031-3.webp"
   ],
   "青海": [
-    "province-gallery/province-032-1.webp",
     "province-gallery/province-032-2.webp",
+    "province-gallery/province-032-1.webp",
     "province-gallery/province-032-3.webp"
   ],
   "香港": [

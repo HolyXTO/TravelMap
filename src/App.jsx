@@ -87,9 +87,18 @@ const routeTransportOptions = [
   { id: "walk", label: "步行" },
   { id: "other", label: "其他" },
 ];
-const PROFILE_ID_ORDER = new Map(profiles.map((profile, index) => [profile.id, index]));
+const sortedStaticProfiles = [...profiles].sort((a, b) => {
+  const nameA = (a.name || "").trim().toLowerCase();
+  const nameB = (b.name || "").trim().toLowerCase();
+  if (nameA === "xiao" && nameB !== "xiao") return -1;
+  if (nameB === "xiao" && nameA !== "xiao") return 1;
+  if (nameA === "tang" && nameB !== "tang") return -1;
+  if (nameB === "tang" && nameA !== "tang") return 1;
+  return 0;
+});
+const PROFILE_ID_ORDER = new Map(sortedStaticProfiles.map((profile, index) => [profile.id, index]));
 const PROFILE_COLOR_ORDER = new Map(
-  profiles.map((profile, index) => [(profile.color || "").toLowerCase(), index]),
+  sortedStaticProfiles.map((profile, index) => [(profile.color || "").toLowerCase(), index]),
 );
 const CHINA_BOUNDS = [
   [18, 73],
