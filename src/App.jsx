@@ -3783,6 +3783,7 @@ function App() {
           )}
           visitedPlaceIds={visitedPlaceIds}
           visitedByLevel={visitedByLevel}
+          mapTileSource={mapTileSource}
         />
       )}
 
@@ -6120,6 +6121,7 @@ function CountryModal({
   visits,
   visitedByLevel,
   visitedPlaceIds,
+  mapTileSource,
 }) {
   const [modalMapLevel, setModalMapLevel] = useState(country.id === "CHN" ? "region" : "city");
   const [showMapLabels, setShowMapLabels] = useState(true);
