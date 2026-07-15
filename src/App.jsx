@@ -7720,9 +7720,23 @@ function CountryGallery({ continentSummary = [], countryPlaces = [] }) {
   );
 }
 
-function TravelOverview({ activeProfile, continentSummary, profileSummaries = [] }) {
+function TravelOverview({ activeProfile, continentSummary, profileSummaries = [], placeLookup }) {
   const defaultContinents = ["亚洲", "欧洲", "北美洲", "南美洲", "非洲", "大洋洲", "南极洲"];
   const [expandedCountries, setExpandedCountries] = useState(new Set());
+
+  const citiesByRegionId = useMemo(() => {
+    const map = new Map();
+    if (!placeLookup) return map;
+    for (const place of placeLookup.values()) {
+      if (place.level === "city" && place.countryCode === "CHN" && place.parentId) {
+        if (!map.has(place.parentId)) {
+          map.set(place.parentId, []);
+        }
+        map.get(place.parentId).push(place);
+      }
+    }
+    return map;
+  }, [placeLookup]);
 
   function renderContinentTitle(label) {
     const imagePath = CONTINENT_ICON_IMAGES[label];
@@ -7890,7 +7904,18 @@ function TravelOverview({ activeProfile, continentSummary, profileSummaries = []
                       {country.regions.size > 0 && (
                         <div className="country-detail-head">
                           <strong>{group.name}</strong>
-                          <span>{group.cities.length} 城市 / 地点</span>
+                          <span>
+                            {country.id === "CHN" ? (
+                              (() => {
+                                const total = citiesByRegionId.get(group.id)?.length || 0;
+                                const visited = group.cities.length;
+                                const pct = total > 0 ? ((visited / total) * 100).toFixed(1) : "0.0";
+                                return `${visited} / ${total} 城市, ${pct}%`;
+                              })()
+                            ) : (
+                              `${group.cities.length} 城市 / 地点`
+                            )}
+                          </span>
                         </div>
                       )}
                       <div className="city-chip-list">
