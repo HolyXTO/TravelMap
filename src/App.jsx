@@ -9655,7 +9655,7 @@ function TravelRatingsSection({
       results[p.id] = getProfileRatingItems(p.id);
     });
     return results;
-  }, [visits, ratingsConfig, frozenOrders, customTieBreakers]);
+  }, [visits, ratingsConfig, frozenOrders, customTieBreakers, placeLookup]);
 
   const activeProfiles =
     activeProfile === "all"
