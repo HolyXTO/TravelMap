@@ -1,7 +1,7 @@
 :root {
   color: #111827;
   background: #f5f7fb;
-  --prophet-serif: "Ubuntu", "STZhongsong", "华文中宋", "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+  --prophet-serif: "STZhongsong", "华文中宋", "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
   --prophet-code: "Ubuntu Mono", "Bahnschrift SemiCondensed", "Bahnschrift", "DIN Condensed", "Arial Narrow", "Cascadia Mono", Consolas, monospace;
   --prophet-ink: #182235;
   --prophet-muted: #8490a3;
