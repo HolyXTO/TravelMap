@@ -6491,7 +6491,7 @@ function CountryModal({
                 {showLockedPlaces ? "隐藏未解锁" : "显示未解锁"}
               </button>
               {grouped.length > 0 && (
-                <button onClick={toggleAllGroups} type="button">
+                <button onClick={() => toggleAllGroups()} type="button">
                   {expandedGroups.size === grouped.length ? "全部收起 -" : "全部展开 +"}
                 </button>
               )}

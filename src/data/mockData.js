@@ -1622,7 +1622,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "W-3160881",
     "visitedAt": null,
-    "type": "��行",
+    "type": "旅行",
     "note": "",
     "photos": []
   },
