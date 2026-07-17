@@ -8403,6 +8403,32 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   });
   const [notesLoading, setNotesLoading] = useState(false);
   
+  const saveCloudSettings = async (updatedDeletedIds, updatedOrder) => {
+    try {
+      if (session) {
+        const dbRecord = {
+          id: "settings_config",
+          city: "__SETTINGS__",
+          cover_image: "",
+          cover_image_position: { x: 50, y: 50 },
+          start_date: null,
+          end_date: null,
+          rating: 0,
+          summary: JSON.stringify({
+            deletedNotes: updatedDeletedIds,
+            noteOrder: updatedOrder
+          }),
+          center: [0, 0],
+          addresses: [],
+          created_by: session?.user?.id ?? null,
+        };
+        await supabase.from("travel_notes").upsert(dbRecord, { onConflict: "id" });
+      }
+    } catch (err) {
+      console.warn("Failed to save travel notes settings to cloud:", err);
+    }
+  };
+  
   const [expandedNoteId, setExpandedNoteId] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
   const [isAddingNote, setIsAddingNote] = useState(false);
@@ -8455,6 +8481,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
   const handleCardDrop = (e, targetNoteId) => {
     if (!session || draggedCardId === null || draggedCardId === targetNoteId) return;
     e.preventDefault();
+    let updatedList = [];
     setNotes((prev) => {
       const list = [...prev];
       const draggedIndex = list.findIndex((n) => n.id === draggedCardId);
@@ -8463,6 +8490,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
         const [moved] = list.splice(draggedIndex, 1);
         list.splice(targetIndex, 0, moved);
       }
+      updatedList = list;
       try {
         localStorage.setItem("travel_notes_order", JSON.stringify(list.map((n) => n.id)));
       } catch (err) {
@@ -8470,6 +8498,18 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
       }
       return list;
     });
+
+    if (updatedList.length > 0) {
+      const order = updatedList.map((n) => n.id);
+      let deletedIds = [];
+      try {
+        deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
+      } catch (err) {
+        console.error(err);
+      }
+      saveCloudSettings(deletedIds, order);
+    }
+
     setDraggedCardId(null);
     setDragOverCardId(null);
   };
@@ -8492,25 +8532,48 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           return;
         }
         if (data) {
-          const dbNotes = data.map((row) => ({
-            id: row.id,
-            city: row.city,
-            coverImage: row.cover_image,
-            startDate: row.start_date,
-            endDate: row.end_date,
-            rating: row.rating,
-            summary: row.summary,
-            center: row.center,
-            addresses: row.addresses,
-            coverImagePosition: row.cover_image_position || { x: 50, y: 50 },
-            author: row.cover_image_position?.author || "Xiao",
-          }));
           let deletedIds = [];
+          let order = [];
           try {
             deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
+            order = JSON.parse(localStorage.getItem("travel_notes_order") || "[]");
           } catch (e) {
             console.error(e);
           }
+
+          const settingsRow = data.find((row) => row.id === "settings_config");
+          if (settingsRow) {
+            try {
+              const cloudConfig = JSON.parse(settingsRow.summary);
+              if (cloudConfig.deletedNotes) {
+                deletedIds = cloudConfig.deletedNotes;
+                localStorage.setItem("deleted_default_notes", JSON.stringify(deletedIds));
+              }
+              if (cloudConfig.noteOrder) {
+                order = cloudConfig.noteOrder;
+                localStorage.setItem("travel_notes_order", JSON.stringify(order));
+              }
+            } catch (e) {
+              console.error("Failed to parse cloud travel settings:", e);
+            }
+          }
+
+          const dbNotes = data
+            .filter((row) => row.id !== "settings_config")
+            .map((row) => ({
+              id: row.id,
+              city: row.city,
+              coverImage: row.cover_image,
+              startDate: row.start_date,
+              endDate: row.end_date,
+              rating: row.rating,
+              summary: row.summary,
+              center: row.center,
+              addresses: row.addresses,
+              coverImagePosition: row.cover_image_position || { x: 50, y: 50 },
+              author: row.cover_image_position?.author || "Xiao",
+            }));
+
           const merged = dbNotes.filter((n) => !deletedIds.includes(n.id));
 
           const classicIds = ["note-1", "note-2", "note-3", "note-4", "note-5"];
@@ -8523,12 +8586,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
               }
             }
           });
-          let order = [];
-          try {
-            order = JSON.parse(localStorage.getItem("travel_notes_order") || "[]");
-          } catch (e) {
-            console.error(e);
-          }
+
           if (order.length > 0) {
             merged.sort((a, b) => {
               const idxA = order.indexOf(a.id);
@@ -8819,8 +8877,9 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     
     const isDefault = defaultTravelNotes.some((n) => n.id === id) || ["note-1", "note-2", "note-3", "note-4", "note-5"].includes(id);
     if (isDefault) {
+      let deletedIds = [];
       try {
-        const deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
+        deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
         if (!deletedIds.includes(id)) {
           deletedIds.push(id);
           localStorage.setItem("deleted_default_notes", JSON.stringify(deletedIds));
@@ -8828,6 +8887,14 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
       } catch (err) {
         console.error("Failed to save deleted default note ID:", err);
       }
+      
+      let order = [];
+      try {
+        order = JSON.parse(localStorage.getItem("travel_notes_order") || "[]");
+      } catch (err) {
+        console.error(err);
+      }
+      await saveCloudSettings(deletedIds, order);
       
       // Try to delete it from Supabase as well in case it was modified and saved to the cloud,
       // but do not block or throw error if it fails (e.g. if not logged in or doesn't exist).
@@ -8843,6 +8910,24 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
       if (error) {
         alert("删除失败：" + error.message);
         return;
+      }
+      
+      // Remove from order list and save settings
+      try {
+        let order = JSON.parse(localStorage.getItem("travel_notes_order") || "[]");
+        if (order.includes(id)) {
+          order = order.filter((oid) => oid !== id);
+          localStorage.setItem("travel_notes_order", JSON.stringify(order));
+        }
+        let deletedIds = [];
+        try {
+          deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
+        } catch (err) {
+          console.error(err);
+        }
+        await saveCloudSettings(deletedIds, order);
+      } catch (err) {
+        console.error("Failed to update order on delete:", err);
       }
     }
     setNotes((prev) => prev.filter((n) => n.id !== id));
@@ -8988,12 +9073,40 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
         throw error;
       }
 
-      // 更新本地状态
+      // 更新本地状态并同步云端顺序
+      let nextNotes = [];
       if (notes.some((n) => n.id === noteToSave.id)) {
-        setNotes((prev) => prev.map((n) => (n.id === noteToSave.id ? noteToSave : n)));
+        setNotes((prev) => {
+          const res = prev.map((n) => (n.id === noteToSave.id ? noteToSave : n));
+          nextNotes = res;
+          return res;
+        });
       } else {
-        setNotes((prev) => [noteToSave, ...prev]);
+        setNotes((prev) => {
+          const res = [noteToSave, ...prev];
+          nextNotes = res;
+          return res;
+        });
       }
+
+      setTimeout(() => {
+        if (nextNotes.length > 0) {
+          const order = nextNotes.map((n) => n.id);
+          try {
+            localStorage.setItem("travel_notes_order", JSON.stringify(order));
+          } catch (err) {
+            console.error(err);
+          }
+          let deletedIds = [];
+          try {
+            deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
+          } catch (err) {
+            console.error(err);
+          }
+          saveCloudSettings(deletedIds, order);
+        }
+      }, 50);
+
       setEditingNote(null);
       setIsAddingNote(false);
       return true;

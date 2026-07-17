@@ -135,7 +135,7 @@ export const defaultTravelNotes = [
         "id": "addr-5-9",
         "day": 3,
         "name": "牛车水 (Chinatown)",
-        "text": "🏮 新加坡的唐人街。老式排屋和街巷布满了各种手工艺品店与地道中餐馆，红灯笼高挂，充满历史韵味。",
+        "text": "🏮 新加坡的唐人街。老式排屋和街巷布满了各种手工艺品店与地道中餐��，红灯笼高挂，充满历史韵味。",
         "image": null,
         "photos": [],
         "coordinates": {
@@ -805,6 +805,34 @@ export const defaultTravelNotes = [
         "coordinates": {
           "lat": 50.848432,
           "lng": 4.35413
+        }
+      },
+      {
+        "id": "addr-1784099382595-11",
+        "day": 1,
+        "name": "Chez Léon",
+        "text": "",
+        "image": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1784099382595-11-ph-1784099504490-sgcws-1784099508762-k4ud0z6hh.jpeg",
+        "photos": [
+          {
+            "id": "ph-1784099504490-sgcws",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1784099382595-11-ph-1784099504490-sgcws-1784099508762-k4ud0z6hh.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1784099504490-6ensv",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1784099382595-11-ph-1784099504490-6ensv-1784099508806-rcxsjdzlb.jpeg",
+            "ratio": "3:4"
+          },
+          {
+            "id": "ph-1784099504490-30fx8",
+            "url": "https://yxwflztibppjcyxdulho.supabase.co/storage/v1/object/public/travel-photos/travel_notes/addr-photo-addr-1784099382595-11-ph-1784099504490-30fx8-1784099508807-one72118l.jpeg",
+            "ratio": "3:4"
+          }
+        ],
+        "coordinates": {
+          "lat": 50.84817584421626,
+          "lng": 4.354056752844452
         }
       }
     ]

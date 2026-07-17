@@ -111,15 +111,6 @@ export const initialVisits = [
     "photos": []
   },
   {
-    "id": "45350b5b-60a3-49e5-9cfd-b1d95384d2f4",
-    "profileId": "person-a",
-    "placeId": "CN042130",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
     "id": "936ca097-bbf8-4d75-b7fa-371347017363",
     "profileId": "person-a",
     "placeId": "W-2797656",
@@ -170,7 +161,16 @@ export const initialVisits = [
     "placeId": "CN041160",
     "visitedAt": null,
     "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":2.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":2,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "45350b5b-60a3-49e5-9cfd-b1d95384d2f4",
+    "profileId": "person-a",
+    "placeId": "CN042130",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6.5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -228,6 +228,15 @@ export const initialVisits = [
     "photos": []
   },
   {
+    "id": "731b64b3-8912-4906-8087-3744ed59caa0",
+    "profileId": "person-a",
+    "placeId": "CN064040",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
     "id": "092a86c5-48ce-4b0d-bbec-b79c8f6a8a7c",
     "profileId": "person-a",
     "placeId": "CN042100",
@@ -261,24 +270,6 @@ export const initialVisits = [
     "visitedAt": null,
     "type": "旅行",
     "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "731b64b3-8912-4906-8087-3744ed59caa0",
-    "profileId": "person-a",
-    "placeId": "CN064040",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "e75bc07a-5949-4fe3-9704-300814005042",
-    "profileId": "person-a",
-    "placeId": "EXTRA-BUDVA",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":\"\",\"datePrecision\":\"none\",\"rating\":5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -354,6 +345,15 @@ export const initialVisits = [
     "photos": []
   },
   {
+    "id": "e75bc07a-5949-4fe3-9704-300814005042",
+    "profileId": "person-a",
+    "placeId": "EXTRA-BUDVA",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"none\",\"rating\":4.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
     "id": "527f3b92-5add-4fd8-bf24-0438da40bbd1",
     "profileId": "person-a",
     "placeId": "W-2867714",
@@ -381,15 +381,6 @@ export const initialVisits = [
     "photos": []
   },
   {
-    "id": "52e98dfa-7669-4bed-9cf3-ade9a73b1696",
-    "profileId": "person-a",
-    "placeId": "CN023030",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7.5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
     "id": "5f8d533a-16be-435e-92e5-cafa43a1b036",
     "profileId": "person-b",
     "placeId": "CN043070",
@@ -414,6 +405,15 @@ export const initialVisits = [
     "visitedAt": null,
     "type": "旅行",
     "note": "{\"dateDisplay\":null,\"datePrecision\":\"none\",\"rating\":10,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "52e98dfa-7669-4bed-9cf3-ade9a73b1696",
+    "profileId": "person-a",
+    "placeId": "CN023030",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -552,12 +552,21 @@ export const initialVisits = [
     "photos": []
   },
   {
-    "id": "4437e9a1-2c8f-4c7c-91e3-07a9d07faf60",
+    "id": "083490b2-e6e2-4406-9c83-bcdd08e0a3eb",
     "profileId": "person-a",
-    "placeId": "W-3193044",
+    "placeId": "W-2618425",
     "visitedAt": null,
     "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":3,\"text\":\"\",\"transportMode\":\"\"}",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "304afb08-90a5-4f03-9160-1e6f09a9586f",
+    "profileId": "person-a",
+    "placeId": "W-2940132",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":4,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -597,12 +606,156 @@ export const initialVisits = [
     "photos": []
   },
   {
+    "id": "4b9557de-2f9f-49db-afe0-0a9dfd2ad8a5",
+    "profileId": "person-a",
+    "placeId": "W-2747373",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "b78de5d5-4935-43c2-9be6-254ede454f31",
+    "profileId": "person-a",
+    "placeId": "W-3196359",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "0c3cfa74-f660-4c7d-a03e-f4cf17fad3a8",
+    "profileId": "person-a",
+    "placeId": "W-6691831",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "ff4f1c94-15e7-456b-abe0-5b4a45138e91",
+    "profileId": "person-b",
+    "placeId": "city-rome",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "啦啦啦",
+    "photos": []
+  },
+  {
+    "id": "4293bc69-2df7-478e-b56d-349dd12230fe",
+    "profileId": "person-a",
+    "placeId": "W-2692969",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "08714497-ce05-4566-b338-33dfbebc9ac7",
+    "profileId": "person-a",
+    "placeId": "W-727011",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "0c2348eb-431c-4c22-83c9-07338e632ead",
+    "profileId": "person-b",
+    "placeId": "W-456172",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "",
+    "photos": []
+  },
+  {
+    "id": "daf58b88-5c23-4f47-8eb3-dc623bdcac61",
+    "profileId": "person-b",
+    "placeId": "W-3099434",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "",
+    "photos": []
+  },
+  {
+    "id": "56c597ac-8770-48d9-b15d-352d016da5b1",
+    "profileId": "person-b",
+    "placeId": "W-2879139",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "",
+    "photos": []
+  },
+  {
+    "id": "72e4d96f-abe4-4beb-bd03-f84087e2cead",
+    "profileId": "person-b",
+    "placeId": "W-3143244",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "",
+    "photos": []
+  },
+  {
+    "id": "a2d4fa4e-ccde-400c-8f70-e43f6ddd9812",
+    "profileId": "person-b",
+    "placeId": "W-2267057",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "",
+    "photos": []
+  },
+  {
+    "id": "c7f03b84-9b94-4a4e-b79b-8e0f4c54cdab",
+    "profileId": "person-b",
+    "placeId": "W-2820256",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "",
+    "photos": []
+  },
+  {
+    "id": "ea002bce-3624-4005-913d-35cee5f0831a",
+    "profileId": "person-b",
+    "placeId": "W-2940132",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "",
+    "photos": []
+  },
+  {
+    "id": "ae9d19c4-8066-4f4c-9d02-76f315f2d0dd",
+    "profileId": "person-b",
+    "placeId": "W-2988507",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "",
+    "photos": []
+  },
+  {
+    "id": "ee7dbf44-9937-42c4-a2f2-c4a1aaec0bb5",
+    "profileId": "person-a",
+    "placeId": "W-792680",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "4437e9a1-2c8f-4c7c-91e3-07a9d07faf60",
+    "profileId": "person-a",
+    "placeId": "W-3193044",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":2.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
     "id": "ce6051cc-d105-4825-90ab-27800289ef08",
     "profileId": "person-a",
     "placeId": "W-2993458",
     "visitedAt": null,
     "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": [
       {
         "id": "d9511934-41ce-4746-83ad-90d810dccec0",
@@ -727,168 +880,6 @@ export const initialVisits = [
     ]
   },
   {
-    "id": "4b9557de-2f9f-49db-afe0-0a9dfd2ad8a5",
-    "profileId": "person-a",
-    "placeId": "W-2747373",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "b78de5d5-4935-43c2-9be6-254ede454f31",
-    "profileId": "person-a",
-    "placeId": "W-3196359",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "0c3cfa74-f660-4c7d-a03e-f4cf17fad3a8",
-    "profileId": "person-a",
-    "placeId": "W-6691831",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7.5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "ff4f1c94-15e7-456b-abe0-5b4a45138e91",
-    "profileId": "person-b",
-    "placeId": "city-rome",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "啦啦啦",
-    "photos": []
-  },
-  {
-    "id": "4293bc69-2df7-478e-b56d-349dd12230fe",
-    "profileId": "person-a",
-    "placeId": "W-2692969",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "a97e041e-c817-4c55-a23d-ae7a5bb8cf14",
-    "profileId": "person-a",
-    "placeId": "W-2747891",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "083490b2-e6e2-4406-9c83-bcdd08e0a3eb",
-    "profileId": "person-a",
-    "placeId": "W-2618425",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6.5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "0c2348eb-431c-4c22-83c9-07338e632ead",
-    "profileId": "person-b",
-    "placeId": "W-456172",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "",
-    "photos": []
-  },
-  {
-    "id": "daf58b88-5c23-4f47-8eb3-dc623bdcac61",
-    "profileId": "person-b",
-    "placeId": "W-3099434",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "",
-    "photos": []
-  },
-  {
-    "id": "56c597ac-8770-48d9-b15d-352d016da5b1",
-    "profileId": "person-b",
-    "placeId": "W-2879139",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "",
-    "photos": []
-  },
-  {
-    "id": "72e4d96f-abe4-4beb-bd03-f84087e2cead",
-    "profileId": "person-b",
-    "placeId": "W-3143244",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "",
-    "photos": []
-  },
-  {
-    "id": "a2d4fa4e-ccde-400c-8f70-e43f6ddd9812",
-    "profileId": "person-b",
-    "placeId": "W-2267057",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "",
-    "photos": []
-  },
-  {
-    "id": "c7f03b84-9b94-4a4e-b79b-8e0f4c54cdab",
-    "profileId": "person-b",
-    "placeId": "W-2820256",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "",
-    "photos": []
-  },
-  {
-    "id": "ea002bce-3624-4005-913d-35cee5f0831a",
-    "profileId": "person-b",
-    "placeId": "W-2940132",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "",
-    "photos": []
-  },
-  {
-    "id": "ae9d19c4-8066-4f4c-9d02-76f315f2d0dd",
-    "profileId": "person-b",
-    "placeId": "W-2988507",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "",
-    "photos": []
-  },
-  {
-    "id": "ee7dbf44-9937-42c4-a2f2-c4a1aaec0bb5",
-    "profileId": "person-a",
-    "placeId": "W-792680",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6.5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "400a05c8-66fd-42fb-a319-50bda8e1ee2a",
-    "profileId": "person-a",
-    "placeId": "W-3185728",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":2,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "08714497-ce05-4566-b338-33dfbebc9ac7",
-    "profileId": "person-a",
-    "placeId": "W-727011",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6.5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
     "id": "f9cf0391-9e66-4d74-8462-914e067d517d",
     "profileId": "person-a",
     "placeId": "W-593116",
@@ -904,6 +895,15 @@ export const initialVisits = [
     "visitedAt": null,
     "type": "旅行",
     "note": "{\"dateDisplay\":null,\"datePrecision\":\"none\",\"rating\":9.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "400a05c8-66fd-42fb-a319-50bda8e1ee2a",
+    "profileId": "person-a",
+    "placeId": "W-3185728",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":1.5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -1006,6 +1006,15 @@ export const initialVisits = [
     "photos": []
   },
   {
+    "id": "a97e041e-c817-4c55-a23d-ae7a5bb8cf14",
+    "profileId": "person-a",
+    "placeId": "W-2747891",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":5.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
     "id": "fd571b2d-41b6-45a5-9537-6517067620ed",
     "profileId": "person-a",
     "placeId": "W-2803138",
@@ -1021,15 +1030,6 @@ export const initialVisits = [
     "visitedAt": null,
     "type": "旅行",
     "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":9.5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "304afb08-90a5-4f03-9160-1e6f09a9586f",
-    "profileId": "person-a",
-    "placeId": "W-2940132",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -1057,6 +1057,15 @@ export const initialVisits = [
     "visitedAt": null,
     "type": "旅行",
     "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":5.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "28a101bc-3395-4a03-bdda-2cc788d744ec",
+    "profileId": "person-a",
+    "placeId": "CN061080",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -1141,9 +1150,9 @@ export const initialVisits = [
     "photos": []
   },
   {
-    "id": "cb26650e-59d8-4364-b416-10f118c0f52d",
+    "id": "eee519d9-f1c2-4d39-bc64-9f71ffffa266",
     "profileId": "person-a",
-    "placeId": "CN045110",
+    "placeId": "W-3170647",
     "visitedAt": null,
     "type": "旅行",
     "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7,\"text\":\"\",\"transportMode\":\"\"}",
@@ -1213,12 +1222,12 @@ export const initialVisits = [
     "photos": []
   },
   {
-    "id": "28a101bc-3395-4a03-bdda-2cc788d744ec",
+    "id": "cb26650e-59d8-4364-b416-10f118c0f52d",
     "profileId": "person-a",
-    "placeId": "CN061080",
+    "placeId": "CN045110",
     "visitedAt": null,
     "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":5.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":6.5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -1245,7 +1254,7 @@ export const initialVisits = [
     "placeId": "CN041070",
     "visitedAt": null,
     "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":5.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -1417,15 +1426,6 @@ export const initialVisits = [
     "visitedAt": null,
     "type": "旅行",
     "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":9.5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
-    "id": "eee519d9-f1c2-4d39-bc64-9f71ffffa266",
-    "profileId": "person-a",
-    "placeId": "W-3170647",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7.5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -1622,7 +1622,7 @@ export const initialVisits = [
     "profileId": "person-b",
     "placeId": "W-3160881",
     "visitedAt": null,
-    "type": "旅行",
+    "type": "��行",
     "note": "",
     "photos": []
   },
@@ -2365,21 +2365,21 @@ export const initialVisits = [
     "photos": []
   },
   {
-    "id": "eebfccd9-49de-4da5-a61e-ee196621f4cc",
-    "profileId": "person-a",
-    "placeId": "CN062070",
-    "visitedAt": null,
-    "type": "旅行",
-    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":3.5,\"text\":\"\",\"transportMode\":\"\"}",
-    "photos": []
-  },
-  {
     "id": "04a79475-cba4-420d-b3aa-3855b0afe83b",
     "profileId": "person-a",
     "placeId": "W-2512989",
     "visitedAt": null,
     "type": "旅行",
     "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":7.5,\"text\":\"\",\"transportMode\":\"\"}",
+    "photos": []
+  },
+  {
+    "id": "eebfccd9-49de-4da5-a61e-ee196621f4cc",
+    "profileId": "person-a",
+    "placeId": "CN062070",
+    "visitedAt": null,
+    "type": "旅行",
+    "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":3,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },
   {
@@ -2501,7 +2501,7 @@ export const initialVisits = [
     "placeId": "CN081010",
     "visitedAt": "2017-01-01",
     "type": "旅行",
-    "note": "{\"dateDisplay\":\"2017\",\"datePrecision\":\"year\",\"rating\":6,\"text\":\"\",\"transportMode\":\"\"}",
+    "note": "{\"dateDisplay\":\"2017\",\"datePrecision\":\"year\",\"rating\":6.5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   }
 ];
