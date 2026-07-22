@@ -5,267 +5,6 @@
 
 export const defaultTravelNotes = [
   {
-    "id": "note-5",
-    "city": "新加坡",
-    "coverImage": "/TravelMap/singapore_cover.jpg",
-    "coverImagePosition": {
-      "x": 50,
-      "y": 50,
-      "author": "Tang"
-    },
-    "author": "Tang",
-    "startDate": "2024-09-01",
-    "endDate": "2024-09-05",
-    "rating": 10,
-    "summary": "狮城探索之旅：漫步滨海湾花园，打卡标志性鱼尾狮，享受克拉码头夜色与圣淘沙岛阳光。",
-    "center": [
-      1.2868,
-      103.8545
-    ],
-    "addresses": [
-      {
-        "id": "addr-5-1",
-        "day": 1,
-        "name": "新加坡樟宜机场",
-        "text": "✈️ 抵达樟宜机场，世界最美机场之一！顺便打卡星耀樟宜的汇丰雨漩涡（室内瀑布），感受震撼的水雾与灯光。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.3644,
-          "lng": 103.9915
-        }
-      },
-      {
-        "id": "addr-5-2",
-        "day": 1,
-        "name": "鱼尾狮公园",
-        "text": "🦁 新加坡的地标！在这里摆各种创意姿势与喷水的鱼尾狮合影。建议黄昏来，不仅能看到白天的鱼尾狮，还能欣赏滨海湾金沙酒店的夜间激光秀。",
-        "image": "/TravelMap/singapore_merlion.jpg",
-        "photos": [
-          {
-            "id": "ph-init-1784027879509-mleyr",
-            "url": "/TravelMap/singapore_merlion.jpg",
-            "ratio": "4:3"
-          }
-        ],
-        "coordinates": {
-          "lat": 1.2868,
-          "lng": 103.8545
-        }
-      },
-      {
-        "id": "addr-5-3",
-        "day": 1,
-        "name": "滨海湾金沙酒店",
-        "text": "🏨 宏伟的三塔建筑群，楼顶的无边泳池举世闻名。即使不入住，也可以前往空中花园观景台俯瞰整个海湾夜景。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2847,
-          "lng": 103.861
-        }
-      },
-      {
-        "id": "addr-5-4",
-        "day": 2,
-        "name": "滨海湾花园 (Gardens by the Bay)",
-        "text": "🌲 仿佛置身阿凡达的潘多拉星球！巨大的超级树穹顶（Supertree Grove）令人叹为观止。千万不要错过晚上19:45和20:45的声光秀，超级树会随音乐闪烁变色，极其梦幻！",
-        "image": "/TravelMap/singapore_gardens.jpg",
-        "photos": [
-          {
-            "id": "ph-init-1784027879509-91vv9",
-            "url": "/TravelMap/singapore_gardens.jpg",
-            "ratio": "4:3"
-          }
-        ],
-        "coordinates": {
-          "lat": 1.2816,
-          "lng": 103.8636
-        }
-      },
-      {
-        "id": "addr-5-5",
-        "day": 2,
-        "name": "新加坡摩天观景轮",
-        "text": "🎡 亚洲最大的摩天轮之一。运转一圈大约30分钟，可以饱览滨海湾全景，甚至在晴朗时能眺望到邻国马来西亚和印尼的岛屿。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2893,
-          "lng": 103.8631
-        }
-      },
-      {
-        "id": "addr-5-6",
-        "day": 2,
-        "name": "艺术科学博物馆 (ArtScience Museum)",
-        "text": "🎨 独特的白莲花造型建筑。内部的 teamLab '超跃未来' 互动展非常受欢迎，是拍照打卡的绝佳艺术空间。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2863,
-          "lng": 103.8592
-        }
-      },
-      {
-        "id": "addr-5-7",
-        "day": 2,
-        "name": "螺旋桥",
-        "text": "🌉 结构灵感来自DNA双螺旋。夜晚桥身LED亮起蓝色和紫色，极具科幻未来感，是绝佳的漫步通道。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2876,
-          "lng": 103.8608
-        }
-      },
-      {
-        "id": "addr-5-8",
-        "day": 2,
-        "name": "驳船码头 (Boat Quay)",
-        "text": "🍻 新加坡河畔的历史街区，现改为酒吧与餐饮街。吹着晚风，小酌一杯，非常惬意。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2872,
-          "lng": 103.8497
-        }
-      },
-      {
-        "id": "addr-5-9",
-        "day": 3,
-        "name": "牛车水 (Chinatown)",
-        "text": "🏮 新加坡的唐人街。老式排屋和街巷布满了各种手工艺品店与地道中餐馆，红灯笼高挂，充满历史韵味。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2825,
-          "lng": 103.8442
-        }
-      },
-      {
-        "id": "addr-5-10",
-        "day": 3,
-        "name": "佛牙寺龙华院",
-        "text": "🛕 百年唐代风格木结构寺庙，宏伟庄严。四楼供奉着释迦牟尼佛的真身佛牙舍利，内部装修金碧辉煌。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2814,
-          "lng": 103.8443
-        }
-      },
-      {
-        "id": "addr-5-11",
-        "day": 3,
-        "name": "麦士威路美食中心 (Maxwell Food Centre)",
-        "text": "🍛 品尝地道星洲美食的大本营！最出名的是“天天海南鸡饭”，鸡肉极其鲜嫩，配上特制黑酱油与辣椒酱，简直人间美味。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2806,
-          "lng": 103.8438
-        }
-      },
-      {
-        "id": "addr-5-12",
-        "day": 3,
-        "name": "克拉码头 (Clarke Quay)",
-        "text": "🌃 新加坡夜生活的核心区。五彩斑斓的旧仓库改建成了动感十足的酒吧与舞厅，运河游船在此穿梭，霓虹闪烁。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2906,
-          "lng": 103.8465
-        }
-      },
-      {
-        "id": "addr-5-13",
-        "day": 4,
-        "name": "新加坡环球影城 (Universal Studios Singapore)",
-        "text": "🎢 圣淘沙岛的主角！包括变形金刚3D对决、双轨过山车、木乃伊复仇等热门项目，带给您一整天的尖叫与欢笑。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2543,
-          "lng": 103.8238
-        }
-      },
-      {
-        "id": "addr-5-14",
-        "day": 4,
-        "name": "圣淘沙捷运",
-        "text": "🚝 连接主岛怡丰城与圣淘沙岛的轻轨捷运，出行非常便利。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2646,
-          "lng": 103.8222
-        }
-      },
-      {
-        "id": "addr-5-15",
-        "day": 4,
-        "name": "巴拉湾海滩 (Palawan Beach)",
-        "text": "🏖️ 拥有连接亚洲大陆最南端小岛的吊桥，椰林树影，海水清澈，非常适合午后散步。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2505,
-          "lng": 103.8189
-        }
-      },
-      {
-        "id": "addr-5-16",
-        "day": 4,
-        "name": "西乐索海滩 (Siloso Beach)",
-        "text": "🏄 新加坡最活跃的海滩，聚集了各种沙滩排球爱好者、冲浪俱乐部以及海滨小酒馆。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2558,
-          "lng": 103.8099
-        }
-      },
-      {
-        "id": "addr-5-17",
-        "day": 4,
-        "name": "S.E.A. 海洋馆",
-        "text": "🐟 全球最大的海洋馆之一。巨大的深海观景区长 36 米，汇聚了双吻前口蝠鲼、魔鬼鱼、锤头鲨等数万只海洋生物，极具治愈感。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2584,
-          "lng": 103.8193
-        }
-      },
-      {
-        "id": "addr-5-18",
-        "day": 4,
-        "name": "斜坡滑车 (Skyline Luge)",
-        "text": "🏎️ 坐在滑车上，沿特制轨道一路从高地滑行到底部沙滩，重力加速度带来的刺激感让人欲罢不能！",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2524,
-          "lng": 103.8163
-        }
-      },
-      {
-        "id": "addr-5-19",
-        "day": 4,
-        "name": "怡丰城 (VivoCity)",
-        "text": "🛍️ 新加坡最大的购物商场之一，从圣淘沙岛返回后的最佳逛吃地，顶层设有露天水上公园。",
-        "image": null,
-        "photos": [],
-        "coordinates": {
-          "lat": 1.2638,
-          "lng": 103.8219
-        }
-      }
-    ]
-  },
-  {
     "id": "note-4",
     "city": "莫斯科",
     "coverImage": "/TravelMap/moscow_cover_evening.jpg",
@@ -304,7 +43,7 @@ export const defaultTravelNotes = [
       {
         "id": "addr-4-2",
         "name": "克里姆林宫",
-        "text": "🏛️ 俄罗斯权力的中心，���墙环绕，塔楼巍峨。建议从亚历山大花园一侧购票排队安检入内。内部包括伊凡大帝钟楼、天使长大教堂等宏伟建筑群，以及珍宝馆（兵器库）。\n\n📌 参观攻略：一定要留足半天时间，兵器库和钻石馆的门票需要单独购买，非常推荐！",
+        "text": "🏛️ 俄罗斯权力的中心，红墙环绕，塔楼巍峨。建议从亚历山大花园一侧购票排队安检入内。内部包括伊凡大帝钟楼、天使长大教堂等宏伟建筑群，以及珍宝馆（兵器库）。\n\n📌 参观攻略：一定要留足半天时间，兵器库和钻石馆的门票需要单独购买，非常推荐！",
         "image": "/TravelMap/moscow_kremlin_landscape.jpg",
         "photos": [
           {
@@ -2441,6 +2180,217 @@ export const defaultTravelNotes = [
           "lng": 2.3265
         },
         "text": "🎨 莫奈、梵高、塞尚的杰作聚集地！巨大的火车站改建的展馆本身就是一件艺术品。"
+      }
+    ]
+  },
+  {
+    "id": "note-5",
+    "city": "新加坡",
+    "coverImage": "/TravelMap/singapore_cover.jpg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 50
+    },
+    "startDate": "2024-09-01",
+    "endDate": "2024-09-05",
+    "rating": 10,
+    "summary": "狮城探索之旅：漫步滨海湾花园，打卡标志性鱼尾狮，享受克拉码头夜色与圣淘沙岛阳光。",
+    "center": [
+      1.2868,
+      103.8545
+    ],
+    "addresses": [
+      {
+        "id": "addr-5-1",
+        "day": 1,
+        "name": "新加坡樟宜机场",
+        "coordinates": {
+          "lat": 1.3644,
+          "lng": 103.9915
+        },
+        "text": "✈️ 抵达樟宜机场，世界最美机场之一！顺便打卡星耀樟宜的汇丰雨漩涡（室内瀑布），感受震撼的水雾与灯光。"
+      },
+      {
+        "id": "addr-5-2",
+        "day": 1,
+        "name": "鱼尾狮公园",
+        "coordinates": {
+          "lat": 1.2868,
+          "lng": 103.8545
+        },
+        "text": "🦁 新加坡的地标！在这里摆各种创意姿势与喷水的鱼尾狮合影。建议黄昏来，不仅能看到白天的鱼尾狮，还能欣赏滨海湾金沙酒店的夜间激光秀。",
+        "image": "/TravelMap/singapore_merlion.jpg"
+      },
+      {
+        "id": "addr-5-3",
+        "day": 1,
+        "name": "滨海湾金沙酒店",
+        "coordinates": {
+          "lat": 1.2847,
+          "lng": 103.861
+        },
+        "text": "🏨 宏伟的三塔建筑群，楼顶的无边泳池举世闻名。即使不入住，也可以前往空中花园观景台俯瞰整个海湾夜景。"
+      },
+      {
+        "id": "addr-5-4",
+        "day": 2,
+        "name": "滨海湾花园 (Gardens by the Bay)",
+        "coordinates": {
+          "lat": 1.2816,
+          "lng": 103.8636
+        },
+        "text": "🌲 仿佛置身阿凡达的潘多拉星球！巨大的超级树穹顶（Supertree Grove）令人叹为观止。千万不要错过晚上19:45和20:45的声光秀，超级树会随音乐闪烁变色，极其梦幻！",
+        "image": "/TravelMap/singapore_gardens.jpg"
+      },
+      {
+        "id": "addr-5-5",
+        "day": 2,
+        "name": "新加坡摩天观景轮",
+        "coordinates": {
+          "lat": 1.2893,
+          "lng": 103.8631
+        },
+        "text": "🎡 亚洲最大的摩天轮之一。运转一圈大约30分钟，可以饱览滨海湾全景，甚至在晴朗时能眺望到邻国马来西亚和印尼的岛屿。"
+      },
+      {
+        "id": "addr-5-6",
+        "day": 2,
+        "name": "艺术科学博物馆 (ArtScience Museum)",
+        "coordinates": {
+          "lat": 1.2863,
+          "lng": 103.8592
+        },
+        "text": "🎨 独特的白莲花造型建筑。内部的 teamLab '超跃未来' 互动展非常受欢迎，是拍照打卡的绝佳艺术空间。"
+      },
+      {
+        "id": "addr-5-7",
+        "day": 2,
+        "name": "螺旋桥",
+        "coordinates": {
+          "lat": 1.2876,
+          "lng": 103.8608
+        },
+        "text": "🌉 结构灵感来自DNA双螺旋。夜晚桥身LED亮起蓝色和紫色，极具科幻未来感，是绝佳的漫步通道。"
+      },
+      {
+        "id": "addr-5-8",
+        "day": 2,
+        "name": "驳船码头 (Boat Quay)",
+        "coordinates": {
+          "lat": 1.2872,
+          "lng": 103.8497
+        },
+        "text": "🍻 新加坡河畔的历史街区，现改为酒吧与餐饮街。吹着晚风，小酌一杯，非常惬意。"
+      },
+      {
+        "id": "addr-5-9",
+        "day": 3,
+        "name": "牛车水 (Chinatown)",
+        "coordinates": {
+          "lat": 1.2825,
+          "lng": 103.8442
+        },
+        "text": "🏮 新加坡的唐人街。老式排屋和街巷布满了各种手工艺品店与地道中餐馆，红灯笼高挂，充满历史韵味。"
+      },
+      {
+        "id": "addr-5-10",
+        "day": 3,
+        "name": "佛牙寺龙华院",
+        "coordinates": {
+          "lat": 1.2814,
+          "lng": 103.8443
+        },
+        "text": "🛕 百年唐代风格木结构寺庙，宏伟庄严。四楼供奉着释迦牟尼佛的真身佛牙舍利，内部装修金碧辉煌。"
+      },
+      {
+        "id": "addr-5-11",
+        "day": 3,
+        "name": "麦士威路美食中心 (Maxwell Food Centre)",
+        "coordinates": {
+          "lat": 1.2806,
+          "lng": 103.8438
+        },
+        "text": "🍛 品尝地道星洲美食的大本营！最出名的是“天天海南鸡饭”，鸡肉极其鲜嫩，配上特制黑酱油与辣椒酱，简直人间美味。"
+      },
+      {
+        "id": "addr-5-12",
+        "day": 3,
+        "name": "克拉码头 (Clarke Quay)",
+        "coordinates": {
+          "lat": 1.2906,
+          "lng": 103.8465
+        },
+        "text": "🌃 新加坡夜生活的核心区。五彩斑斓的旧仓库改建成了动感十足的酒吧与舞厅，运河游船在此穿梭，霓虹闪烁。"
+      },
+      {
+        "id": "addr-5-13",
+        "day": 4,
+        "name": "新加坡环球影城 (Universal Studios Singapore)",
+        "coordinates": {
+          "lat": 1.2543,
+          "lng": 103.8238
+        },
+        "text": "🎢 圣淘沙岛的主角！包括变形金刚3D对决、双轨过山车、木乃伊复仇等热门项目，带给您一整天的尖叫与欢笑。"
+      },
+      {
+        "id": "addr-5-14",
+        "day": 4,
+        "name": "圣淘沙捷运",
+        "coordinates": {
+          "lat": 1.2646,
+          "lng": 103.8222
+        },
+        "text": "🚝 连接主岛怡丰城与圣淘沙岛的轻轨捷运，出行非常便利。"
+      },
+      {
+        "id": "addr-5-15",
+        "day": 4,
+        "name": "巴拉湾海滩 (Palawan Beach)",
+        "coordinates": {
+          "lat": 1.2505,
+          "lng": 103.8189
+        },
+        "text": "🏖️ 拥有连接亚洲大陆最南端小岛的吊桥，椰林树影，海水清澈，非常适合午后散步。"
+      },
+      {
+        "id": "addr-5-16",
+        "day": 4,
+        "name": "西乐索海滩 (Siloso Beach)",
+        "coordinates": {
+          "lat": 1.2558,
+          "lng": 103.8099
+        },
+        "text": "🏄 新加坡最活跃的海滩，聚集了各种沙滩排球爱好者、冲浪俱乐部以及海滨小酒馆。"
+      },
+      {
+        "id": "addr-5-17",
+        "day": 4,
+        "name": "S.E.A. 海洋馆",
+        "coordinates": {
+          "lat": 1.2584,
+          "lng": 103.8193
+        },
+        "text": "🐟 全球最大的海洋馆之一。巨大的深海观景区长 36 米，汇聚了双吻前口蝠鲼、魔鬼鱼、锤头鲨等数万只海洋生物，极具治愈感。"
+      },
+      {
+        "id": "addr-5-18",
+        "day": 4,
+        "name": "斜坡滑车 (Skyline Luge)",
+        "coordinates": {
+          "lat": 1.2524,
+          "lng": 103.8163
+        },
+        "text": "🏎️ 坐在滑车上，沿特制轨道一路从高地滑行到底部沙滩，重力加速度带来的刺激感让人欲罢不能！"
+      },
+      {
+        "id": "addr-5-19",
+        "day": 4,
+        "name": "怡丰城 (VivoCity)",
+        "coordinates": {
+          "lat": 1.2638,
+          "lng": 103.8219
+        },
+        "text": "🛍️ 新加坡最大的购物商场之一，从圣淘沙岛返回后的最佳逛吃地，顶层设有露天水上公园。"
       }
     ]
   }

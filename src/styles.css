@@ -7489,3 +7489,32 @@ h2 {
   background: #0d2c23;
   box-shadow: 0 4px 12px rgba(18, 60, 48, 0.2);
 }
+
+/* ==========================================
+   恢复「旅行记录」与「国家图鉴」部分的经典英文字体
+   ========================================== */
+
+#travel-notes-section,
+.travel-note-card,
+.note-card-summary,
+.note-card-stats,
+.note-card-author,
+.note-meta-date,
+.note-meta-rating,
+.expanded-note-layout {
+  font-family: Inter, "Segoe UI", Arial, "Microsoft YaHei", sans-serif !important;
+}
+
+#travel-notes-section h2,
+.note-card-body h3 {
+  font-family: "STZhongsong", "华文中宋", "Songti SC", "SimSun", serif !important;
+}
+
+#country-gallery-section .country-gallery-card-copy small,
+#country-gallery-section .country-gallery-card-copy strong {
+  font-family: Inter, "Segoe UI", Arial, "Microsoft YaHei", sans-serif !important;
+}
+
+#country-gallery-section .country-gallery-title h2 {
+  font-family: "STZhongsong", "华文中宋", "Songti SC", "SimSun", serif !important;
+}
