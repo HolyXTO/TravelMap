@@ -1586,7 +1586,7 @@ export const initialVisits = [
     "profileId": "person-a",
     "placeId": "CN032100",
     "visitedAt": null,
-    "type": "��行",
+    "type": "旅行",
     "note": "{\"dateDisplay\":null,\"datePrecision\":\"day\",\"rating\":5.5,\"text\":\"\",\"transportMode\":\"\"}",
     "photos": []
   },

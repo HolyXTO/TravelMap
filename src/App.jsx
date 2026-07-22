@@ -8559,7 +8559,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           }
 
           const dbNotes = data
-            .filter((row) => row.id !== "settings_config")
+            .filter((row) => row.id !== "settings_config" && row.id !== "ratings_settings_config" && !row.id.endsWith("_config") && !(row.city || "").startsWith("__"))
             .map((row) => ({
               id: row.id,
               city: row.city,
