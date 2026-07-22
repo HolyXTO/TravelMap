@@ -241,19 +241,21 @@ export const initialVisits = ${JSON.stringify(visits, null, 2)};
     // 4. 获取 travel_notes 
     console.log("⏳ 正在读取云端真实 travel_notes...");
     const rawNotes = await getJson("/rest/v1/travel_notes?select=*&order=created_at.desc");
-    const cloudNotes = rawNotes.map(n => ({
-      id: n.id,
-      city: n.city,
-      coverImage: n.cover_image,
-      coverImagePosition: n.cover_image_position || { x: 50, y: 50 },
-      author: n.cover_image_position?.author || "Xiao",
-      startDate: n.start_date,
-      endDate: n.end_date,
-      rating: n.rating,
-      summary: n.summary,
-      center: n.center,
-      addresses: n.addresses
-    }));
+    const cloudNotes = rawNotes
+      .filter(n => n.id !== "settings_config" && n.id !== "ratings_settings_config" && n.city !== "__SETTINGS__" && n.city !== "__RATINGS_SETTINGS__")
+      .map(n => ({
+        id: n.id,
+        city: n.city,
+        coverImage: n.cover_image,
+        coverImagePosition: n.cover_image_position || { x: 50, y: 50 },
+        author: n.cover_image_position?.author || "Xiao",
+        startDate: n.start_date,
+        endDate: n.end_date,
+        rating: n.rating,
+        summary: n.summary,
+        center: n.center,
+        addresses: n.addresses
+      }));
 
     // 合并：将云端拉取的卡片和预设的经典日记卡片合并（保留经典的巴黎、新加坡、莫斯科等）
     const mergedNotes = [...cloudNotes];

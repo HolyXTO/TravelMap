@@ -135,7 +135,7 @@ export const defaultTravelNotes = [
         "id": "addr-5-9",
         "day": 3,
         "name": "牛车水 (Chinatown)",
-        "text": "🏮 新加坡的唐人街。老式排屋和街巷布满了各种手工艺品店与地道中餐��，红灯笼高挂，充满历史韵味。",
+        "text": "🏮 新加坡的唐人街。老式排屋和街巷布满了各种手工艺品店与地道中餐馆，红灯笼高挂，充满历史韵味。",
         "image": null,
         "photos": [],
         "coordinates": {
@@ -278,7 +278,7 @@ export const defaultTravelNotes = [
     "startDate": "2024-08-10",
     "endDate": "2024-08-15",
     "rating": 10,
-    "summary": "漫步在红场，仰望瓦西里升天大教堂缤纷的洋葱头穹顶，感受克里姆林宫的庄严气势。",
+    "summary": "漫步在红场，仰望瓦西里升天大教堂缤纷的洋葱头穹顶，��受克里姆林宫的庄严气势。",
     "center": [
       55.7558,
       37.6173
@@ -395,10 +395,23 @@ export const defaultTravelNotes = [
     "rating": 7,
     "summary": "China · Sichuan Province · Chengdu",
     "center": [
-      48.8566,
-      2.3522
+      30.73948,
+      104.14374
     ],
-    "addresses": []
+    "addresses": [
+      {
+        "id": "addr-1784258428641-0",
+        "day": 1,
+        "name": "成都大熊猫繁育基地",
+        "text": "",
+        "image": null,
+        "photos": [],
+        "coordinates": {
+          "lat": 30.73948,
+          "lng": 104.14374
+        }
+      }
+    ]
   },
   {
     "id": "note-1783850751847",

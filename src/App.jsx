@@ -9468,6 +9468,75 @@ function TravelRatingsSection({
   const [draggedRatingId, setDraggedRatingId] = useState(null);
   const [dragOverRatingId, setDragOverRatingId] = useState(null);
 
+  const saveCloudRatingsSettings = async (nextRatingsConfig, nextCustomTieBreakers) => {
+    try {
+      if (session) {
+        const dbRecord = {
+          id: "ratings_settings_config",
+          city: "__RATINGS_SETTINGS__",
+          cover_image: "",
+          cover_image_position: { x: 50, y: 50 },
+          start_date: null,
+          end_date: null,
+          rating: 0,
+          summary: JSON.stringify({
+            ratingsConfig: nextRatingsConfig,
+            customTieBreakers: nextCustomTieBreakers,
+          }),
+          center: [0, 0],
+          addresses: [],
+          created_by: session?.user?.id ?? null,
+        };
+        await supabase.from("travel_notes").upsert(dbRecord, { onConflict: "id" });
+      }
+    } catch (err) {
+      console.warn("Failed to save ratings settings to cloud:", err);
+    }
+  };
+
+  useEffect(() => {
+    const loadRatingsSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("travel_notes")
+          .select("summary")
+          .eq("id", "ratings_settings_config")
+          .maybeSingle();
+
+        if (error) {
+          console.warn("Failed to load cloud ratings settings:", error.message);
+          return;
+        }
+        if (data && data.summary) {
+          try {
+            const parsed = JSON.parse(data.summary);
+            if (parsed.ratingsConfig) {
+              setRatingsConfig(parsed.ratingsConfig);
+              localStorage.setItem("travel_ratings_config", JSON.stringify(parsed.ratingsConfig));
+            }
+            if (parsed.customTieBreakers) {
+              setCustomTieBreakers(parsed.customTieBreakers);
+              localStorage.setItem("travel_ratings_tiebreakers", JSON.stringify(parsed.customTieBreakers));
+            }
+          } catch (e) {
+            console.error("Failed to parse cloud ratings settings:", e);
+          }
+        } else if (session) {
+          const localSaved = localStorage.getItem("travel_ratings_config");
+          const localTieBreakers = localStorage.getItem("travel_ratings_tiebreakers");
+          if (localSaved || localTieBreakers) {
+            const parsedConfig = localSaved ? JSON.parse(localSaved) : { upgraded: [], merged: {} };
+            const parsedTieBreakers = localTieBreakers ? JSON.parse(localTieBreakers) : {};
+            saveCloudRatingsSettings(parsedConfig, parsedTieBreakers);
+          }
+        }
+      } catch (e) {
+        console.warn("Error fetching ratings settings:", e);
+      }
+    };
+    loadRatingsSettings();
+  }, [session]);
+
   useEffect(() => {
     function handleOutsideClick() {
       if (contextMenu) setContextMenu(null);
@@ -9695,26 +9764,34 @@ function TravelRatingsSection({
         [profileId]: newOrder,
       }));
 
+      let nextTieBreakers = {};
       setCustomTieBreakers((prev) => {
         const updated = {
           ...prev,
           [profileId]: newOrder,
         };
+        nextTieBreakers = updated;
         localStorage.setItem("travel_ratings_tiebreakers", JSON.stringify(updated));
         return updated;
       });
+      saveCloudRatingsSettings(ratingsConfig, nextTieBreakers);
     }
   }
 
   function handleUpgradeToCountry(countryCode) {
+    let nextConfig = null;
     setRatingsConfig((prev) => {
       const updated = {
         ...prev,
         upgraded: Array.from(new Set([...(prev.upgraded || []), countryCode])),
       };
+      nextConfig = updated;
       localStorage.setItem("travel_ratings_config", JSON.stringify(updated));
       return updated;
     });
+    if (nextConfig) {
+      saveCloudRatingsSettings(nextConfig, customTieBreakers);
+    }
   }
 
   function handleOpenMergeModal(profileId, countryCode, clickedCity, allCityGroups) {
@@ -9742,6 +9819,7 @@ function TravelRatingsSection({
     const { countryCode, clickedCity, allCityGroups } = mergeTarget;
     const targetCityIds = Object.keys(selectedCities).filter((id) => selectedCities[id]);
 
+    let nextConfig = null;
     setRatingsConfig((prev) => {
       const updated = {
         ...prev,
@@ -9750,9 +9828,13 @@ function TravelRatingsSection({
           [countryCode]: targetCityIds,
         },
       };
+      nextConfig = updated;
       localStorage.setItem("travel_ratings_config", JSON.stringify(updated));
       return updated;
     });
+    if (nextConfig) {
+      saveCloudRatingsSettings(nextConfig, customTieBreakers);
+    }
 
     const visitsToSync = allCityGroups
       .filter((cg) => targetCityIds.includes(cg.city.id))
@@ -9765,6 +9847,7 @@ function TravelRatingsSection({
   }
 
   function handleRestore(countryCode) {
+    let nextConfig = null;
     setRatingsConfig((prev) => {
       const upgradedList = prev.upgraded || [];
       const mergedMap = prev.merged || {};
@@ -9777,9 +9860,13 @@ function TravelRatingsSection({
         upgraded: nextUpgraded,
         merged: nextMerged,
       };
+      nextConfig = updated;
       localStorage.setItem("travel_ratings_config", JSON.stringify(updated));
       return updated;
     });
+    if (nextConfig) {
+      saveCloudRatingsSettings(nextConfig, customTieBreakers);
+    }
   }
 
   async function handleRatingChange(item, newRating) {
