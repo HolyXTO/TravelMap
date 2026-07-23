@@ -7491,7 +7491,7 @@ h2 {
 }
 
 /* ==========================================
-   恢复「旅行记录」与「国家图鉴」部分的经典英文字体
+   恢复「旅行记录」、「国家图鉴」与「省份图鉴」部分的经典英文字体
    ========================================== */
 
 #travel-notes-section,
@@ -7501,7 +7501,8 @@ h2 {
 .note-card-author,
 .note-meta-date,
 .note-meta-rating,
-.expanded-note-layout {
+.expanded-note-layout,
+#province-gallery-section {
   font-family: Inter, "Segoe UI", Arial, "Microsoft YaHei", sans-serif !important;
 }
 
@@ -7511,10 +7512,20 @@ h2 {
 }
 
 #country-gallery-section .country-gallery-card-copy small,
-#country-gallery-section .country-gallery-card-copy strong {
+#country-gallery-section .country-gallery-card-copy strong,
+#province-gallery-section .country-gallery-card-copy small,
+#province-gallery-section .country-gallery-card-copy strong {
   font-family: Inter, "Segoe UI", Arial, "Microsoft YaHei", sans-serif !important;
 }
 
-#country-gallery-section .country-gallery-title h2 {
+#country-gallery-section .country-gallery-title h2,
+#province-gallery-section .country-gallery-title h2 {
   font-family: "STZhongsong", "华文中宋", "Songti SC", "SimSun", serif !important;
+}
+
+#country-gallery-section .major-title-en,
+#country-gallery-section .major-title-number,
+#province-gallery-section .major-title-en,
+#province-gallery-section .major-title-number {
+  font-family: Calibri, "Segoe UI", Arial, sans-serif !important;
 }
