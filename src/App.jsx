@@ -9915,16 +9915,6 @@ function TravelRatingsSection({
         </h2>
       </div>
 
-      <div className="ratings-tier-legend">
-        <span className="legend-item tier-10"><i />10分</span>
-        <span className="legend-item tier-9"><i />9 - 9.9分</span>
-        <span className="legend-item tier-8"><i />8 - 8.9分</span>
-        <span className="legend-item tier-7"><i />7 - 7.9分</span>
-        <span className="legend-item tier-6"><i />6 - 6.9分</span>
-        <span className="legend-item tier-4"><i />4 - 5.9分</span>
-        <span className="legend-item tier-lt4"><i />&lt; 4分</span>
-      </div>
-
       <div className={`ratings-grid ${activeProfile === "all" ? "dual-column" : "single-column"}`}>
         {activeProfiles.map((profile, idx) => {
           const ratingItems = ratingItemsByProfile[profile.id] || [];
