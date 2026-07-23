@@ -7112,12 +7112,12 @@ h2 {
 }
 
 .ratings-column-header h3 {
-  font-family: var(--prophet-serif);
-  font-weight: 900;
+  font-family: Inter, "Segoe UI", Arial, "Microsoft YaHei", sans-serif;
+  font-weight: 700;
   font-size: 1.15rem;
   margin: 0;
-  color: #1e293b;
-  letter-spacing: 0.02em;
+  color: #0f172a;
+  letter-spacing: -0.01em;
   z-index: 1;
 }
 

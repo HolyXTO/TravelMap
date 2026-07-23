@@ -4357,8 +4357,12 @@ function AceternityStyleGlobeV2({
   const speed = GLOBE_SPEEDS[speedIndex];
   const displayedCountryPoints = useMemo(() => {
     const source = showAllCountries ? allCountryPoints : countryPoints;
+    const hasVisitedAntarctica = source.some((point) => point.id === "ATA" || point.id === "ATA-SOUTH-POLE" || point.flag === "AQ");
     const withoutAntarctica = source.filter((point) => point.id !== "ATA" && point.id !== "ATA-SOUTH-POLE");
-    return [...withoutAntarctica, antarcticaGlobePoint()];
+    if (hasVisitedAntarctica || showAllCountries) {
+      return [...withoutAntarctica, antarcticaGlobePoint()];
+    }
+    return withoutAntarctica;
   }, [allCountryPoints, countryPoints, showAllCountries]);
 
   function changeSpeed(direction) {
