@@ -9418,6 +9418,17 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
 // -------------------------------------------------------------
 // 评分展示与交互系统模块实现 (Travel Ratings Section)
 // -------------------------------------------------------------
+function getRatingTierClass(rating) {
+  const r = Number(rating) || 0;
+  if (r >= 10) return "tier-10";
+  if (r >= 9) return "tier-9";
+  if (r >= 8) return "tier-8";
+  if (r >= 7) return "tier-7";
+  if (r >= 6) return "tier-6";
+  if (r >= 4) return "tier-4";
+  return "tier-lt4";
+}
+
 function TravelRatingsSection({
   isEditor,
   session,
@@ -9904,6 +9915,16 @@ function TravelRatingsSection({
         </h2>
       </div>
 
+      <div className="ratings-tier-legend">
+        <span className="legend-item tier-10"><i />10分</span>
+        <span className="legend-item tier-9"><i />9 - 9.9分</span>
+        <span className="legend-item tier-8"><i />8 - 8.9分</span>
+        <span className="legend-item tier-7"><i />7 - 7.9分</span>
+        <span className="legend-item tier-6"><i />6 - 6.9分</span>
+        <span className="legend-item tier-4"><i />4 - 5.9分</span>
+        <span className="legend-item tier-lt4"><i />&lt; 4分</span>
+      </div>
+
       <div className={`ratings-grid ${activeProfile === "all" ? "dual-column" : "single-column"}`}>
         {activeProfiles.map((profile, idx) => {
           const ratingItems = ratingItemsByProfile[profile.id] || [];
@@ -9968,11 +9989,13 @@ function TravelRatingsSection({
                     const canEditRow = session && isEditor;
                     const isColumnEditable = session && isEditor && !!editableColumns[profile.id];
                     const hasTie = isColumnEditable && ratingItems.some((other) => other.id !== item.id && other.rating === item.rating);
+                    const currentVal = slidingRatings[item.id] !== undefined ? slidingRatings[item.id] : item.rating;
+                    const tierClass = getRatingTierClass(currentVal);
 
                     return (
                       <div
                         key={item.id}
-                        className={`ratings-row ${dragOverRatingId === item.id ? "drag-over" : ""}`}
+                        className={`ratings-row ${tierClass} ${dragOverRatingId === item.id ? "drag-over" : ""}`}
                         onDragOver={(e) => handleRatingDragOver(e, item, profile.id)}
                         onDragLeave={handleRatingDragLeave}
                         onDrop={(e) => handleRatingDrop(e, item.id, profile.id)}
