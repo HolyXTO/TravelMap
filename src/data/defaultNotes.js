@@ -5,56 +5,34 @@
 
 export const defaultTravelNotes = [
   {
-    "id": "note-4",
-    "city": "莫斯科",
-    "coverImage": "/TravelMap/moscow_cover_evening.jpg",
+    "id": "note-1784987474836",
+    "city": "朗伊尔城",
+    "coverImage": "",
     "coverImagePosition": {
       "x": 50,
       "y": 50,
       "author": "Tang"
     },
     "author": "Tang",
-    "startDate": "2024-08-10",
-    "endDate": "2024-08-15",
+    "startDate": "2026-07-03",
+    "endDate": "2026-07-25",
     "rating": 10,
-    "summary": "漫步在红场，仰望瓦西里升天大教堂缤纷的洋葱头穹顶，感受克里姆林宫的庄严气势。",
+    "summary": "YIER",
     "center": [
-      55.7558,
-      37.6173
+      48.8566,
+      2.3522
     ],
     "addresses": [
       {
-        "id": "addr-4-1",
-        "name": "瓦西里升天大教堂",
-        "text": "🏰 瓦西里升天大教堂是莫斯科最具标志性的建筑，拥有九个色彩缤纷的洋葱头圆顶。建议黄昏时分来打卡，建筑在晚霞下散发着梦幻般的光彩。\n\n🎟️ 门票信息：外国游客成人票约1000卢布，内部现已改为博物馆，展示俄罗斯中世纪的壁画 and 宗教艺术品。",
-        "image": "/TravelMap/moscow_basil_portrait.jpg",
-        "photos": [
-          {
-            "id": "ph-init-1784027872801-3612p",
-            "url": "/TravelMap/moscow_basil_portrait.jpg",
-            "ratio": "4:3"
-          }
-        ],
+        "id": "addr-1784987507110-0",
+        "day": 1,
+        "name": "斯瓦尔巴末日种子库",
+        "text": "",
+        "image": null,
+        "photos": [],
         "coordinates": {
-          "lat": 55.7525,
-          "lng": 37.6231
-        }
-      },
-      {
-        "id": "addr-4-2",
-        "name": "克里姆林宫",
-        "text": "🏛️ 俄罗斯权力的中心，红墙环绕，塔楼巍峨。建议从亚历山大花园一侧购票排队安检入内。内部包括伊凡大帝钟楼、天使长大教堂等宏伟建筑群，以及珍宝馆（兵器库）。\n\n📌 参观攻略：一定要留足半天时间，兵器库和钻石馆的门票需要单独购买，非常推荐！",
-        "image": "/TravelMap/moscow_kremlin_landscape.jpg",
-        "photos": [
-          {
-            "id": "ph-init-1784027872801-ljsud",
-            "url": "/TravelMap/moscow_kremlin_landscape.jpg",
-            "ratio": "4:3"
-          }
-        ],
-        "coordinates": {
-          "lat": 55.752,
-          "lng": 37.6175
+          "lat": 78.22238561701892,
+          "lng": 15.644933779201931
         }
       }
     ]
@@ -2180,6 +2158,45 @@ export const defaultTravelNotes = [
           "lng": 2.3265
         },
         "text": "🎨 莫奈、梵高、塞尚的杰作聚集地！巨大的火车站改建的展馆本身就是一件艺术品。"
+      }
+    ]
+  },
+  {
+    "id": "note-4",
+    "city": "莫斯科",
+    "coverImage": "/TravelMap/moscow_cover_evening.jpg",
+    "coverImagePosition": {
+      "x": 50,
+      "y": 50
+    },
+    "startDate": "2024-08-10",
+    "endDate": "2024-08-15",
+    "rating": 10,
+    "summary": "漫步在红场，仰望瓦西里升天大教堂缤纷的洋葱头穹顶，感受克里姆林宫的庄严气势。",
+    "center": [
+      55.7558,
+      37.6173
+    ],
+    "addresses": [
+      {
+        "id": "addr-4-1",
+        "name": "瓦西里升天大教堂",
+        "coordinates": {
+          "lat": 55.7525,
+          "lng": 37.6231
+        },
+        "text": "🏰 瓦西里升天大教堂是莫斯科最具标志性的建筑，拥有九个色彩缤纷的洋葱头圆顶。建议黄昏时分来打卡，建筑在晚霞下散发着梦幻般的光彩。\n\n🎟️ 门票信息：外国游客成人票约1000卢布，内部现已改为博物馆，展示俄罗斯中世纪的壁画 and 宗教艺术品。",
+        "image": "/TravelMap/moscow_basil_portrait.jpg"
+      },
+      {
+        "id": "addr-4-2",
+        "name": "克里姆林宫",
+        "coordinates": {
+          "lat": 55.752,
+          "lng": 37.6175
+        },
+        "text": "🏛️ 俄罗斯权力的中心，红墙环绕，塔楼巍峨。建议从亚历山大花园一侧购票排队安检入内。内部包括伊凡大帝钟楼、天使长大教堂等宏伟建筑群，以及珍宝馆（兵器库）。\n\n📌 参观攻略：一定要留足半天时间，兵器库和钻石馆的门票需要单独购买，非常推荐！",
+        "image": "/TravelMap/moscow_kremlin_landscape.jpg"
       }
     ]
   },
