@@ -18,6 +18,7 @@ import {
   MapPinned,
   Pencil,
   Plus,
+  Quote,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -1654,13 +1655,14 @@ function normalizeProfilesForDisplay(items = []) {
 }
 
 function parseVisitMeta(note) {
-  if (!note) return { rating: 0, text: "", datePrecision: "day", dateDisplay: "", transportMode: "" };
+  if (!note) return { rating: 0, text: "", comment: "", datePrecision: "day", dateDisplay: "", transportMode: "" };
   try {
     const parsed = JSON.parse(note);
     if (parsed && typeof parsed === "object") {
       return {
         rating: Number(parsed.rating) || 0,
         text: parsed.text || "",
+        comment: parsed.comment || "",
         datePrecision: parsed.datePrecision || "day",
         dateDisplay: parsed.dateDisplay || "",
         transportMode: parsed.transportMode || "",
@@ -1669,13 +1671,13 @@ function parseVisitMeta(note) {
   } catch {
     // Existing plain-text notes are preserved as text.
   }
-  return { rating: 0, text: note, datePrecision: "day", dateDisplay: "", transportMode: "" };
+  return { rating: 0, text: note, comment: "", datePrecision: "day", dateDisplay: "", transportMode: "" };
 }
 
-function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, text = "", transportMode = "" } = {}) {
+function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, text = "", comment = "", transportMode = "" } = {}) {
   const normalizedRating = Math.max(0, Math.min(10, Number(rating) || 0));
-  if (!normalizedRating && !text && !dateDisplay && !transportMode) return "";
-  return JSON.stringify({ dateDisplay, datePrecision, rating: normalizedRating, text, transportMode });
+  if (!normalizedRating && !text && !comment && !dateDisplay && !transportMode) return "";
+  return JSON.stringify({ dateDisplay, datePrecision, rating: normalizedRating, text, comment, transportMode });
 }
 
 function normalizeVisitDateInput(value) {
@@ -2251,6 +2253,7 @@ function mapVisit(row) {
     datePrecision: meta.datePrecision || "day",
     type: row.trip_type,
     note: meta.text,
+    comment: meta.comment || "",
     rating: meta.rating,
     photos: (row.visit_photos || []).map((photo) =>
       photoFromPath(photo.storage_path),
@@ -3200,7 +3203,7 @@ function App() {
     }
   }
 
-  async function updateVisit(visitId, { file, files, rating, type, visitedAt }) {
+  async function updateVisit(visitId, { file, files, rating, comment, type, visitedAt }) {
     if (!session || !isEditor) {
       setEditMessage("请先用已授权账号登录。");
       return false;
@@ -3209,6 +3212,8 @@ function App() {
       setIsSaving(true);
       setEditMessage("");
       const normalizedDate = normalizeVisitDateInput(visitedAt);
+      const oldVisit = visits.find((v) => v.id === visitId);
+      const targetComment = comment !== undefined ? comment : (oldVisit?.comment || "");
       const { error: updateError } = await supabase
         .from("visits")
         .update({
@@ -3218,6 +3223,8 @@ function App() {
             dateDisplay: normalizedDate.display,
             datePrecision: normalizedDate.precision,
             rating,
+            text: oldVisit?.note || "",
+            comment: targetComment,
           }),
         })
         .eq("id", visitId);
@@ -3228,7 +3235,6 @@ function App() {
       await uploadVisitPhotos(visitId, photoFiles);
 
       await loadTravelData();
-      const oldVisit = visits.find((v) => v.id === visitId);
       if (oldVisit) {
         const canonicalId = canonicalPlaceId(oldVisit.placeId);
         setRecentInteractions((prev) => [canonicalId, ...prev.filter((id) => id !== canonicalId)]);
@@ -3244,17 +3250,26 @@ function App() {
     }
   }
 
-  async function updateVisitRatings(visitIds, newRating) {
+  async function updateVisitRatings(visitIds, newRating, newComment) {
     if (!session || !isEditor) return false;
     const normalizedRating = Math.max(0, Math.min(10, Number(newRating) || 0));
     // Immediately update local state for responsive UI
     setVisits((prev) =>
-      prev.map((v) => (visitIds.includes(v.id) ? { ...v, rating: normalizedRating } : v)),
+      prev.map((v) =>
+        visitIds.includes(v.id)
+          ? {
+              ...v,
+              rating: normalizedRating,
+              comment: newComment !== undefined ? newComment : (v.comment || ""),
+            }
+          : v,
+      ),
     );
     try {
       for (const id of visitIds) {
         const oldVisit = visits.find((v) => v.id === id);
         if (!oldVisit) continue;
+        const targetComment = newComment !== undefined ? newComment : (oldVisit.comment || "");
         await supabase
           .from("visits")
           .update({
@@ -3263,13 +3278,11 @@ function App() {
               datePrecision: oldVisit.datePrecision,
               rating: normalizedRating,
               text: oldVisit.note || "",
+              comment: targetComment,
             }),
           })
           .eq("id", id);
       }
-      // No loadTravelData() — local state is already up to date from the optimistic setVisits above.
-      // Calling loadTravelData() here previously caused a full re-fetch and re-render of all 100+ visits,
-      // which was the root cause of severe lag after rating many cities.
       return true;
     } catch (error) {
       console.error("Failed to batch update ratings:", error);
@@ -7392,12 +7405,14 @@ function VisitEditDialog({
   const [visitedAt, setVisitedAt] = useState(displayVisitDate(visit));
   const [type, setType] = useState(visit.type || "旅行");
   const [rating, setRating] = useState(visit.rating || 0);
+  const [comment, setComment] = useState(visit.comment || "");
 
   useEffect(() => {
     setVisitedAt(displayVisitDate(visit));
     setType(visit.type || "旅行");
     setRating(visit.rating || 0);
-  }, [visit.id, visit.rating, visit.type, visit.visitedAt]);
+    setComment(visit.comment || "");
+  }, [visit.comment, visit.id, visit.rating, visit.type, visit.visitedAt]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -7407,6 +7422,7 @@ function VisitEditDialog({
       file: form.get("photo"),
       files: getPhotoFilesFromForm(formElement),
       rating,
+      comment,
       type,
       visitedAt,
     });
@@ -7449,6 +7465,16 @@ function VisitEditDialog({
             {rating ? `${Number(rating).toFixed(1)}` : "未评分"}
           </span>
         </div>
+        <label style={{ marginTop: "4px" }}>
+          一句话点评
+          <input
+            type="text"
+            placeholder="写下一句话点评（可选）"
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            maxLength={120}
+          />
+        </label>
         <label>
           上传照片
           <input accept="image/*" multiple name="photo" type="file" />
@@ -9476,6 +9502,7 @@ function TravelRatingsSection({
   const [editableColumns, setEditableColumns] = useState({});
   const [frozenOrders, setFrozenOrders] = useState({});
   const [slidingRatings, setSlidingRatings] = useState({});
+  const [editingComments, setEditingComments] = useState({});
   const [customTieBreakers, setCustomTieBreakers] = useState(() => {
     const saved = localStorage.getItem("travel_ratings_tiebreakers");
     return saved ? JSON.parse(saved) : {};
@@ -9607,6 +9634,7 @@ function TravelRatingsSection({
       if (isUpgraded) {
         const allVisits = group.cityGroups.flatMap((g) => g.visits);
         const firstRating = allVisits[0]?.rating || 0;
+        const firstComment = allVisits.find((v) => v.comment && v.comment.trim())?.comment || "";
         ratingItems.push({
           type: "upgraded",
           id: `upgraded-${profileId}-${countryCode}`,
@@ -9614,6 +9642,7 @@ function TravelRatingsSection({
           country,
           label: displayCountryName(country),
           rating: firstRating,
+          comment: firstComment,
           visits: allVisits,
         });
       } else if (hasMerges) {
@@ -9631,6 +9660,7 @@ function TravelRatingsSection({
         if (mergedGroups.length > 0) {
           const allVisits = mergedGroups.flatMap((g) => g.visits);
           const firstRating = allVisits[0]?.rating || 0;
+          const firstComment = allVisits.find((v) => v.comment && v.comment.trim())?.comment || "";
           ratingItems.push({
             type: "merged",
             id: `merged-${profileId}-${countryCode}`,
@@ -9638,6 +9668,7 @@ function TravelRatingsSection({
             country,
             label: displayCountryName(country),
             rating: firstRating,
+            comment: firstComment,
             visits: allVisits,
             mergedCityIds,
           });
@@ -9645,6 +9676,7 @@ function TravelRatingsSection({
 
         unmergedGroups.forEach((cg) => {
           const firstRating = cg.visits[0]?.rating || 0;
+          const firstComment = cg.visits.find((v) => v.comment && v.comment.trim())?.comment || "";
           ratingItems.push({
             type: "city",
             id: `city-${profileId}-${cg.city.id}`,
@@ -9653,12 +9685,14 @@ function TravelRatingsSection({
             city: cg.city,
             label: `${displayCountryName(country)} · ${displayPlaceName(cg.city)}`,
             rating: firstRating,
+            comment: firstComment,
             visits: cg.visits,
           });
         });
       } else {
         group.cityGroups.forEach((cg) => {
           const firstRating = cg.visits[0]?.rating || 0;
+          const firstComment = cg.visits.find((v) => v.comment && v.comment.trim())?.comment || "";
           ratingItems.push({
             type: "city",
             id: `city-${profileId}-${cg.city.id}`,
@@ -9667,6 +9701,7 @@ function TravelRatingsSection({
             city: cg.city,
             label: `${displayCountryName(country)} · ${displayPlaceName(cg.city)}`,
             rating: firstRating,
+            comment: firstComment,
             visits: cg.visits,
           });
         });
@@ -9719,6 +9754,14 @@ function TravelRatingsSection({
         });
         setSlidingRatings((prevSliding) => {
           const updated = { ...prevSliding };
+          const currentItems = getProfileRatingItems(profileId);
+          currentItems.forEach((item) => {
+            delete updated[item.id];
+          });
+          return updated;
+        });
+        setEditingComments((prevComments) => {
+          const updated = { ...prevComments };
           const currentItems = getProfileRatingItems(profileId);
           currentItems.forEach((item) => {
             delete updated[item.id];
@@ -9886,7 +9929,14 @@ function TravelRatingsSection({
 
   async function handleRatingChange(item, newRating) {
     const visitIds = item.visits.map((v) => v.id);
-    await onUpdateVisitRatings(visitIds, newRating);
+    const currentComment = editingComments[item.id] !== undefined ? editingComments[item.id] : (item.comment || "");
+    await onUpdateVisitRatings(visitIds, newRating, currentComment);
+  }
+
+  async function handleCommentChange(item, newComment) {
+    const visitIds = item.visits.map((v) => v.id);
+    const currentVal = slidingRatings[item.id] !== undefined ? slidingRatings[item.id] : item.rating;
+    await onUpdateVisitRatings(visitIds, currentVal, newComment);
   }
 
   const ratingItemsByProfile = useMemo(() => {
@@ -9980,12 +10030,13 @@ function TravelRatingsSection({
                     const isColumnEditable = session && isEditor && !!editableColumns[profile.id];
                     const hasTie = isColumnEditable && ratingItems.some((other) => other.id !== item.id && other.rating === item.rating);
                     const currentVal = slidingRatings[item.id] !== undefined ? slidingRatings[item.id] : item.rating;
+                    const currentComment = editingComments[item.id] !== undefined ? editingComments[item.id] : (item.comment || "");
                     const tierClass = getRatingTierClass(currentVal);
 
                     return (
                       <div
                         key={item.id}
-                        className={`ratings-row ${tierClass} ${dragOverRatingId === item.id ? "drag-over" : ""}`}
+                        className={`ratings-row ${tierClass} ${dragOverRatingId === item.id ? "drag-over" : ""} ${isColumnEditable ? "editing-row" : ""}`}
                         onDragOver={(e) => handleRatingDragOver(e, item, profile.id)}
                         onDragLeave={handleRatingDragLeave}
                         onDrop={(e) => handleRatingDrop(e, item.id, profile.id)}
@@ -10022,74 +10073,101 @@ function TravelRatingsSection({
                           }
                         }}
                       >
-                        <div
-                          className={`ratings-row-left ${hasTie ? "draggable-handle" : ""}`}
-                          draggable={hasTie}
-                          onDragStart={(e) => {
-                            if (hasTie) {
-                              handleRatingDragStart(e, item.id);
-                            } else {
-                              e.preventDefault();
-                            }
-                          }}
-                        >
-                          <span className={`ratings-rank ${rank <= 3 ? "top-rank" : ""}`}>
-                            #{rank}
-                          </span>
-                          <FlagIcon place={item.country} />
-                          <span className="ratings-label-text">{item.label}</span>
+                        <div className="ratings-row-main">
+                          <div
+                            className={`ratings-row-left ${hasTie ? "draggable-handle" : ""}`}
+                            draggable={hasTie}
+                            onDragStart={(e) => {
+                              if (hasTie) {
+                                handleRatingDragStart(e, item.id);
+                              } else {
+                                e.preventDefault();
+                              }
+                            }}
+                          >
+                            <span className={`ratings-rank ${rank <= 3 ? "top-rank" : ""}`}>
+                              #{rank}
+                            </span>
+                            <FlagIcon place={item.country} />
+                            <span className="ratings-label-text">{item.label}</span>
+                          </div>
+
+                          <div className="ratings-row-right" draggable={false} onDragStart={(e) => e.preventDefault()}>
+                            <DecimalStarSelector
+                              rating={currentVal}
+                              isEditable={isColumnEditable}
+                              onSlide={(val) => setSlidingRatings((prev) => ({ ...prev, [item.id]: val }))}
+                              onChange={(val) => handleRatingChange(item, val)}
+                            />
+                            <div className={`ratings-score-wrapper ${isColumnEditable ? "editable" : ""}`}>
+                              <span className="ratings-score-value">
+                                {currentVal > 0 ? Number(currentVal).toFixed(1) : "未评分"}
+                              </span>
+                              {isColumnEditable && (
+                                <div className="ratings-score-adjust-btns">
+                                  <button
+                                    className="ratings-score-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newVal = Math.min(10, Math.max(0, Number((currentVal + 0.5).toFixed(1))));
+                                      setSlidingRatings((prev) => ({ ...prev, [item.id]: newVal }));
+                                      handleRatingChange(item, newVal);
+                                    }}
+                                    type="button"
+                                    title="增加 0.5 分"
+                                  >
+                                    <ChevronUp size={12} />
+                                  </button>
+                                  <button
+                                    className="ratings-score-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newVal = Math.min(10, Math.max(0, Number((currentVal - 0.5).toFixed(1))));
+                                      setSlidingRatings((prev) => ({ ...prev, [item.id]: newVal }));
+                                      handleRatingChange(item, newVal);
+                                    }}
+                                    type="button"
+                                    title="减少 0.5 分"
+                                  >
+                                    <ChevronDown size={12} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="ratings-row-right" draggable={false} onDragStart={(e) => e.preventDefault()}>
-                          {(() => {
-                            const currentVal = slidingRatings[item.id] !== undefined ? slidingRatings[item.id] : item.rating;
-                            return (
-                              <>
-                                <DecimalStarSelector
-                                  rating={currentVal}
-                                  isEditable={isColumnEditable}
-                                  onSlide={(val) => setSlidingRatings((prev) => ({ ...prev, [item.id]: val }))}
-                                  onChange={(val) => handleRatingChange(item, val)}
-                                />
-                                <div className={`ratings-score-wrapper ${isColumnEditable ? "editable" : ""}`}>
-                                  <span className="ratings-score-value">
-                                    {currentVal > 0 ? Number(currentVal).toFixed(1) : "未评分"}
-                                  </span>
-                                  {isColumnEditable && (
-                                    <div className="ratings-score-adjust-btns">
-                                      <button
-                                        className="ratings-score-btn"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const newVal = Math.min(10, Math.max(0, Number((currentVal + 0.5).toFixed(1))));
-                                          setSlidingRatings((prev) => ({ ...prev, [item.id]: newVal }));
-                                          handleRatingChange(item, newVal);
-                                        }}
-                                        type="button"
-                                        title="增加 0.5 分"
-                                      >
-                                        <ChevronUp size={12} />
-                                      </button>
-                                      <button
-                                        className="ratings-score-btn"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const newVal = Math.min(10, Math.max(0, Number((currentVal - 0.5).toFixed(1))));
-                                          setSlidingRatings((prev) => ({ ...prev, [item.id]: newVal }));
-                                          handleRatingChange(item, newVal);
-                                        }}
-                                        type="button"
-                                        title="减少 0.5 分"
-                                      >
-                                        <ChevronDown size={12} />
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
+                        {!isColumnEditable && item.comment && (
+                          <div className="ratings-row-comment">
+                            <Quote size={12} className="ratings-comment-quote-icon" />
+                            <span className="ratings-comment-content">{item.comment}</span>
+                          </div>
+                        )}
+
+                        {isColumnEditable && (
+                          <div className="ratings-row-comment-edit">
+                            <Quote size={12} className="ratings-comment-edit-icon" />
+                            <input
+                              type="text"
+                              className="ratings-comment-input"
+                              placeholder="写下一句话点评（可选）..."
+                              value={currentComment}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEditingComments((prev) => ({ ...prev, [item.id]: val }));
+                              }}
+                              onBlur={(e) => {
+                                handleCommentChange(item, e.target.value);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.target.blur();
+                                }
+                              }}
+                              maxLength={120}
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
