@@ -50,6 +50,7 @@ const staticVisits = initialVisits.map((v) => {
     profileId: v.profileId || v.profile_id,
     placeId: v.placeId || v.place_id,
     visitedAt: v.visitedAt || v.visited_at,
+    createdAt: v.createdAt || v.created_at || v.visitedAt || v.visited_at,
     dateDisplay: v.dateDisplay || v.visitedAt || v.visited_at,
     datePrecision: v.datePrecision || "day",
     type: v.type || v.trip_type,
@@ -2249,6 +2250,7 @@ function mapVisit(row) {
     profileId: row.profile_id,
     placeId: row.place_id,
     visitedAt: row.visited_at,
+    createdAt: row.created_at || row.visited_at,
     dateDisplay: meta.dateDisplay || row.visited_at,
     datePrecision: meta.datePrecision || "day",
     type: row.trip_type,
@@ -2483,7 +2485,23 @@ function App() {
 
   const [appProfiles, setAppProfiles] = useState(() => normalizeProfilesForDisplay(profiles));
   const [visits, setVisits] = useState(staticVisits);
-  const [recentInteractions, setRecentInteractions] = useState([]);
+  const [recentInteractions, setRecentInteractions] = useState(() => {
+    try {
+      const saved = localStorage.getItem("travel_recent_interactions");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("travel_recent_interactions", JSON.stringify(recentInteractions));
+    } catch (e) {
+      console.warn("Failed to save recentInteractions:", e);
+    }
+  }, [recentInteractions]);
+
   const [routes, setRoutes] = useState([]);
   const [routeMessage, setRouteMessage] = useState("");
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
@@ -2541,9 +2559,9 @@ function App() {
         supabase
           .from("visits")
           .select(
-            "id, profile_id, place_id, visited_at, trip_type, note, visit_photos(id, storage_path, caption)",
+            "id, profile_id, place_id, visited_at, trip_type, note, created_at, visit_photos(id, storage_path, caption)",
           )
-          .order("visited_at", { ascending: false }),
+          .order("created_at", { ascending: false }),
       ]), 3500);
 
       if (profilesResult.error) throw profilesResult.error;
@@ -7063,7 +7081,6 @@ function PlaceSearchPanel({
         return place ? { place, visit } : null;
       })
       .filter(Boolean)
-      .sort((a, b) => (b.visit.visitedAt || "").localeCompare(a.visit.visitedAt || ""))
       .forEach((item) => {
         const placeKey = canonicalPlaceId(item.place.mapId || item.place.id);
         const key = activeProfile === "all" ? placeKey : `${item.visit.profileId}:${placeKey}`;
@@ -7072,26 +7089,38 @@ function PlaceSearchPanel({
           existing.visits.push(item.visit);
           existing.visits.sort(
             (a, b) =>
-              (PROFILE_ID_ORDER.get(a.profileId) ?? 99) - (PROFILE_ID_ORDER.get(b.profileId) ?? 99) ||
-              (b.visitedAt || "").localeCompare(a.visitedAt || ""),
+              (b.createdAt || b.visitedAt || "").localeCompare(a.createdAt || a.visitedAt || "") ||
+              (PROFILE_ID_ORDER.get(a.profileId) ?? 99) - (PROFILE_ID_ORDER.get(b.profileId) ?? 99),
           );
         } else {
           byPlace.set(key, { ...item, visits: [item.visit] });
         }
       });
+
     const finalPlaces = Array.from(byPlace.values());
-    if (recentInteractions && recentInteractions.length > 0) {
-      finalPlaces.sort((a, b) => {
-        const aKey = canonicalPlaceId(a.place.mapId || a.place.id);
-        const bKey = canonicalPlaceId(b.place.mapId || b.place.id);
-        const aIdx = recentInteractions.indexOf(aKey);
-        const bIdx = recentInteractions.indexOf(bKey);
-        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-        if (aIdx !== -1) return -1;
-        if (bIdx !== -1) return 1;
-        return 0;
-      });
-    }
+
+    finalPlaces.sort((a, b) => {
+      const aKey = canonicalPlaceId(a.place.mapId || a.place.id);
+      const bKey = canonicalPlaceId(b.place.mapId || b.place.id);
+      const aIdx = recentInteractions ? recentInteractions.indexOf(aKey) : -1;
+      const bIdx = recentInteractions ? recentInteractions.indexOf(bKey) : -1;
+
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+      if (aIdx !== -1) return -1;
+      if (bIdx !== -1) return 1;
+
+      const aLatestCreated = a.visits.map((v) => v.createdAt || v.visitedAt || "").sort().pop() || "";
+      const bLatestCreated = b.visits.map((v) => v.createdAt || v.visitedAt || "").sort().pop() || "";
+
+      if (aLatestCreated !== bLatestCreated) {
+        return bLatestCreated.localeCompare(aLatestCreated);
+      }
+
+      const aLatestVisited = a.visits.map((v) => v.visitedAt || "").sort().pop() || "";
+      const bLatestVisited = b.visits.map((v) => v.visitedAt || "").sort().pop() || "";
+      return bLatestVisited.localeCompare(aLatestVisited);
+    });
+
     return finalPlaces;
   }, [activeProfile, compact, places, visits, recentInteractions]);
 
