@@ -201,7 +201,7 @@ async function run() {
 
     // 2. 获取 visits
     console.log("⏳ 正在读取云端真实 visits...");
-    const rawVisits = await getJson("/rest/v1/visits?select=id,profile_id,place_id,visited_at,trip_type,note,visit_photos(id,storage_path,caption)&order=visited_at.desc");
+    const rawVisits = await getJson("/rest/v1/visits?select=id,profile_id,place_id,visited_at,trip_type,note,created_at,visit_photos(id,storage_path,caption)&order=created_at.desc");
     const visits = rawVisits.map(v => {
       const photos = (v.visit_photos || []).map(p => {
         const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/travel-photos/${p.storage_path}`;
@@ -216,6 +216,7 @@ async function run() {
         profileId: v.profile_id,
         placeId: v.place_id,
         visitedAt: v.visited_at,
+        createdAt: v.created_at || v.visited_at,
         type: v.trip_type,
         note: v.note || "",
         photos: photos

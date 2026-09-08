@@ -3271,7 +3271,8 @@ function App() {
   async function updateVisitRatings(visitIds, newRating, newComment) {
     if (!session || !isEditor) return false;
     const normalizedRating = Math.max(0, Math.min(10, Number(newRating) || 0));
-    // Immediately update local state for responsive UI
+    const nowIso = new Date().toISOString();
+
     setVisits((prev) =>
       prev.map((v) =>
         visitIds.includes(v.id)
@@ -3279,10 +3280,28 @@ function App() {
               ...v,
               rating: normalizedRating,
               comment: newComment !== undefined ? newComment : (v.comment || ""),
+              updatedAt: nowIso,
             }
           : v,
       ),
     );
+
+    const targetPlaceIds = visits
+      .filter((v) => visitIds.includes(v.id))
+      .map((v) => canonicalPlaceId(v.placeId));
+
+    if (targetPlaceIds.length > 0) {
+      setRecentInteractions((prev) => {
+        const next = [...prev];
+        targetPlaceIds.forEach((pId) => {
+          const idx = next.indexOf(pId);
+          if (idx !== -1) next.splice(idx, 1);
+          next.unshift(pId);
+        });
+        return next;
+      });
+    }
+
     try {
       for (const id of visitIds) {
         const oldVisit = visits.find((v) => v.id === id);
