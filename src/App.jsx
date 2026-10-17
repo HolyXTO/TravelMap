@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronDown,
   ChevronRight,
@@ -7593,6 +7594,111 @@ function DecimalStarSelector({ rating, onChange, onSlide, isEditable = false }) 
   );
 }
 
+function VisitDatesEditor({ dates, setDates }) {
+  const [editingIndex, setEditingIndex] = useState(null);
+
+  const handleAddDate = () => {
+    setDates((prev) => {
+      const next = [...prev.filter(Boolean), ""];
+      setEditingIndex(next.length - 1);
+      return next;
+    });
+  };
+
+  const handleRemoveDate = (idxToRemove) => {
+    setDates((prev) => prev.filter((_, i) => i !== idxToRemove));
+    if (editingIndex === idxToRemove) {
+      setEditingIndex(null);
+    } else if (editingIndex !== null && editingIndex > idxToRemove) {
+      setEditingIndex(editingIndex - 1);
+    }
+  };
+
+  const handleDateChange = (idx, val) => {
+    setDates((prev) => {
+      const next = [...prev];
+      next[idx] = val;
+      return next;
+    });
+  };
+
+  return (
+    <div className="dates-manager">
+      <div className="dates-header-row">
+        <span className="dates-label-title">到访时间（支持记录多次）</span>
+        <button
+          type="button"
+          className="add-date-btn-inline"
+          onClick={handleAddDate}
+        >
+          <Plus size={13} /> 添加时间
+        </button>
+      </div>
+
+      <div className="dates-inputs-list">
+        {dates.map((dateVal, idx) => {
+          const isEditing = editingIndex === idx || !dateVal;
+
+          if (isEditing) {
+            return (
+              <div key={idx} className="date-input-row date-editing-row">
+                <DatePrecisionInput
+                  value={dateVal || ""}
+                  onChange={(val) => handleDateChange(idx, val)}
+                />
+                <button
+                  type="button"
+                  className="date-confirm-btn"
+                  title="完成此时间编辑"
+                  onClick={() => setEditingIndex(null)}
+                >
+                  <Check size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="date-remove-btn"
+                  title="删除此次时间"
+                  onClick={() => handleRemoveDate(idx)}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            );
+          }
+
+          return (
+            <div key={idx} className="date-display-row">
+              <span className="date-display-text">{dateVal}</span>
+              <div className="date-display-actions">
+                <button
+                  type="button"
+                  className="date-action-btn edit-btn"
+                  title="修改时间"
+                  onClick={() => setEditingIndex(idx)}
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  type="button"
+                  className="date-action-btn delete-btn"
+                  title="删除时间"
+                  onClick={() => handleRemoveDate(idx)}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {dates.length === 0 && (
+          <div className="dates-empty-hint">暂未记录到访时间，点击右上角“+ 添加时间”</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function VisitEditDialog({
   authMessage,
   isSaving,
@@ -7620,10 +7726,10 @@ function VisitEditDialog({
   // Xiao State
   const [xiaoEnabled, setXiaoEnabled] = useState(Boolean(initialXiaoVisit));
   const [xiaoDates, setXiaoDates] = useState(() => {
-    if (initialXiaoVisit?.visitDates?.length) return [...initialXiaoVisit.visitDates];
+    if (initialXiaoVisit?.visitDates?.length) return initialXiaoVisit.visitDates.filter(Boolean);
     if (initialXiaoVisit?.dateDisplay) return [initialXiaoVisit.dateDisplay];
     if (initialXiaoVisit?.visitedAt) return [initialXiaoVisit.visitedAt];
-    return [""];
+    return [];
   });
   const [xiaoType, setXiaoType] = useState(initialXiaoVisit?.type || "旅行");
   const [xiaoRating, setXiaoRating] = useState(initialXiaoVisit?.rating || 0);
@@ -7633,10 +7739,10 @@ function VisitEditDialog({
   // Tang State
   const [tangEnabled, setTangEnabled] = useState(Boolean(initialTangVisit));
   const [tangDates, setTangDates] = useState(() => {
-    if (initialTangVisit?.visitDates?.length) return [...initialTangVisit.visitDates];
+    if (initialTangVisit?.visitDates?.length) return initialTangVisit.visitDates.filter(Boolean);
     if (initialTangVisit?.dateDisplay) return [initialTangVisit.dateDisplay];
     if (initialTangVisit?.visitedAt) return [initialTangVisit.visitedAt];
-    return [""];
+    return [];
   });
   const [tangType, setTangType] = useState(initialTangVisit?.type || "旅行");
   const [tangRating, setTangRating] = useState(initialTangVisit?.rating || 0);
@@ -7647,12 +7753,12 @@ function VisitEditDialog({
     setXiaoEnabled(Boolean(initialXiaoVisit));
     setXiaoDates(
       initialXiaoVisit?.visitDates?.length
-        ? [...initialXiaoVisit.visitDates]
+        ? initialXiaoVisit.visitDates.filter(Boolean)
         : initialXiaoVisit?.dateDisplay
         ? [initialXiaoVisit.dateDisplay]
         : initialXiaoVisit?.visitedAt
         ? [initialXiaoVisit.visitedAt]
-        : [""]
+        : []
     );
     setXiaoType(initialXiaoVisit?.type || "旅行");
     setXiaoRating(initialXiaoVisit?.rating || 0);
@@ -7664,12 +7770,12 @@ function VisitEditDialog({
     setTangEnabled(Boolean(initialTangVisit));
     setTangDates(
       initialTangVisit?.visitDates?.length
-        ? [...initialTangVisit.visitDates]
+        ? initialTangVisit.visitDates.filter(Boolean)
         : initialTangVisit?.dateDisplay
         ? [initialTangVisit.dateDisplay]
         : initialTangVisit?.visitedAt
         ? [initialTangVisit.visitedAt]
-        : [""]
+        : []
     );
     setTangType(initialTangVisit?.type || "旅行");
     setTangRating(initialTangVisit?.rating || 0);
@@ -7745,44 +7851,7 @@ function VisitEditDialog({
               </div>
             ) : (
               <div className="column-form-fields">
-                <div className="dates-manager">
-                  <div className="dates-header-row">
-                    <span className="dates-label-title">到访时间（支持记录多次）</span>
-                    <button
-                      type="button"
-                      className="add-date-btn-inline"
-                      onClick={() => setXiaoDates((prev) => [...prev, ""])}
-                    >
-                      <Plus size={13} /> 添加时间
-                    </button>
-                  </div>
-                  <div className="dates-inputs-list">
-                    {xiaoDates.map((dateVal, idx) => (
-                      <div key={idx} className="date-input-row">
-                        <DatePrecisionInput
-                          value={dateVal || ""}
-                          onChange={(val) => {
-                            setXiaoDates((prev) => {
-                              const next = [...prev];
-                              next[idx] = val;
-                              return next;
-                            });
-                          }}
-                        />
-                        {xiaoDates.length > 1 && (
-                          <button
-                            type="button"
-                            className="date-remove-btn"
-                            title="删除此次时间"
-                            onClick={() => setXiaoDates((prev) => prev.filter((_, i) => i !== idx))}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <VisitDatesEditor dates={xiaoDates} setDates={setXiaoDates} />
 
                 <div className="rating-row" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "4px 0" }}>
                   <span style={{ fontSize: "0.88rem", fontWeight: "700", color: "#475569" }}>评分</span>
@@ -7842,44 +7911,7 @@ function VisitEditDialog({
               </div>
             ) : (
               <div className="column-form-fields">
-                <div className="dates-manager">
-                  <div className="dates-header-row">
-                    <span className="dates-label-title">到访时间（支持记录多次）</span>
-                    <button
-                      type="button"
-                      className="add-date-btn-inline"
-                      onClick={() => setTangDates((prev) => [...prev, ""])}
-                    >
-                      <Plus size={13} /> 添加时间
-                    </button>
-                  </div>
-                  <div className="dates-inputs-list">
-                    {tangDates.map((dateVal, idx) => (
-                      <div key={idx} className="date-input-row">
-                        <DatePrecisionInput
-                          value={dateVal || ""}
-                          onChange={(val) => {
-                            setTangDates((prev) => {
-                              const next = [...prev];
-                              next[idx] = val;
-                              return next;
-                            });
-                          }}
-                        />
-                        {tangDates.length > 1 && (
-                          <button
-                            type="button"
-                            className="date-remove-btn"
-                            title="删除此次时间"
-                            onClick={() => setTangDates((prev) => prev.filter((_, i) => i !== idx))}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <VisitDatesEditor dates={tangDates} setDates={setTangDates} />
 
                 <div className="rating-row" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "4px 0" }}>
                   <span style={{ fontSize: "0.88rem", fontWeight: "700", color: "#475569" }}>评分</span>
@@ -8902,7 +8934,134 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
       console.warn("Failed to save travel notes settings to cloud:", err);
     }
   };
-  
+
+  // 默认显示行数配置 (每行3篇，默认3行=9篇)
+  const [defaultRows, setDefaultRows] = useState(() => {
+    try {
+      const saved = localStorage.getItem("travel_notes_default_rows");
+      const num = parseInt(saved, 10);
+      return !isNaN(num) && num > 0 ? num : 3;
+    } catch (e) {
+      return 3;
+    }
+  });
+  const [isShowingAllNotes, setIsShowingAllNotes] = useState(false);
+  const [isRowsSettingsOpen, setIsRowsSettingsOpen] = useState(false);
+  const [tempRows, setTempRows] = useState(defaultRows);
+  const [rowsSavedMsg, setRowsSavedMsg] = useState("");
+
+  // 回收站功能 (存储已删除的笔记对象)
+  const [recycledNotes, setRecycledNotes] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("travel_recycled_notes") || "[]");
+    } catch (e) {
+      return [];
+    }
+  });
+  const [isRecycleBinOpen, setIsRecycleBinOpen] = useState(false);
+
+  useEffect(() => {
+    if (isRowsSettingsOpen) {
+      setTempRows(defaultRows);
+      setRowsSavedMsg("");
+    }
+  }, [isRowsSettingsOpen, defaultRows]);
+
+  const handleSaveRows = () => {
+    const validRows = Math.max(1, parseInt(tempRows, 10) || 3);
+    setDefaultRows(validRows);
+    try {
+      localStorage.setItem("travel_notes_default_rows", String(validRows));
+    } catch (e) {
+      console.error("Failed to save default rows:", e);
+    }
+    setRowsSavedMsg("已保存并即刻生效！");
+    setTimeout(() => setRowsSavedMsg(""), 2000);
+  };
+
+  const handleRestoreNote = async (noteToRestore) => {
+    const nextRecycled = recycledNotes.filter((n) => n.id !== noteToRestore.id);
+    setRecycledNotes(nextRecycled);
+    try {
+      localStorage.setItem("travel_recycled_notes", JSON.stringify(nextRecycled));
+    } catch (err) {
+      console.error("Failed to update recycled notes on restore:", err);
+    }
+
+    const isDefault = defaultTravelNotes.some((n) => n.id === noteToRestore.id) || ["note-1", "note-2", "note-3", "note-4", "note-5"].includes(noteToRestore.id);
+    if (isDefault) {
+      let deletedIds = [];
+      try {
+        deletedIds = JSON.parse(localStorage.getItem("deleted_default_notes") || "[]");
+        deletedIds = deletedIds.filter((did) => did !== noteToRestore.id);
+        localStorage.setItem("deleted_default_notes", JSON.stringify(deletedIds));
+      } catch (err) {
+        console.error(err);
+      }
+      let order = [];
+      try {
+        order = JSON.parse(localStorage.getItem("travel_notes_order") || "[]");
+        if (!order.includes(noteToRestore.id)) {
+          order.unshift(noteToRestore.id);
+          localStorage.setItem("travel_notes_order", JSON.stringify(order));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      await saveCloudSettings(deletedIds, order);
+    } else {
+      if (session) {
+        try {
+          const dbRecord = {
+            id: noteToRestore.id,
+            city: noteToRestore.city,
+            cover_image: noteToRestore.coverImage || "",
+            cover_image_position: {
+              ...(noteToRestore.coverImagePosition || { x: 50, y: 50 }),
+              author: noteToRestore.author || "Xiao",
+            },
+            start_date: noteToRestore.startDate || null,
+            end_date: noteToRestore.endDate || null,
+            rating: noteToRestore.rating || 0,
+            summary: noteToRestore.summary || "",
+            center: noteToRestore.center || [0, 0],
+            addresses: noteToRestore.addresses || [],
+            created_by: session?.user?.id ?? null,
+          };
+          await supabase.from("travel_notes").upsert(dbRecord, { onConflict: "id" });
+        } catch (err) {
+          console.warn("Failed to restore to Supabase:", err);
+        }
+      }
+    }
+
+    setNotes((prev) => {
+      if (prev.some((n) => n.id === noteToRestore.id)) return prev;
+      return [noteToRestore, ...prev];
+    });
+  };
+
+  const handlePurgeNote = (id) => {
+    if (!confirm("确定要彻底删除该记录吗？此操作无法撤销。")) return;
+    const nextRecycled = recycledNotes.filter((n) => n.id !== id);
+    setRecycledNotes(nextRecycled);
+    try {
+      localStorage.setItem("travel_recycled_notes", JSON.stringify(nextRecycled));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleClearAllRecycled = () => {
+    if (!confirm("确定要清空回收站中的所有记录吗？此操作无法撤销。")) return;
+    setRecycledNotes([]);
+    try {
+      localStorage.setItem("travel_recycled_notes", "[]");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const [expandedNoteId, setExpandedNoteId] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
   const [isAddingNote, setIsAddingNote] = useState(false);
@@ -9347,7 +9506,28 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
-    if (!confirm("确定要删除这篇旅行记录吗？")) return;
+    if (!confirm("确定要删除这篇旅行记录吗？删除后可在右下角回收站中找回。")) return;
+
+    const noteToDelete = notes.find((n) => n.id === id);
+    if (noteToDelete) {
+      const recycledItem = {
+        ...noteToDelete,
+        deletedAt: new Date().toLocaleString("zh-CN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      const nextRecycled = [recycledItem, ...recycledNotes.filter((n) => n.id !== id)];
+      setRecycledNotes(nextRecycled);
+      try {
+        localStorage.setItem("travel_recycled_notes", JSON.stringify(nextRecycled));
+      } catch (err) {
+        console.error("Failed to save recycled note:", err);
+      }
+    }
     
     const isDefault = defaultTravelNotes.some((n) => n.id === id) || ["note-1", "note-2", "note-3", "note-4", "note-5"].includes(id);
     if (isDefault) {
@@ -9624,20 +9804,54 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
         <h2>
           旅行记录·<span className="major-title-en">Travel Notes</span>·<span className="major-title-number">{notes.length}</span>
         </h2>
-        {canEdit && (
-          <button
-            className="country-gallery-toggle active"
-            onClick={() => setIsAddingNote(true)}
-            type="button"
-            style={{ padding: "8px 18px", borderRadius: "999px", background: "linear-gradient(135deg, #c69b55, #b8863b)", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px" }}
-          >
-            <Plus size={16} /> 写新记录
-          </button>
-        )}
+        <div className="travel-notes-header-actions" style={{ gridColumn: 3, justifySelf: "end", display: "inline-flex", alignItems: "center", gap: "10px" }}>
+          {notes.length > 0 && (
+            <button
+              className={`country-gallery-toggle notes-view-all-toggle ${isShowingAllNotes ? "active" : ""}`}
+              onClick={() => setIsShowingAllNotes((prev) => !prev)}
+              type="button"
+              style={{
+                padding: "8px 18px",
+                borderRadius: "999px",
+                border: "1px solid #d0d7de",
+                background: isShowingAllNotes ? "#0f172a" : "#ffffff",
+                color: isShowingAllNotes ? "#ffffff" : "#334155",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontWeight: "600",
+                fontSize: "0.92rem",
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                transition: "all 0.2s ease",
+              }}
+            >
+              {isShowingAllNotes ? (
+                <>
+                  <ChevronUp size={16} /> 收起
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={16} /> 查看全部
+                </>
+              )}
+            </button>
+          )}
+          {canEdit && (
+            <button
+              className="country-gallery-toggle active"
+              onClick={() => setIsAddingNote(true)}
+              type="button"
+              style={{ padding: "8px 18px", borderRadius: "999px", background: "linear-gradient(135deg, #c69b55, #b8863b)", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px", border: "none", fontWeight: "600", fontSize: "0.92rem", cursor: "pointer", boxShadow: "0 2px 6px rgba(184,134,59,0.3)" }}
+            >
+              <Plus size={16} /> 写新记录
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="travel-notes-grid">
-        {notes.map((note) => {
+        {(isShowingAllNotes ? notes : notes.slice(0, defaultRows * 3)).map((note) => {
           const isExpanded = expandedNoteId === note.id;
           return (
             <div
@@ -9879,6 +10093,204 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
             <img src={activeZoomPhoto} alt="Enlarged view" />
           </div>
+        </div>
+      )}
+
+      {/* 底部隐藏按钮：回收站 (最左, right: 104px) */}
+      <button
+        aria-label="旅行记录回收站"
+        className="hidden-recycle-bin-trigger"
+        onClick={() => {
+          setIsRecycleBinOpen((prev) => !prev);
+          setIsRowsSettingsOpen(false);
+        }}
+        title="旅行记录回收站"
+        type="button"
+      >
+        <Trash2 size={17} />
+      </button>
+
+      {/* 底部隐藏按钮：默认行数 (中间, right: 58px) */}
+      <button
+        aria-label="旅行记录默认显示行数"
+        className="hidden-notes-rows-trigger"
+        onClick={() => {
+          setIsRowsSettingsOpen((prev) => !prev);
+          setIsRecycleBinOpen(false);
+        }}
+        title="设置旅行记录显示行数"
+        type="button"
+      >
+        <Layers3 size={17} />
+      </button>
+
+      {/* 默认行数弹窗 */}
+      {isRowsSettingsOpen && (
+        <div className="notes-rows-popover" role="dialog" aria-label="旅行记录默认显示行数">
+          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <p className="eyebrow" style={{ margin: 0, fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase" }}>Layout</p>
+              <strong style={{ fontSize: "1.05rem", color: "#0f172a" }}>旅行记录默认行数</strong>
+            </div>
+            <button
+              aria-label="关闭"
+              onClick={() => setIsRowsSettingsOpen(false)}
+              type="button"
+              style={{ display: "grid", placeItems: "center", width: "30px", height: "30px", border: "1px solid #d7e0ea", borderRadius: "8px", background: "#fff", cursor: "pointer" }}
+            >
+              <X size={16} />
+            </button>
+          </header>
+
+          <p style={{ margin: 0, fontSize: "0.86rem", color: "#475569", lineHeight: 1.5 }}>
+            设置旅行记录卡片默认展示的行数（每行 3 篇，当前设置将默认展示 <strong style={{ color: "#0f172a" }}>{tempRows * 3}</strong> 篇）：
+          </p>
+
+          <div className="notes-rows-stepper-wrap">
+            <div className="notes-rows-stepper">
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={tempRows}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val)) setTempRows(Math.max(1, val));
+                }}
+                className="notes-rows-input"
+              />
+              <div className="notes-rows-btn-group">
+                <button
+                  type="button"
+                  className="notes-rows-step-btn"
+                  title="增加一行 (+1)"
+                  onClick={() => setTempRows((prev) => prev + 1)}
+                >
+                  <ChevronUp size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="notes-rows-step-btn"
+                  title="减少一行 (-1)"
+                  onClick={() => setTempRows((prev) => Math.max(1, prev - 1))}
+                  disabled={tempRows <= 1}
+                >
+                  <ChevronDown size={14} />
+                </button>
+              </div>
+            </div>
+            <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: "600" }}>行</span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={handleSaveRows}
+              style={{
+                flex: 1,
+                padding: "9px 16px",
+                borderRadius: "8px",
+                border: "none",
+                background: "linear-gradient(135deg, #c69b55, #b8863b)",
+                color: "#fff",
+                fontWeight: "700",
+                fontSize: "0.92rem",
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(184,134,59,0.25)"
+              }}
+            >
+              保存并生效
+            </button>
+          </div>
+          {rowsSavedMsg && (
+            <p style={{ margin: 0, fontSize: "0.82rem", color: "#16a34a", fontWeight: "700" }}>
+              ✓ {rowsSavedMsg}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* 回收站弹窗 */}
+      {isRecycleBinOpen && (
+        <div className="notes-recycle-bin-popover" role="dialog" aria-label="旅行记录回收站">
+          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <p className="eyebrow" style={{ margin: 0, fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase" }}>Recycle Bin</p>
+              <strong style={{ fontSize: "1.05rem", color: "#0f172a" }}>旅行记录回收站 ({recycledNotes.length})</strong>
+            </div>
+            <button
+              aria-label="关闭"
+              onClick={() => setIsRecycleBinOpen(false)}
+              type="button"
+              style={{ display: "grid", placeItems: "center", width: "30px", height: "30px", border: "1px solid #d7e0ea", borderRadius: "8px", background: "#fff", cursor: "pointer" }}
+            >
+              <X size={16} />
+            </button>
+          </header>
+
+          {recycledNotes.length === 0 ? (
+            <div className="recycle-bin-empty">
+              <Trash2 size={36} opacity={0.3} />
+              <p style={{ margin: 0, fontSize: "0.88rem" }}>回收站是空的，没有被删除的旅行记录</p>
+            </div>
+          ) : (
+            <>
+              <div className="recycle-bin-list">
+                {recycledNotes.map((item) => (
+                  <div key={item.id} className="recycle-bin-item">
+                    {item.coverImage ? (
+                      <img src={item.coverImage} alt={item.city} className="recycle-item-thumb" />
+                    ) : (
+                      <div className="recycle-item-thumb" style={{ display: "grid", placeItems: "center", color: "#94a3b8" }}>
+                        <MapIcon size={20} />
+                      </div>
+                    )}
+                    <div className="recycle-item-info">
+                      <strong>{item.city || "未命名记录"}</strong>
+                      <small>
+                        {item.startDate ? `${item.startDate} ~ ${item.endDate || ""}` : "未指定日期"} · {item.addresses?.length || 0} 个足迹点
+                      </small>
+                      <span className="recycle-deleted-time">删除于：{item.deletedAt || "近期"}</span>
+                    </div>
+                    <div className="recycle-item-actions">
+                      <button
+                        type="button"
+                        className="recycle-restore-btn"
+                        title="恢复这篇记录到网页"
+                        onClick={() => handleRestoreNote(item)}
+                      >
+                        <RotateCcw size={13} /> 恢复
+                      </button>
+                      <button
+                        type="button"
+                        className="recycle-purge-btn"
+                        title="彻底删除"
+                        onClick={() => handlePurgeNote(item.id)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "6px", borderTop: "1px solid #e2e8f0" }}>
+                <button
+                  type="button"
+                  onClick={handleClearAllRecycled}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#94a3b8",
+                    fontSize: "0.82rem",
+                    cursor: "pointer",
+                    textDecoration: "underline"
+                  }}
+                >
+                  清空回收站
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </section>

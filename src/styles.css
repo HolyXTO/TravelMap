@@ -3259,6 +3259,67 @@ h2 {
   gap: 6px;
 }
 
+.date-display-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.15s ease;
+}
+
+.date-display-row:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.date-display-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: 0.02em;
+}
+
+.date-display-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.date-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.date-action-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.date-action-btn.edit-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-color: #bae6fd;
+}
+
+.date-action-btn.delete-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
 .date-input-row {
   display: flex;
   align-items: center;
@@ -3267,6 +3328,26 @@ h2 {
 
 .date-input-row .date-precision-input {
   flex: 1;
+}
+
+.date-confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+  color: #16a34a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.date-confirm-btn:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
 }
 
 .date-remove-btn {
@@ -3280,11 +3361,19 @@ h2 {
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .date-remove-btn:hover {
   color: #ef4444;
   background: #fee2e2;
+}
+
+.dates-empty-hint {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  padding: 6px 4px;
+  font-style: italic;
 }
 
 .column-footer-actions {
@@ -3508,6 +3597,279 @@ h2 {
   padding: 10px 11px;
   color: #0f172a;
   font-weight: 850;
+}
+
+/* 底部隐藏按钮：行数配置 (中间) */
+.hidden-notes-rows-trigger {
+  position: fixed;
+  right: 58px;
+  bottom: 12px;
+  z-index: 1600;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #cbd5e133;
+  border-radius: 999px;
+  background: #ffffffcc;
+  color: #123c30;
+  opacity: 0.035;
+  box-shadow: 0 16px 38px #0f172a1f;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease;
+  cursor: pointer;
+}
+
+.hidden-notes-rows-trigger:hover,
+.hidden-notes-rows-trigger:focus-visible {
+  opacity: 0.72;
+  transform: translateY(-2px);
+  border-color: #9bb7aa;
+}
+
+/* 底部隐藏按钮：回收站 (最左) */
+.hidden-recycle-bin-trigger {
+  position: fixed;
+  right: 104px;
+  bottom: 12px;
+  z-index: 1600;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #cbd5e133;
+  border-radius: 999px;
+  background: #ffffffcc;
+  color: #123c30;
+  opacity: 0.035;
+  box-shadow: 0 16px 38px #0f172a1f;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease;
+  cursor: pointer;
+}
+
+.hidden-recycle-bin-trigger:hover,
+.hidden-recycle-bin-trigger:focus-visible {
+  opacity: 0.72;
+  transform: translateY(-2px);
+  border-color: #9bb7aa;
+}
+
+/* 默认显示行数弹窗 */
+.notes-rows-popover {
+  position: fixed;
+  right: 18px;
+  bottom: 58px;
+  z-index: 1590;
+  display: grid;
+  gap: 12px;
+  width: min(340px, calc(100vw - 28px));
+  border: 1px solid #d8e2ee;
+  border-radius: 8px;
+  background: #fffffff2;
+  padding: 16px;
+  box-shadow: 0 24px 70px #0f172a2e;
+  backdrop-filter: blur(14px);
+  animation: dialog-fade-in 0.2s ease-out;
+}
+
+.notes-rows-stepper-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.notes-rows-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.notes-rows-input {
+  width: 60px;
+  border: none;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  padding: 8px 4px;
+  outline: none;
+}
+
+.notes-rows-btn-group {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #e2e8f0;
+}
+
+.notes-rows-step-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 20px;
+  background: #f8fafc;
+  border: none;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.notes-rows-step-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.notes-rows-step-btn:first-child {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* 旅行记录回收站弹窗 */
+.notes-recycle-bin-popover {
+  position: fixed;
+  right: 18px;
+  bottom: 58px;
+  z-index: 1590;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(440px, calc(100vw - 28px));
+  max-height: min(540px, 80vh);
+  border: 1px solid #d8e2ee;
+  border-radius: 8px;
+  background: #fffffff2;
+  padding: 16px;
+  box-shadow: 0 24px 70px #0f172a2e;
+  backdrop-filter: blur(14px);
+  animation: dialog-fade-in 0.2s ease-out;
+}
+
+.recycle-bin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  max-height: 360px;
+  padding-right: 4px;
+}
+
+.recycle-bin-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+
+.recycle-bin-item:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.recycle-item-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.recycle-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recycle-item-info strong {
+  display: block;
+  font-size: 0.95rem;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recycle-item-info small {
+  display: block;
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.recycle-item-info .recycle-deleted-time {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
+}
+
+.recycle-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.recycle-restore-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recycle-restore-btn:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+}
+
+.recycle-purge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recycle-purge-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.recycle-bin-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 0;
+  color: #94a3b8;
+  text-align: center;
+  gap: 10px;
 }
 
 .journey-visual-gate {
