@@ -7181,6 +7181,7 @@ function PlaceSearchPanel({
   const [profileId, setProfileId] = useState(activeProfile || "all");
   const [visitedAt, setVisitedAt] = useState("");
   const [type, setType] = useState("旅行");
+  const [highlightedKey, setHighlightedKey] = useState(null);
   const addedItemRefs = useRef(new Map());
   const addedListRef = useRef(null);
 
@@ -7273,19 +7274,103 @@ function PlaceSearchPanel({
     return filtered;
   }, [effectiveAllVisits, places, profileId, activeProfile, recentInteractions]);
 
+  const scrollToPlace = useCallback((targetKey, highlight = true) => {
+    if (!targetKey) return;
+    if (highlight) {
+      setHighlightedKey(targetKey);
+    }
+    const node = addedItemRefs.current.get(targetKey);
+    const list = addedListRef.current;
+    if (node && list) {
+      const listRect = list.getBoundingClientRect();
+      const nodeRect = node.getBoundingClientRect();
+      const targetScrollTop = list.scrollTop + (nodeRect.top - listRect.top) - 36;
+      list.scrollTo({ top: Math.max(0, targetScrollTop), behavior: "smooth" });
+    }
+  }, []);
+
   useEffect(() => {
     const targetId = typeof focusRequest === "string" ? focusRequest : focusRequest?.placeId;
     if (!targetId) return;
+    const cKey = canonicalPlaceId(targetId);
     window.setTimeout(() => {
-      const node = addedItemRefs.current.get(canonicalPlaceId(targetId));
-      const list = addedListRef.current;
-      if (node && list) {
-        const nodeTop = node.offsetTop - list.offsetTop;
-        list.scrollTo({ top: Math.max(0, nodeTop), behavior: "smooth" });
-      }
+      scrollToPlace(cKey, true);
       onFocusConsumed?.();
-    }, 0);
-  }, [focusRequest, onFocusConsumed]);
+    }, 50);
+  }, [focusRequest, onFocusConsumed, scrollToPlace]);
+
+  useEffect(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) {
+      setHighlightedKey(null);
+      return;
+    }
+
+    let targetKey = null;
+
+    // 1. Direct place name match in addedPlaces (exact match on displayPlaceName, name, or localName)
+    const exactMatch = addedPlaces.find((item) => {
+      const p = item.place;
+      const dName = displayPlaceName(p).toLowerCase();
+      const name = (p.name || "").toLowerCase();
+      const lName = (p.localName || "").toLowerCase();
+      return dName === needle || name === needle || lName === needle;
+    });
+
+    if (exactMatch) {
+      targetKey = canonicalPlaceId(exactMatch.place.mapId || exactMatch.place.id);
+    } else {
+      // 2. First result from search results that exists in addedPlaces
+      for (const res of results) {
+        const cKey = canonicalPlaceId(res.mapId || res.id);
+        if (addedPlaces.some((item) => canonicalPlaceId(item.place.mapId || item.place.id) === cKey)) {
+          targetKey = cKey;
+          break;
+        }
+      }
+    }
+
+    // 3. Fallback: prefix match in addedPlaces
+    if (!targetKey) {
+      const prefixMatch = addedPlaces.find((item) => {
+        const p = item.place;
+        const dName = displayPlaceName(p).toLowerCase();
+        const name = (p.name || "").toLowerCase();
+        const lName = (p.localName || "").toLowerCase();
+        return dName.startsWith(needle) || name.startsWith(needle) || lName.startsWith(needle);
+      });
+      if (prefixMatch) {
+        targetKey = canonicalPlaceId(prefixMatch.place.mapId || prefixMatch.place.id);
+      } else {
+        // 4. Substring match in addedPlaces
+        const subMatch = addedPlaces.find((item) => {
+          const p = item.place;
+          const dName = displayPlaceName(p).toLowerCase();
+          const name = (p.name || "").toLowerCase();
+          const lName = (p.localName || "").toLowerCase();
+          return dName.includes(needle) || name.includes(needle) || lName.includes(needle);
+        });
+        if (subMatch) {
+          targetKey = canonicalPlaceId(subMatch.place.mapId || subMatch.place.id);
+        } else {
+          // 5. Full search text match (province, country, aliases)
+          const fullMatch = addedPlaces.find((item) => placeSearchText(item.place).includes(needle));
+          if (fullMatch) {
+            targetKey = canonicalPlaceId(fullMatch.place.mapId || fullMatch.place.id);
+          }
+        }
+      }
+    }
+
+    if (targetKey) {
+      const timer = window.setTimeout(() => {
+        scrollToPlace(targetKey, true);
+      }, 60);
+      return () => window.clearTimeout(timer);
+    } else {
+      setHighlightedKey(null);
+    }
+  }, [query, results, addedPlaces, scrollToPlace]);
 
   async function handleAdd(place) {
     const canonicalId = canonicalPlaceId(place.mapId || place.id);
@@ -7298,6 +7383,7 @@ function PlaceSearchPanel({
 
     if (profileId === "all") {
       if (existingXiao && existingTang && !visitedAt) {
+        scrollToPlace(canonicalId, true);
         onEditVisit?.(place);
         return;
       }
@@ -7308,6 +7394,7 @@ function PlaceSearchPanel({
 
     if (profileId === "person-a") {
       if (existingXiao && !visitedAt) {
+        scrollToPlace(canonicalId, true);
         onEditVisit?.(place);
         return;
       }
@@ -7318,6 +7405,7 @@ function PlaceSearchPanel({
 
     if (profileId === "person-b") {
       if (existingTang && !visitedAt) {
+        scrollToPlace(canonicalId, true);
         onEditVisit?.(place);
         return;
       }
@@ -7364,10 +7452,10 @@ function PlaceSearchPanel({
     <div className={compact ? "place-search compact" : "place-search"}>
       <div className="place-search-title">
         <h3>{title}</h3>
-        <span>已添加 {addedPlaces.length}</span>
       </div>
       <div className="mini-form">
         <select
+          className="profile-select-box"
           disabled={!session || !isEditor}
           onChange={(event) => {
             const val = event.target.value;
@@ -7376,13 +7464,18 @@ function PlaceSearchPanel({
           }}
           value={profileId}
         >
-          <option value="all">X & T</option>
+          <option value="all">
+            {profiles.length >= 2 ? `${profiles[0].name} & ${profiles[1].name}` : "Xiao & Tang"}
+          </option>
           {profiles.map((profile) => (
             <option key={profile.id} value={profile.id}>
               {profile.name}
             </option>
           ))}
         </select>
+        <div className="added-count-box" title={`当前已标记 ${addedPlaces.length} 个足迹地点`}>
+          已添加：<strong>{addedPlaces.length}</strong>
+        </div>
         <DatePrecisionInput
           disabled={!session || !isEditor}
           onChange={setVisitedAt}
@@ -7425,7 +7518,7 @@ function PlaceSearchPanel({
       <div className="added-list" ref={addedListRef}>
         <p>
           {profileId === "all"
-            ? "两人一起去过的地方"
+            ? "去过的地方"
             : profileId === "person-a"
             ? "Xiao 去过的地方"
             : "Tang 去过的地方"}
@@ -7433,11 +7526,13 @@ function PlaceSearchPanel({
         {addedPlaces.length === 0 && <small>尚未标记地点。</small>}
         {addedPlaces.map((item) => {
           const { place, visits: placeVisits } = item;
+          const key = canonicalPlaceId(place.mapId || place.id);
+          const isHighlighted = highlightedKey === key;
           return (
             <div
+              className={isHighlighted ? "is-highlighted" : undefined}
               key={place.id}
               ref={(node) => {
-                const key = canonicalPlaceId(place.mapId || place.id);
                 if (node) addedItemRefs.current.set(key, node);
                 else addedItemRefs.current.delete(key);
               }}
