@@ -1519,6 +1519,45 @@ h2 {
   color: #15803d;
 }
 
+.date-picker-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.date-picker-presets .presets-label {
+  font-size: 0.76rem;
+  color: #64748b;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.date-picker-presets .preset-btn {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid #d7e1dc;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.date-picker-presets .preset-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.date-picker-presets .preset-btn.active {
+  border-color: #10b981;
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .search-field {
   display: flex;
   align-items: center;
@@ -3039,6 +3078,238 @@ h2 {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 10px;
+}
+
+/* Dual Column Visit Edit Dialog */
+.visit-edit-dialog.visit-edit-dialog-dual {
+  width: min(880px, 96vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 12px;
+  padding: 22px;
+  gap: 16px;
+}
+
+.visit-edit-dual-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+@media (max-width: 680px) {
+  .visit-edit-dual-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dual-column {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.dual-column.xiao {
+  border-color: #fecaca;
+  background: #fffafa;
+}
+
+.dual-column.tang {
+  border-color: #bfdbfe;
+  background: #f8faff;
+}
+
+.dual-column.inactive {
+  opacity: 0.85;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.profile-badge {
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 0.88rem;
+  letter-spacing: 0.5px;
+}
+
+.profile-badge.xiao {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.profile-badge.tang {
+  background: #dbeafe;
+  color: #2563eb;
+  border: 1px solid #93c5fd;
+}
+
+.status-tag {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.status-tag.visited {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-tag.unvisited {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.column-empty-card {
+  padding: 30px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.toggle-enable-btn {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  color: #1e293b;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.toggle-enable-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.column-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dates-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dates-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dates-label-title {
+  color: #475569;
+  font-weight: 900;
+  font-size: 0.88rem;
+}
+
+.add-date-btn-inline {
+  background: transparent;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.add-date-btn-inline:hover {
+  border-color: #64748b;
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.dates-inputs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.date-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-input-row .date-precision-input {
+  flex: 1;
+}
+
+.date-remove-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.date-remove-btn:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.column-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.column-delete-btn {
+  background: transparent;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 5px 10px;
+  color: #ef4444;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.column-delete-btn:hover {
+  background: #fee2e2;
 }
 
 .primary-action:disabled {

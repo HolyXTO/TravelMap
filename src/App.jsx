@@ -45,17 +45,24 @@ import { defaultTravelNotes } from "./data/defaultNotes";
 
 
 const staticVisits = initialVisits.map((v) => {
+  const meta = parseVisitMeta(v.note || "");
+  let visitDates = meta.visitDates && meta.visitDates.length ? meta.visitDates : [];
+  if (!visitDates.length && (v.dateDisplay || v.visitedAt || v.visited_at)) {
+    visitDates = [String(v.dateDisplay || v.visitedAt || v.visited_at).trim()];
+  }
   return {
     id: v.id,
     profileId: v.profileId || v.profile_id,
     placeId: v.placeId || v.place_id,
     visitedAt: v.visitedAt || v.visited_at,
     createdAt: v.createdAt || v.created_at || v.visitedAt || v.visited_at,
-    dateDisplay: v.dateDisplay || v.visitedAt || v.visited_at,
-    datePrecision: v.datePrecision || "day",
+    dateDisplay: meta.dateDisplay || v.dateDisplay || v.visitedAt || v.visited_at,
+    datePrecision: meta.datePrecision || v.datePrecision || "day",
+    visitDates,
     type: v.type || v.trip_type,
-    note: v.note || "",
-    rating: v.rating || 10,
+    note: meta.text || v.note || "",
+    comment: meta.comment || v.comment || "",
+    rating: meta.rating || v.rating || 10,
     photos: v.photos || [],
   };
 });
@@ -296,88 +303,40 @@ const adjustCoords = (coords, tileSource) => {
 
 const TIANDITU_KEY = "68a2c44c031deb6991a26247553e0dbe";
 
-const getTileLayersConfigs = (tileSource, type, themeId = "") => {
+const getTileLayersConfigs = (tileSource) => {
+  // 天地图街道/政区底图（国内游记行程地图）
   if (tileSource === "tianditu") {
-    // 天地图 (China's official national map platform with full Chinese labels globally)
-    if (type === "dark" || themeId === "ink") {
-      return [
-        {
-          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-          attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-        }
-      ];
-    }
-    if (type === "light" || themeId === "ocean" || themeId === "copper") {
-      return [
-        {
-          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-          attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-        }
-      ];
-    }
     return [
       {
         url: `https://t{s}.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TIANDITU_KEY}`,
         attribution: "&copy; 国家地理信息公共服务平台 (天地图)",
-        subdomains: "01234567"
+        subdomains: "01234567",
       },
       {
         url: `https://t{s}.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TIANDITU_KEY}`,
         attribution: "&copy; 国家地理信息公共服务平台 (天地图)",
-        subdomains: "01234567"
-      }
+        subdomains: "01234567",
+      },
     ];
   }
 
+  // 高德地图（国内高精度路网，带火星坐标纠偏）
   if (tileSource === "amap") {
-    // 高德地图 (AutoNavi - Full Chinese labels, works fast inside China, but only inside China borders for street zoom levels)
-    if (type === "dark" || themeId === "ink") {
-      return [
-        {
-          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-          attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-        }
-      ];
-    }
-    if (type === "light" || themeId === "ocean" || themeId === "copper") {
-      return [
-        {
-          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-          attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-        }
-      ];
-    }
     return [
       {
         url: "https://wprd0{s}.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7",
         attribution: "&copy; 高德地图 (AutoNavi)",
-        subdomains: "1234"
-      }
+        subdomains: "1234",
+      },
     ];
   }
 
-  // Default to Esri/ArcGIS Online (direct)
-  if (type === "dark" || themeId === "ink") {
-    return [
-      {
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-      }
-    ];
-  }
-  if (type === "light" || themeId === "ocean" || themeId === "copper") {
-    return [
-      {
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-      }
-    ];
-  }
+  // 默认国外/全球开源街道底图 (OpenStreetMap - 无水印、稳定通用)
   return [
     {
-      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-      attribution: "Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom"
-    }
+      url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    },
   ];
 };
 
@@ -432,7 +391,7 @@ const MAP_THEMES = [
     label: "暖棕",
     tile: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     swatches: ["#f4dfc1", "#7c4a2d"],
-    background: "#f8efe3",
+    background: "#d6dee0",
     selectedStroke: "#7c4a2d",
     visitedFill: "#e8ad7d",
     countryBaseFill: "#f4d4b5",
@@ -1656,35 +1615,56 @@ function normalizeProfilesForDisplay(items = []) {
 }
 
 function parseVisitMeta(note) {
-  if (!note) return { rating: 0, text: "", comment: "", datePrecision: "day", dateDisplay: "", transportMode: "" };
+  if (!note) return { rating: 0, text: "", comment: "", datePrecision: "day", dateDisplay: "", visitDates: [], transportMode: "" };
   try {
     const parsed = JSON.parse(note);
     if (parsed && typeof parsed === "object") {
+      let visitDates = Array.isArray(parsed.visitDates) ? parsed.visitDates.map((d) => String(d || "").trim()).filter(Boolean) : [];
+      if (visitDates.length === 0 && parsed.dateDisplay) {
+        visitDates = [String(parsed.dateDisplay).trim()];
+      }
       return {
         rating: Number(parsed.rating) || 0,
         text: parsed.text || "",
         comment: parsed.comment || "",
         datePrecision: parsed.datePrecision || "day",
-        dateDisplay: parsed.dateDisplay || "",
+        dateDisplay: parsed.dateDisplay || (visitDates[visitDates.length - 1] || ""),
+        visitDates,
         transportMode: parsed.transportMode || "",
       };
     }
   } catch {
     // Existing plain-text notes are preserved as text.
   }
-  return { rating: 0, text: note, comment: "", datePrecision: "day", dateDisplay: "", transportMode: "" };
+  return { rating: 0, text: note, comment: "", datePrecision: "day", dateDisplay: "", visitDates: [], transportMode: "" };
 }
 
-function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, text = "", comment = "", transportMode = "" } = {}) {
+function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, text = "", comment = "", transportMode = "", visitDates = [] } = {}) {
   const normalizedRating = Math.max(0, Math.min(10, Number(rating) || 0));
-  if (!normalizedRating && !text && !comment && !dateDisplay && !transportMode) return "";
-  return JSON.stringify({ dateDisplay, datePrecision, rating: normalizedRating, text, comment, transportMode });
+  const cleanDates = Array.isArray(visitDates) ? visitDates.map((d) => String(d || "").trim()).filter(Boolean) : [];
+  if (!cleanDates.length && dateDisplay) {
+    cleanDates.push(String(dateDisplay).trim());
+  }
+  const primaryDisplay = cleanDates[cleanDates.length - 1] || dateDisplay || "";
+  if (!normalizedRating && !text && !comment && !primaryDisplay && !transportMode && !cleanDates.length) return "";
+  return JSON.stringify({
+    dateDisplay: primaryDisplay,
+    datePrecision,
+    rating: normalizedRating,
+    text,
+    comment,
+    transportMode,
+    visitDates: cleanDates,
+  });
 }
 
 function normalizeVisitDateInput(value) {
   const raw = String(value || "").trim().replace(/\//g, "-").replace(/\s+/g, "");
   if (!raw) {
     return { dbDate: null, display: "", precision: "none" };
+  }
+  if (raw === "居住" || raw === "多次") {
+    return { dbDate: null, display: raw, precision: raw === "居住" ? "living" : "multiple" };
   }
   const yearOnly = raw.match(/^(\d{4})$/);
   if (yearOnly) {
@@ -1701,7 +1681,7 @@ function normalizeVisitDateInput(value) {
     const day = fullDate[3].padStart(2, "0");
     return { dbDate: `${fullDate[1]}-${month}-${day}`, display: `${fullDate[1]}-${month}-${day}`, precision: "day" };
   }
-  throw new Error("日期格式请填写为 YYYY、YYYY-MM 或 YYYY-MM-DD");
+  return { dbDate: null, display: raw, precision: "custom" };
 }
 
 function DatePrecisionInput({ disabled = false, onChange, value }) {
@@ -1710,7 +1690,9 @@ function DatePrecisionInput({ disabled = false, onChange, value }) {
 
   function applyDate(nextValue) {
     onChange(nextValue || "");
-    if (nextValue && mode === "day") setOpen(false);
+    if (nextValue && (mode === "day" || nextValue === "居住" || nextValue === "多次")) {
+      setOpen(false);
+    }
   }
 
   return (
@@ -1718,7 +1700,7 @@ function DatePrecisionInput({ disabled = false, onChange, value }) {
       <input
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="YYYY / YYYY-MM / YYYY-MM-DD"
+        placeholder="YYYY / YYYY-MM / YYYY-MM-DD / 居住 / 多次"
         type="text"
         value={value || ""}
       />
@@ -1726,7 +1708,7 @@ function DatePrecisionInput({ disabled = false, onChange, value }) {
         aria-label="打开日期选择"
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        title="选择日期"
+        title="选择日期或类型"
         type="button"
       >
         <CalendarDays size={16} />
@@ -1773,6 +1755,23 @@ function DatePrecisionInput({ disabled = false, onChange, value }) {
               value={/^\d{4}-\d{2}-\d{2}$/.test(value || "") ? value : ""}
             />
           )}
+          <div className="date-picker-presets">
+            <span className="presets-label">快捷标记：</span>
+            <button
+              type="button"
+              className={`preset-btn ${value === "居住" ? "active" : ""}`}
+              onClick={() => applyDate("居住")}
+            >
+              居住
+            </button>
+            <button
+              type="button"
+              className={`preset-btn ${value === "多次" ? "active" : ""}`}
+              onClick={() => applyDate("多次")}
+            >
+              多次
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1780,6 +1779,9 @@ function DatePrecisionInput({ disabled = false, onChange, value }) {
 }
 
 function displayVisitDate(visit) {
+  if (visit?.visitDates && visit.visitDates.length > 0) {
+    return visit.visitDates.join("、");
+  }
   return visit?.dateDisplay || visit?.visitedAt || "";
 }
 
@@ -2245,6 +2247,10 @@ function mapProfile(row) {
 
 function mapVisit(row) {
   const meta = parseVisitMeta(row.note || "");
+  let visitDates = meta.visitDates && meta.visitDates.length ? meta.visitDates : [];
+  if (!visitDates.length && (meta.dateDisplay || row.visited_at)) {
+    visitDates = [String(meta.dateDisplay || row.visited_at).trim()];
+  }
   return {
     id: row.id,
     profileId: row.profile_id,
@@ -2253,6 +2259,7 @@ function mapVisit(row) {
     createdAt: row.created_at || row.visited_at,
     dateDisplay: meta.dateDisplay || row.visited_at,
     datePrecision: meta.datePrecision || "day",
+    visitDates,
     type: row.trip_type,
     note: meta.text,
     comment: meta.comment || "",
@@ -2474,7 +2481,13 @@ function App() {
   const [regionFilter, setRegionFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const [activeMapThemeId, setActiveMapThemeId] = useState("copper");
+  const [activeMapThemeId, setActiveMapThemeId] = useState(() => {
+    return localStorage.getItem("travel_map_theme_id") || "copper";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("travel_map_theme_id", activeMapThemeId);
+  }, [activeMapThemeId]);
   const [mapTileSource, setMapTileSource] = useState(() => {
     return localStorage.getItem("map_tile_source") || "direct"; // Default to "direct" (Esri) which works great in China without VPN
   });
@@ -2516,15 +2529,24 @@ function App() {
   const [authPanelOpen, setAuthPanelOpen] = useState(false);
   const [editMessage, setEditMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [editingVisit, setEditingVisit] = useState(null);
+  const [editingPlace, setEditingPlace] = useState(null);
   const [quickAddFocusRequest, setQuickAddFocusRequest] = useState(null);
   const [profileSettingsOpen, setProfileSettingsOpen] = useState(false);
   const [profileSettingsMessage, setProfileSettingsMessage] = useState("");
 
-  function openVisitEditor(visit) {
+  function openVisitEditor(item) {
     setAuthMessage("");
     setEditMessage("");
-    setEditingVisit(visit);
+    if (!item) return;
+    let target = null;
+    if (item.placeId) {
+      target = findPlace(item.placeId, placeLookup);
+    } else if (item.id && (item.level || item.countryCode || item.localName || item.name)) {
+      target = item;
+    } else if (typeof item === "string") {
+      target = findPlace(item, placeLookup);
+    }
+    setEditingPlace(target || item);
   }
 
   const profileFilters = useMemo(
@@ -2571,7 +2593,25 @@ function App() {
       const dbProfiles = normalizeProfilesForDisplay(profilesResult.data.map(mapProfile));
       setAppProfiles(dbProfiles);
 
-      const dbVisits = visitsResult.data.map(mapVisit);
+      const dbVisits = visitsResult.data.map((row) => {
+        const mapped = mapVisit(row);
+        const meta = parseVisitMeta(row.note || "");
+        if (!meta.visitDates || meta.visitDates.length === 0) {
+          const staticMatch = staticVisits.find((sv) => sv.id === mapped.id);
+          if (staticMatch && staticMatch.visitDates?.length > 0) {
+            return {
+              ...mapped,
+              visitDates: staticMatch.visitDates,
+              dateDisplay: staticMatch.dateDisplay,
+              datePrecision: staticMatch.datePrecision,
+              visitedAt: staticMatch.visitedAt || mapped.visitedAt,
+              rating: staticMatch.rating || mapped.rating,
+              comment: staticMatch.comment || mapped.comment,
+            };
+          }
+        }
+        return mapped;
+      });
       setVisits(dbVisits);
 
       const routesResult = await withTimeout(supabase
@@ -3125,11 +3165,44 @@ function App() {
           (resolveMapIdForLevel(visit.placeId, "city", placeLookup) || canonicalPlaceId(visit.placeId)) === targetCityId,
       );
       if (duplicateVisit) {
-        setEditingVisit(duplicateVisit);
-        setAuthMessage("这个地点已经添加过，已打开原记录。");
-        return false;
+        const normalizedDate = normalizeVisitDateInput(visitedAt);
+        const existingDates = duplicateVisit.visitDates?.length
+          ? duplicateVisit.visitDates
+          : duplicateVisit.dateDisplay
+          ? [duplicateVisit.dateDisplay]
+          : [];
+        if (normalizedDate.display && !existingDates.includes(normalizedDate.display)) {
+          const newDates = [...existingDates, normalizedDate.display];
+          const { error: updateError } = await supabase
+            .from("visits")
+            .update({
+              visited_at: normalizedDate.dbDate || duplicateVisit.visitedAt,
+              trip_type: type || duplicateVisit.type || "旅行",
+              note: buildVisitNote({
+                dateDisplay: normalizedDate.display,
+                datePrecision: normalizedDate.precision,
+                rating: duplicateVisit.rating,
+                text: duplicateVisit.note || "",
+                comment: duplicateVisit.comment || "",
+                visitDates: newDates,
+              }),
+            })
+            .eq("id", duplicateVisit.id);
+          if (updateError) throw updateError;
+          await loadTravelData();
+          const canonicalId = canonicalPlaceId(placeId);
+          setRecentInteractions((prev) => [canonicalId, ...prev.filter((id) => id !== canonicalId)]);
+          setAuthMessage(`已为该地点追加新到访时间：${normalizedDate.display}`);
+          resetTarget?.reset?.();
+          return true;
+        } else {
+          openVisitEditor(placeId);
+          setAuthMessage("该地点已添加过，已打开双栏编辑窗口。");
+          return false;
+        }
       }
       const normalizedDate = normalizeVisitDateInput(visitedAt);
+      const visitDates = normalizedDate.display ? [normalizedDate.display] : [];
       const { data: createdVisit, error: visitError } = await supabase
         .from("visits")
         .insert({
@@ -3140,6 +3213,7 @@ function App() {
           note: buildVisitNote({
             dateDisplay: normalizedDate.display,
             datePrecision: normalizedDate.precision,
+            visitDates,
           }),
           created_by: session.user.id,
         })
@@ -3185,10 +3259,24 @@ function App() {
   async function addPlace(place, options = {}) {
     const targetProfile =
       options.profileId ||
-      (activeProfile !== "all" ? activeProfile : appProfiles[0]?.id);
-    if (!targetProfile) {
-      setAuthMessage("还没有可用的人物档案。");
-      return false;
+      (activeProfile !== "all" ? activeProfile : "all");
+
+    if (targetProfile === "all" || targetProfile === "both") {
+      const p1 = appProfiles[0]?.id || "person-a";
+      const p2 = appProfiles[1]?.id || "person-b";
+      const ok1 = await saveVisit({
+        placeId: place.id,
+        profileId: p1,
+        type: options.type || "旅行",
+        visitedAt: options.visitedAt || "",
+      });
+      const ok2 = await saveVisit({
+        placeId: place.id,
+        profileId: p2,
+        type: options.type || "旅行",
+        visitedAt: options.visitedAt || "",
+      });
+      return ok1 || ok2;
     }
     return saveVisit({
       placeId: place.id,
@@ -3196,6 +3284,94 @@ function App() {
       type: options.type || "旅行",
       visitedAt: options.visitedAt || "",
     });
+  }
+
+  async function saveDualVisit({ placeId, xiaoData, tangData, files }) {
+    if (!session || !isEditor) {
+      setEditMessage("请先用已授权账号登录。");
+      return false;
+    }
+    try {
+      setIsSaving(true);
+      setEditMessage("");
+
+      const canonicalId = canonicalPlaceId(placeId);
+      const xiaoProfile = appProfiles.find((p) => p.id === "person-a") || appProfiles[0] || { id: "person-a" };
+      const tangProfile = appProfiles.find((p) => p.id === "person-b") || appProfiles[1] || { id: "person-b" };
+
+      const existingXiao = visits.find((v) => v.profileId === xiaoProfile.id && canonicalPlaceId(v.placeId) === canonicalId);
+      const existingTang = visits.find((v) => v.profileId === tangProfile.id && canonicalPlaceId(v.placeId) === canonicalId);
+
+      const processProfile = async (profileId, data, existing) => {
+        if (!data || !data.enabled) {
+          if (existing) {
+            const { error } = await supabase.from("visits").delete().eq("id", existing.id);
+            if (error) throw error;
+          }
+          return null;
+        }
+
+        const cleanDates = (data.dates || []).map((d) => String(d || "").trim()).filter(Boolean);
+        const latestDate = cleanDates[cleanDates.length - 1] || "";
+        const normDate = normalizeVisitDateInput(latestDate);
+        const notePayload = buildVisitNote({
+          dateDisplay: normDate.display,
+          datePrecision: normDate.precision,
+          rating: data.rating,
+          text: data.note || (existing?.note || ""),
+          comment: data.comment || "",
+          visitDates: cleanDates,
+          transportMode: existing?.transportMode || "",
+        });
+
+        if (existing) {
+          const { error } = await supabase
+            .from("visits")
+            .update({
+              visited_at: normDate.dbDate,
+              trip_type: data.type || "旅行",
+              note: notePayload,
+            })
+            .eq("id", existing.id);
+          if (error) throw error;
+          return existing.id;
+        } else {
+          const { data: created, error } = await supabase
+            .from("visits")
+            .insert({
+              profile_id: profileId,
+              place_id: placeId,
+              visited_at: normDate.dbDate,
+              trip_type: data.type || "旅行",
+              note: notePayload,
+              created_by: session.user.id,
+            })
+            .select("id")
+            .single();
+          if (error) throw error;
+          return created.id;
+        }
+      };
+
+      const xiaoVisitId = await processProfile(xiaoProfile.id, xiaoData, existingXiao);
+      const tangVisitId = await processProfile(tangProfile.id, tangData, existingTang);
+
+      const targetVisitId = xiaoVisitId || tangVisitId;
+      if (files?.length && targetVisitId) {
+        await uploadVisitPhotos(targetVisitId, files);
+      }
+
+      await loadTravelData();
+      setRecentInteractions((prev) => [canonicalId, ...prev.filter((id) => id !== canonicalId)]);
+      setEditMessage("足迹已更新。");
+      return true;
+    } catch (error) {
+      console.error(error);
+      setEditMessage(`保存失败：${error.message}`);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function deleteVisit(visitId) {
@@ -3675,10 +3851,12 @@ function App() {
           session={session}
           visitedPlaceIds={profileScopedVisitedPlaceIds}
           visits={profileScopedVisits}
+          allVisits={visits}
           onDeleteVisit={deleteVisit}
           focusRequest={quickAddFocusRequest}
           onFocusConsumed={() => setQuickAddFocusRequest(null)}
           recentInteractions={recentInteractions}
+          onSelectProfile={setActiveProfile}
         />
         <MapView
           activeLevel={activeLevel}
@@ -3815,8 +3993,9 @@ function App() {
       </section>
 
       {modalCountry && (
-          <CountryModal
-            activeProfile={activeProfile}
+        <CountryModal
+          key={modalCountry.id}
+          activeProfile={activeProfile}
           addPlace={addPlace}
           authMessage={authMessage}
           cityPlaces={mapPlaces.city}
@@ -3912,15 +4091,16 @@ function App() {
         onUpdateVisitRatings={updateVisitRatings}
         placeLookup={placeLookup}
       />
-      {editingVisit && (
+      {editingPlace && (
         <VisitEditDialog
           authMessage={editMessage}
           isSaving={isSaving}
-          onClose={() => setEditingVisit(null)}
+          onClose={() => setEditingPlace(null)}
           onDeleteVisit={deleteVisit}
-          onUpdateVisit={updateVisit}
-          place={findPlace(editingVisit.placeId, placeLookup)}
-          visit={editingVisit}
+          onSaveDualVisit={saveDualVisit}
+          place={editingPlace}
+          visits={visits}
+          profiles={appProfiles}
         />
       )}
       {authPanelOpen && (
@@ -5674,7 +5854,6 @@ function MapView({
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
-  const tileLayerRef = useRef(null);
   const lastLevelRef = useRef(null);
   const [activeVisitPreview, setActiveVisitPreview] = useState(null);
 
@@ -5696,7 +5875,6 @@ function MapView({
     ]);
     L.control.zoom({ position: "bottomleft" }).addTo(map);
     map.on("click", () => setActiveVisitPreview(null));
-
     mapRef.current = map;
 
     return () => {
@@ -5704,42 +5882,6 @@ function MapView({
       mapRef.current = null;
     };
   }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapTheme) return;
-
-    if (tileLayerRef.current) {
-      if (Array.isArray(tileLayerRef.current)) {
-        tileLayerRef.current.forEach((layer) => layer.remove());
-      } else {
-        tileLayerRef.current.remove();
-      }
-      tileLayerRef.current = null;
-    }
-
-    const configs = getTileLayersConfigs(mapTileSource, "", mapTheme.id);
-    if (configs.length > 1) {
-      tileLayerRef.current = configs.map((cfg) => {
-        return L.tileLayer(cfg.url, {
-          attribution: cfg.attribution,
-          maxZoom: 20,
-          noWrap: false,
-          keepBuffer: 4,
-          subdomains: cfg.subdomains || "abc",
-        }).addTo(map);
-      });
-    } else {
-      const config = configs[0];
-      tileLayerRef.current = L.tileLayer(config.url, {
-        attribution: config.attribution,
-        maxZoom: 20,
-        noWrap: false,
-        keepBuffer: 4,
-        subdomains: config.subdomains || "abc",
-      }).addTo(map);
-    }
-  }, [mapTheme, mapTileSource]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -6112,10 +6254,12 @@ function QuickAddDock({
   session,
   visitedPlaceIds,
   visits,
+  allVisits,
   onDeleteVisit,
   focusRequest,
   onFocusConsumed,
   recentInteractions = [],
+  onSelectProfile,
 }) {
   return (
     <aside className="quick-add-dock" aria-label="快速添加足迹">
@@ -6137,10 +6281,12 @@ function QuickAddDock({
         title="添加足迹"
         visitedPlaceIds={visitedPlaceIds}
         visits={visits}
+        allVisits={allVisits}
         onDeleteVisit={onDeleteVisit}
         focusRequest={focusRequest}
         onFocusConsumed={onFocusConsumed}
         recentInteractions={recentInteractions}
+        onSelectProfile={onSelectProfile}
       />
     </aside>
   );
@@ -6701,18 +6847,23 @@ function buildCountryGroups(visits, placeLookup, country, options = {}) {
 
 function fitMiniCountryMap(map, country, layer) {
   if (!map || !country) return;
-  if (country.id === "CHN") {
-    map.fitBounds(L.latLngBounds(CHINA_MODAL_BOUNDS), {
-      padding: [18, 18],
-      animate: false,
-    });
-    return;
-  }
-  const bounds = layer?.getBounds?.();
-  if (bounds?.isValid?.()) {
-    map.fitBounds(bounds, { padding: [18, 18], animate: false });
-  } else if (country.center) {
-    map.setView([country.center[1], country.center[0]], 5, { animate: false });
+  if (!map._mapPane || !map._container) return;
+  try {
+    if (country.id === "CHN") {
+      map.fitBounds(L.latLngBounds(CHINA_MODAL_BOUNDS), {
+        padding: [18, 18],
+        animate: false,
+      });
+      return;
+    }
+    const bounds = layer?.getBounds?.();
+    if (bounds?.isValid?.()) {
+      map.fitBounds(bounds, { padding: [18, 18], animate: false });
+    } else if (country.center) {
+      map.setView([country.center[1], country.center[0]], 5, { animate: false });
+    }
+  } catch (err) {
+    console.warn("fitMiniCountryMap error:", err);
   }
 }
 
@@ -6733,7 +6884,6 @@ function MiniCountryMap({
   const miniRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
-  const tileLayerRef = useRef(null);
   const lastFitCountryRef = useRef(null);
   const [activeVisitPreview, setActiveVisitPreview] = useState(null);
 
@@ -6753,36 +6903,6 @@ function MiniCountryMap({
       mapRef.current = null;
     };
   }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    if (tileLayerRef.current) {
-      if (Array.isArray(tileLayerRef.current)) {
-        tileLayerRef.current.forEach((layer) => layer.remove());
-      } else {
-        tileLayerRef.current.remove();
-      }
-      tileLayerRef.current = null;
-    }
-    const configs = getTileLayersConfigs(mapTileSource, "light");
-    if (configs.length > 1) {
-      tileLayerRef.current = configs.map((cfg) => {
-        return L.tileLayer(cfg.url, {
-          maxZoom: 20,
-          attribution: cfg.attribution,
-          subdomains: cfg.subdomains || "abc",
-        }).addTo(map);
-      });
-    } else {
-      const config = configs[0];
-      tileLayerRef.current = L.tileLayer(config.url, {
-        maxZoom: 20,
-        attribution: config.attribution,
-        subdomains: config.subdomains || "abc",
-      }).addTo(map);
-    }
-  }, [mapTileSource]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -6923,13 +7043,22 @@ function MiniCountryMap({
     }
 
     layerRef.current = layer;
-    window.setTimeout(() => {
-      map.invalidateSize();
-      const fitKey = country.id;
-      if (lastFitCountryRef.current === fitKey) return;
-      fitMiniCountryMap(map, country, layer);
-      lastFitCountryRef.current = fitKey;
+    const timer = window.setTimeout(() => {
+      if (!mapRef.current || !map || !map._mapPane || !map._container) return;
+      try {
+        map.invalidateSize();
+        const fitKey = country.id;
+        if (lastFitCountryRef.current === fitKey) return;
+        fitMiniCountryMap(map, country, layer);
+        lastFitCountryRef.current = fitKey;
+      } catch (err) {
+        console.warn("MiniCountryMap fit error:", err);
+      }
     }, 60);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [activeProfile, cityPlaces, country, detailLevel, onPlaceFocus, profiles, regionPlaces, showLabels, visitedByLevel, visitedCityVisits, visitedPlaces]);
 
   return (
@@ -6943,7 +7072,11 @@ function MiniCountryMap({
       <button
         aria-label="恢复初始视野"
         className="mini-map-reset-button"
-        onClick={() => fitMiniCountryMap(mapRef.current, country, layerRef.current)}
+        onClick={() => {
+          if (mapRef.current && mapRef.current._mapPane) {
+            fitMiniCountryMap(mapRef.current, country, layerRef.current);
+          }
+        }}
         title="恢复初始视野"
         type="button"
       >
@@ -7034,43 +7167,27 @@ function PlaceSearchPanel({
   title,
   visitedPlaceIds,
   visits,
+  allVisits,
   focusRequest,
   onFocusConsumed,
   onDeleteVisit,
   onSignIn,
   onSignOut,
   recentInteractions = [],
+  onSelectProfile,
 }) {
   const [query, setQuery] = useState("");
-  const [profileId, setProfileId] = useState(profiles[0]?.id || "");
+  const [profileId, setProfileId] = useState(activeProfile || "all");
   const [visitedAt, setVisitedAt] = useState("");
   const [type, setType] = useState("旅行");
-  const [visitChoice, setVisitChoice] = useState(null);
   const addedItemRefs = useRef(new Map());
   const addedListRef = useRef(null);
-  const popoverRef = useRef(null);
 
   useEffect(() => {
-    if (!visitChoice) return;
-    function handleOutsideClick(e) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
-        setVisitChoice(null);
-      }
-    }
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, [visitChoice]);
-
-  useEffect(() => {
-    const validIds = new Set(profiles.map((profile) => profile.id));
-    if (activeProfile && activeProfile !== "all" && validIds.has(activeProfile)) {
+    if (activeProfile) {
       setProfileId(activeProfile);
-    } else if ((!profileId || !validIds.has(profileId)) && profiles[0]) {
-      setProfileId(profiles[0].id);
     }
-  }, [activeProfile, profileId, profiles]);
+  }, [activeProfile]);
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -7089,36 +7206,48 @@ function PlaceSearchPanel({
         return displayPlaceName(a).localeCompare(displayPlaceName(b), "zh-CN");
       })
       .slice(0, 80);
-  }, [compact, places, query]);
+  }, [places, query]);
+
+  const effectiveAllVisits = allVisits || visits || [];
 
   const addedPlaces = useMemo(() => {
     const byPlace = new Map();
-    visits
-      .map((visit) => {
-        const canonicalId = canonicalPlaceId(visit.placeId);
-        const place = places.find((item) => item.id === canonicalId || item.id === visit.placeId);
-        return place ? { place, visit } : null;
-      })
-      .filter(Boolean)
-      .forEach((item) => {
-        const placeKey = canonicalPlaceId(item.place.mapId || item.place.id);
-        const key = activeProfile === "all" ? placeKey : `${item.visit.profileId}:${placeKey}`;
-        const existing = byPlace.get(key);
-        if (existing) {
-          existing.visits.push(item.visit);
-          existing.visits.sort(
-            (a, b) =>
-              (b.createdAt || b.visitedAt || "").localeCompare(a.createdAt || a.visitedAt || "") ||
-              (PROFILE_ID_ORDER.get(a.profileId) ?? 99) - (PROFILE_ID_ORDER.get(b.profileId) ?? 99),
-          );
-        } else {
-          byPlace.set(key, { ...item, visits: [item.visit] });
-        }
-      });
+    effectiveAllVisits.forEach((visit) => {
+      const canonicalId = canonicalPlaceId(visit.placeId);
+      const place = places.find((item) => item.id === canonicalId || item.id === visit.placeId);
+      if (!place) return;
 
-    const finalPlaces = Array.from(byPlace.values());
+      const placeKey = canonicalPlaceId(place.mapId || place.id);
+      if (!byPlace.has(placeKey)) {
+        byPlace.set(placeKey, { place, visits: [] });
+      }
+      byPlace.get(placeKey).visits.push(visit);
+    });
 
-    finalPlaces.sort((a, b) => {
+    const currentProfile = profileId || activeProfile || "all";
+    const xiaoId = "person-a";
+    const tangId = "person-b";
+
+    const filtered = Array.from(byPlace.values()).filter((item) => {
+      const hasXiao = item.visits.some((v) => v.profileId === xiaoId);
+      const hasTang = item.visits.some((v) => v.profileId === tangId);
+
+      if (currentProfile === "all") {
+        // "当选择“X&T”的时候，下面就显示两人一起去过的地方"
+        return hasXiao && hasTang;
+      }
+      if (currentProfile === xiaoId) {
+        // "当选择“xiao”的时候，下面就显示xiao去过的地方"
+        return hasXiao;
+      }
+      if (currentProfile === tangId) {
+        // "当选择“tang”的时候，下面就显示tang去过的地方"
+        return hasTang;
+      }
+      return hasXiao || hasTang;
+    });
+
+    filtered.sort((a, b) => {
       const aKey = canonicalPlaceId(a.place.mapId || a.place.id);
       const bKey = canonicalPlaceId(b.place.mapId || b.place.id);
       const aIdx = recentInteractions ? recentInteractions.indexOf(aKey) : -1;
@@ -7140,8 +7269,8 @@ function PlaceSearchPanel({
       return bLatestVisited.localeCompare(aLatestVisited);
     });
 
-    return finalPlaces;
-  }, [activeProfile, compact, places, visits, recentInteractions]);
+    return filtered;
+  }, [effectiveAllVisits, places, profileId, activeProfile, recentInteractions]);
 
   useEffect(() => {
     const targetId = typeof focusRequest === "string" ? focusRequest : focusRequest?.placeId;
@@ -7158,33 +7287,76 @@ function PlaceSearchPanel({
   }, [focusRequest, onFocusConsumed]);
 
   async function handleAdd(place) {
-    const existing = addedPlaces.find(
-      (item) =>
-        item.visit.profileId === profileId &&
-        canonicalPlaceId(item.place.mapId || item.place.id) === canonicalPlaceId(place.mapId || place.id),
+    const canonicalId = canonicalPlaceId(place.mapId || place.id);
+    const existingXiao = effectiveAllVisits.find(
+      (v) => v.profileId === "person-a" && canonicalPlaceId(v.placeId) === canonicalId,
     );
-    if (existing) {
-      onEditVisit?.(existing.visit);
+    const existingTang = effectiveAllVisits.find(
+      (v) => v.profileId === "person-b" && canonicalPlaceId(v.placeId) === canonicalId,
+    );
+
+    if (profileId === "all") {
+      if (existingXiao && existingTang && !visitedAt) {
+        onEditVisit?.(place);
+        return;
+      }
+      const ok = await addPlace(place, { profileId: "all", type, visitedAt });
+      if (ok) setQuery("");
       return;
     }
-    const ok = await addPlace(place, { profileId, type, visitedAt });
-    if (ok) setQuery("");
+
+    if (profileId === "person-a") {
+      if (existingXiao && !visitedAt) {
+        onEditVisit?.(place);
+        return;
+      }
+      const ok = await addPlace(place, { profileId: "person-a", type, visitedAt });
+      if (ok) setQuery("");
+      return;
+    }
+
+    if (profileId === "person-b") {
+      if (existingTang && !visitedAt) {
+        onEditVisit?.(place);
+        return;
+      }
+      const ok = await addPlace(place, { profileId: "person-b", type, visitedAt });
+      if (ok) setQuery("");
+      return;
+    }
   }
 
-  function profileLabel(profileIdValue) {
-    return profiles.find((profile) => profile.id === profileIdValue)?.name || profileIdValue;
+  function isPlaceVisited(place) {
+    const canonicalId = canonicalPlaceId(place.mapId || place.id);
+    const hasXiao = effectiveAllVisits.some(
+      (v) => v.profileId === "person-a" && canonicalPlaceId(v.placeId) === canonicalId,
+    );
+    const hasTang = effectiveAllVisits.some(
+      (v) => v.profileId === "person-b" && canonicalPlaceId(v.placeId) === canonicalId,
+    );
+    if (profileId === "all") return hasXiao && hasTang;
+    if (profileId === "person-a") return hasXiao;
+    if (profileId === "person-b") return hasTang;
+    return hasXiao || hasTang;
   }
 
-  function chooseVisitAction(item, action) {
-    const itemVisits = item.visits?.length ? item.visits : [item.visit];
-    setVisitChoice({ action, place: item.place, visits: itemVisits });
-  }
-
-  function runVisitChoice(visit) {
-    if (!visitChoice) return;
-    if (visitChoice.action === "delete") onDeleteVisit?.(visit.id);
-    else onEditVisit?.(visit);
-    setVisitChoice(null);
+  function handleDeletePlace(item) {
+    const currentProfile = profileId || activeProfile || "all";
+    if (currentProfile === "person-a") {
+      const v = item.visits.find((vis) => vis.profileId === "person-a");
+      if (v) onDeleteVisit?.(v.id);
+    } else if (currentProfile === "person-b") {
+      const v = item.visits.find((vis) => vis.profileId === "person-b");
+      if (v) onDeleteVisit?.(v.id);
+    } else {
+      if (
+        window.confirm(
+          `确认删除 ${displayPlaceName(item.place)} 的足迹记录吗？（将同时删除两人在该地点的足迹）`,
+        )
+      ) {
+        item.visits.forEach((vis) => onDeleteVisit?.(vis.id));
+      }
+    }
   }
 
   return (
@@ -7196,23 +7368,17 @@ function PlaceSearchPanel({
       <div className="mini-form">
         <select
           disabled={!session || !isEditor}
-          onChange={(event) => setProfileId(event.target.value)}
+          onChange={(event) => {
+            const val = event.target.value;
+            setProfileId(val);
+            onSelectProfile?.(val);
+          }}
           value={profileId}
         >
+          <option value="all">X & T</option>
           {profiles.map((profile) => (
             <option key={profile.id} value={profile.id}>
               {profile.name}
-            </option>
-          ))}
-        </select>
-        <select
-          disabled={!session || !isEditor}
-          onChange={(event) => setType(event.target.value)}
-          value={type}
-        >
-          {tripTypes.map((item) => (
-            <option key={item} value={item}>
-              {item}
             </option>
           ))}
         </select>
@@ -7250,80 +7416,66 @@ function PlaceSearchPanel({
                 {place.province ? ` · ${place.province}` : ""}
               </small>
             </span>
-            <em>{visitedPlaceIds.has(canonicalPlaceId(place.id)) ? "已去过" : "+"}</em>
+            <em>{isPlaceVisited(place) ? "已去过" : "+"}</em>
           </button>
         ))}
       </div>
       {authMessage && session && <p className="dock-message">{authMessage}</p>}
       <div className="added-list" ref={addedListRef}>
-        <p>{activeProfile === "all" ? "去过的地方" : "你去过的地方"}</p>
+        <p>
+          {profileId === "all"
+            ? "两人一起去过的地方"
+            : profileId === "person-a"
+            ? "Xiao 去过的地方"
+            : "Tang 去过的地方"}
+        </p>
         {addedPlaces.length === 0 && <small>尚未标记地点。</small>}
         {addedPlaces.map((item) => {
-          const { place, visit } = item;
-          const itemVisits = item.visits?.length ? item.visits : [visit];
+          const { place, visits: placeVisits } = item;
           return (
-          <div
-            key={visit.id}
-            ref={(node) => {
-              const key = canonicalPlaceId(place.mapId || place.id);
-              if (node) addedItemRefs.current.set(key, node);
-              else addedItemRefs.current.delete(key);
-            }}
-          >
-            <FlagIcon place={place} />
-            <span>
-              <strong>{displayPlaceName(place)}</strong>
-              <small>
-                {displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName })}
-              </small>
-            </span>
-            <span className="visit-actions">
-              {onEditVisit && (
-                <button
-                  aria-label={`编辑 ${displayPlaceName(place)}`}
-                  disabled={isSaving}
-                  onClick={() => chooseVisitAction(item, "edit")}
-                  title="编辑"
-                  type="button"
-                >
-                  <Pencil size={14} />
-                </button>
-              )}
-              {onDeleteVisit && (
-                <button
-                  aria-label={`删除 ${displayPlaceName(place)}`}
-                  disabled={isSaving}
-                  onClick={() => chooseVisitAction(item, "delete")}
-                  title="删除"
-                  type="button"
-                >
-                  <X size={15} />
-                </button>
-              )}
-            </span>
-          </div>
+            <div
+              key={place.id}
+              ref={(node) => {
+                const key = canonicalPlaceId(place.mapId || place.id);
+                if (node) addedItemRefs.current.set(key, node);
+                else addedItemRefs.current.delete(key);
+              }}
+            >
+              <FlagIcon place={place} />
+              <span>
+                <strong>{displayPlaceName(place)}</strong>
+                <small>
+                  {displayCountryName({ id: place.countryCode, isoA2: place.isoA2, localName: place.countryName })}
+                </small>
+              </span>
+              <span className="visit-actions">
+                {onEditVisit && (
+                  <button
+                    aria-label={`编辑 ${displayPlaceName(place)}`}
+                    disabled={isSaving}
+                    onClick={() => onEditVisit?.(place)}
+                    title="编辑"
+                    type="button"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                )}
+                {onDeleteVisit && (
+                  <button
+                    aria-label={`删除 ${displayPlaceName(place)}`}
+                    disabled={isSaving}
+                    onClick={() => handleDeletePlace(item)}
+                    title="删除"
+                    type="button"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </span>
+            </div>
           );
         })}
       </div>
-      {visitChoice && (
-        <div className="visit-choice-popover" ref={popoverRef} role="dialog" aria-modal="false">
-          <div>
-            <strong>{visitChoice.action === "delete" ? "选择要删除的记录" : "选择要编辑的记录"}</strong>
-            <small>{displayPlaceName(visitChoice.place)}</small>
-          </div>
-          {visitChoice.visits.map((visit) => (
-            <button key={visit.id} onClick={() => runVisitChoice(visit)} type="button">
-              <span>{profileLabel(visit.profileId)}</span>
-              <small>
-                {displayVisitDate(visit) || "未填写日期"} · {visit.type || "旅行"} · {visit.rating ? `${visit.rating}/10 ★` : "未评分"}
-              </small>
-            </button>
-          ))}
-          <button className="ghost" onClick={() => setVisitChoice(null)} type="button">
-            取消
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -7446,95 +7598,339 @@ function VisitEditDialog({
   isSaving,
   onClose,
   onDeleteVisit,
-  onUpdateVisit,
+  onSaveDualVisit,
   place,
-  visit,
+  visits = [],
+  profiles = [],
 }) {
-  const [visitedAt, setVisitedAt] = useState(displayVisitDate(visit));
-  const [type, setType] = useState(visit.type || "旅行");
-  const [rating, setRating] = useState(visit.rating || 0);
-  const [comment, setComment] = useState(visit.comment || "");
+  const canonicalId = canonicalPlaceId(place?.mapId || place?.id);
+  const xiaoProfile = profiles.find((p) => p.id === "person-a") || profiles[0] || { id: "person-a", name: "Xiao" };
+  const tangProfile = profiles.find((p) => p.id === "person-b") || profiles[1] || { id: "person-b", name: "Tang" };
+
+  const initialXiaoVisit = useMemo(
+    () => visits.find((v) => v.profileId === xiaoProfile.id && canonicalPlaceId(v.placeId) === canonicalId),
+    [visits, xiaoProfile.id, canonicalId]
+  );
+
+  const initialTangVisit = useMemo(
+    () => visits.find((v) => v.profileId === tangProfile.id && canonicalPlaceId(v.placeId) === canonicalId),
+    [visits, tangProfile.id, canonicalId]
+  );
+
+  // Xiao State
+  const [xiaoEnabled, setXiaoEnabled] = useState(Boolean(initialXiaoVisit));
+  const [xiaoDates, setXiaoDates] = useState(() => {
+    if (initialXiaoVisit?.visitDates?.length) return [...initialXiaoVisit.visitDates];
+    if (initialXiaoVisit?.dateDisplay) return [initialXiaoVisit.dateDisplay];
+    if (initialXiaoVisit?.visitedAt) return [initialXiaoVisit.visitedAt];
+    return [""];
+  });
+  const [xiaoType, setXiaoType] = useState(initialXiaoVisit?.type || "旅行");
+  const [xiaoRating, setXiaoRating] = useState(initialXiaoVisit?.rating || 0);
+  const [xiaoComment, setXiaoComment] = useState(initialXiaoVisit?.comment || "");
+  const [xiaoNote, setXiaoNote] = useState(initialXiaoVisit?.note || "");
+
+  // Tang State
+  const [tangEnabled, setTangEnabled] = useState(Boolean(initialTangVisit));
+  const [tangDates, setTangDates] = useState(() => {
+    if (initialTangVisit?.visitDates?.length) return [...initialTangVisit.visitDates];
+    if (initialTangVisit?.dateDisplay) return [initialTangVisit.dateDisplay];
+    if (initialTangVisit?.visitedAt) return [initialTangVisit.visitedAt];
+    return [""];
+  });
+  const [tangType, setTangType] = useState(initialTangVisit?.type || "旅行");
+  const [tangRating, setTangRating] = useState(initialTangVisit?.rating || 0);
+  const [tangComment, setTangComment] = useState(initialTangVisit?.comment || "");
+  const [tangNote, setTangNote] = useState(initialTangVisit?.note || "");
 
   useEffect(() => {
-    setVisitedAt(displayVisitDate(visit));
-    setType(visit.type || "旅行");
-    setRating(visit.rating || 0);
-    setComment(visit.comment || "");
-  }, [visit.comment, visit.id, visit.rating, visit.type, visit.visitedAt]);
+    setXiaoEnabled(Boolean(initialXiaoVisit));
+    setXiaoDates(
+      initialXiaoVisit?.visitDates?.length
+        ? [...initialXiaoVisit.visitDates]
+        : initialXiaoVisit?.dateDisplay
+        ? [initialXiaoVisit.dateDisplay]
+        : initialXiaoVisit?.visitedAt
+        ? [initialXiaoVisit.visitedAt]
+        : [""]
+    );
+    setXiaoType(initialXiaoVisit?.type || "旅行");
+    setXiaoRating(initialXiaoVisit?.rating || 0);
+    setXiaoComment(initialXiaoVisit?.comment || "");
+    setXiaoNote(initialXiaoVisit?.note || "");
+  }, [initialXiaoVisit]);
+
+  useEffect(() => {
+    setTangEnabled(Boolean(initialTangVisit));
+    setTangDates(
+      initialTangVisit?.visitDates?.length
+        ? [...initialTangVisit.visitDates]
+        : initialTangVisit?.dateDisplay
+        ? [initialTangVisit.dateDisplay]
+        : initialTangVisit?.visitedAt
+        ? [initialTangVisit.visitedAt]
+        : [""]
+    );
+    setTangType(initialTangVisit?.type || "旅行");
+    setTangRating(initialTangVisit?.rating || 0);
+    setTangComment(initialTangVisit?.comment || "");
+    setTangNote(initialTangVisit?.note || "");
+  }, [initialTangVisit]);
 
   async function handleSubmit(event) {
     event.preventDefault();
     const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    await onUpdateVisit(visit.id, {
-      file: form.get("photo"),
-      files: getPhotoFilesFromForm(formElement),
-      rating,
-      comment,
-      type,
-      visitedAt,
-    });
-  }
+    const files = getPhotoFilesFromForm(formElement);
 
-  async function handleDelete() {
-    const ok = await onDeleteVisit(visit.id);
+    const ok = await onSaveDualVisit({
+      placeId: place.id,
+      xiaoData: {
+        enabled: xiaoEnabled,
+        dates: xiaoDates,
+        type: xiaoType,
+        rating: xiaoRating,
+        comment: xiaoComment,
+        note: xiaoNote,
+      },
+      tangData: {
+        enabled: tangEnabled,
+        dates: tangDates,
+        type: tangType,
+        rating: tangRating,
+        comment: tangComment,
+        note: tangNote,
+      },
+      files,
+    });
     if (ok) onClose();
   }
 
   return (
     <div className="edit-dialog-backdrop" role="presentation">
-      <form className="visit-edit-dialog" onSubmit={handleSubmit}>
+      <form className="visit-edit-dialog visit-edit-dialog-dual" onSubmit={handleSubmit}>
         <div className="visit-edit-head">
           <div>
-            <p className="eyebrow">Edit Visit</p>
+            <p className="eyebrow">双人足迹编辑 · 双栏同步</p>
             <h3>{displayPlaceName(place)}</h3>
-            <span>{displayCountryName({ id: place?.countryCode, isoA2: place?.isoA2, localName: place?.countryName })}</span>
+            <span>
+              {displayCountryName({ id: place?.countryCode, isoA2: place?.isoA2, localName: place?.countryName })}
+              {place?.province ? ` · ${place.province}` : ""}
+            </span>
           </div>
           <button aria-label="关闭" className="icon-button" onClick={onClose} type="button">
             <X size={18} />
           </button>
         </div>
-        <label>
-          日期
-          <DatePrecisionInput onChange={setVisitedAt} value={visitedAt || ""} />
-        </label>
-        <label>
-          类型
-          <select onChange={(event) => setType(event.target.value)} value={type}>
-            {tripTypes.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-        <div className="rating-row" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "6px 0" }} aria-label="评分">
-          <span style={{ fontSize: "0.9rem", fontWeight: "700", color: "#475569" }}>评分</span>
-          <DecimalStarSelector rating={rating} onChange={setRating} isEditable={true} />
-          <span style={{ fontSize: "0.95rem", fontFamily: "var(--prophet-code)", fontWeight: "800", color: "var(--prophet-gold)" }}>
-            {rating ? `${Number(rating).toFixed(1)}` : "未评分"}
-          </span>
+
+        <div className="visit-edit-dual-columns">
+          {/* 左栏：Xiao 的记录 */}
+          <div className={`dual-column xiao ${xiaoEnabled ? "active" : "inactive"}`}>
+            <div className="column-header">
+              <span className="profile-badge xiao">Xiao 的足迹</span>
+              <span className={`status-tag ${xiaoEnabled ? "visited" : "unvisited"}`}>
+                {xiaoEnabled ? "已标记去过" : "未去过"}
+              </span>
+            </div>
+
+            {!xiaoEnabled ? (
+              <div className="column-empty-card">
+                <p>Xiao 尚未标记去过该地点</p>
+                <button
+                  type="button"
+                  className="toggle-enable-btn"
+                  onClick={() => setXiaoEnabled(true)}
+                >
+                  <Plus size={15} /> 标记 Xiao 去过
+                </button>
+              </div>
+            ) : (
+              <div className="column-form-fields">
+                <div className="dates-manager">
+                  <div className="dates-header-row">
+                    <span className="dates-label-title">到访时间（支持记录多次）</span>
+                    <button
+                      type="button"
+                      className="add-date-btn-inline"
+                      onClick={() => setXiaoDates((prev) => [...prev, ""])}
+                    >
+                      <Plus size={13} /> 添加时间
+                    </button>
+                  </div>
+                  <div className="dates-inputs-list">
+                    {xiaoDates.map((dateVal, idx) => (
+                      <div key={idx} className="date-input-row">
+                        <DatePrecisionInput
+                          value={dateVal || ""}
+                          onChange={(val) => {
+                            setXiaoDates((prev) => {
+                              const next = [...prev];
+                              next[idx] = val;
+                              return next;
+                            });
+                          }}
+                        />
+                        {xiaoDates.length > 1 && (
+                          <button
+                            type="button"
+                            className="date-remove-btn"
+                            title="删除此次时间"
+                            onClick={() => setXiaoDates((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rating-row" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "4px 0" }}>
+                  <span style={{ fontSize: "0.88rem", fontWeight: "700", color: "#475569" }}>评分</span>
+                  <DecimalStarSelector rating={xiaoRating} onChange={setXiaoRating} isEditable={true} />
+                  <span style={{ fontSize: "0.95rem", fontFamily: "var(--prophet-code)", fontWeight: "800", color: "var(--prophet-gold)" }}>
+                    {xiaoRating ? `${Number(xiaoRating).toFixed(1)}` : "未评分"}
+                  </span>
+                </div>
+
+                <label>
+                  <span>一句话点评</span>
+                  <input
+                    type="text"
+                    placeholder="写下一句话点评（可选）"
+                    value={xiaoComment}
+                    onChange={(e) => setXiaoComment(e.target.value)}
+                    maxLength={120}
+                  />
+                </label>
+
+                <div className="column-footer-actions">
+                  <button
+                    type="button"
+                    className="column-delete-btn"
+                    onClick={() => {
+                      if (window.confirm("确定取消标记 Xiao 在该地点的足迹吗？")) {
+                        setXiaoEnabled(false);
+                      }
+                    }}
+                  >
+                    <Trash2 size={13} /> 取消标记 Xiao 去过
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 右栏：Tang 的记录 */}
+          <div className={`dual-column tang ${tangEnabled ? "active" : "inactive"}`}>
+            <div className="column-header">
+              <span className="profile-badge tang">Tang 的足迹</span>
+              <span className={`status-tag ${tangEnabled ? "visited" : "unvisited"}`}>
+                {tangEnabled ? "已标记去过" : "未去过"}
+              </span>
+            </div>
+
+            {!tangEnabled ? (
+              <div className="column-empty-card">
+                <p>Tang 尚未标记去过该地点</p>
+                <button
+                  type="button"
+                  className="toggle-enable-btn"
+                  onClick={() => setTangEnabled(true)}
+                >
+                  <Plus size={15} /> 标记 Tang 去过
+                </button>
+              </div>
+            ) : (
+              <div className="column-form-fields">
+                <div className="dates-manager">
+                  <div className="dates-header-row">
+                    <span className="dates-label-title">到访时间（支持记录多次）</span>
+                    <button
+                      type="button"
+                      className="add-date-btn-inline"
+                      onClick={() => setTangDates((prev) => [...prev, ""])}
+                    >
+                      <Plus size={13} /> 添加时间
+                    </button>
+                  </div>
+                  <div className="dates-inputs-list">
+                    {tangDates.map((dateVal, idx) => (
+                      <div key={idx} className="date-input-row">
+                        <DatePrecisionInput
+                          value={dateVal || ""}
+                          onChange={(val) => {
+                            setTangDates((prev) => {
+                              const next = [...prev];
+                              next[idx] = val;
+                              return next;
+                            });
+                          }}
+                        />
+                        {tangDates.length > 1 && (
+                          <button
+                            type="button"
+                            className="date-remove-btn"
+                            title="删除此次时间"
+                            onClick={() => setTangDates((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rating-row" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "4px 0" }}>
+                  <span style={{ fontSize: "0.88rem", fontWeight: "700", color: "#475569" }}>评分</span>
+                  <DecimalStarSelector rating={tangRating} onChange={setTangRating} isEditable={true} />
+                  <span style={{ fontSize: "0.95rem", fontFamily: "var(--prophet-code)", fontWeight: "800", color: "var(--prophet-gold)" }}>
+                    {tangRating ? `${Number(tangRating).toFixed(1)}` : "未评分"}
+                  </span>
+                </div>
+
+                <label>
+                  <span>一句话点评</span>
+                  <input
+                    type="text"
+                    placeholder="写下一句话点评（可选）"
+                    value={tangComment}
+                    onChange={(e) => setTangComment(e.target.value)}
+                    maxLength={120}
+                  />
+                </label>
+
+                <div className="column-footer-actions">
+                  <button
+                    type="button"
+                    className="column-delete-btn"
+                    onClick={() => {
+                      if (window.confirm("确定取消标记 Tang 在该地点的足迹吗？")) {
+                        setTangEnabled(false);
+                      }
+                    }}
+                  >
+                    <Trash2 size={13} /> 取消标记 Tang 去过
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <label style={{ marginTop: "4px" }}>
-          一句话点评
-          <input
-            type="text"
-            placeholder="写下一句话点评（可选）"
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            maxLength={120}
-          />
-        </label>
-        <label>
-          上传照片
+
+        <label style={{ marginTop: "10px" }}>
+          <span>上传照片</span>
           <input accept="image/*" multiple name="photo" type="file" />
         </label>
+
         {authMessage && <p className="dock-message">{authMessage}</p>}
-        <div className="visit-edit-actions">
-          <button className="secondary-action" disabled={isSaving} onClick={handleDelete} type="button">
-            <Trash2 size={16} />
-            删除
+
+        <div className="visit-edit-actions" style={{ marginTop: "8px" }}>
+          <button className="secondary-action" disabled={isSaving} onClick={onClose} type="button">
+            取消
           </button>
           <button className="primary-action" disabled={isSaving} type="submit">
-            保存修改
+            {isSaving ? "正在保存..." : "保存全部修改"}
           </button>
         </div>
       </form>
@@ -10755,8 +11151,8 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
     const map = L.map(editMapRef.current, { center: [30, 110], zoom: 4, zoomControl: true });
 
     const esriLayer = L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-      { attribution: "© Esri", maxZoom: 19 }
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      { attribution: "© OpenStreetMap contributors", maxZoom: 19 }
     );
     esriLayer.addTo(map);
     editTileRef.current = { type: "esri", base: esriLayer, label: null };
@@ -10805,8 +11201,8 @@ function TravelNoteEditDialog({ note, onClose, onSave }) {
       if (current.base) map.removeLayer(current.base);
       if (current.label) map.removeLayer(current.label);
       const esriLayer = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "© Esri", maxZoom: 19 }
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        { attribution: "© OpenStreetMap contributors", maxZoom: 19 }
       ).addTo(map);
       editTileRef.current = { type: "esri", base: esriLayer, label: null };
     }
