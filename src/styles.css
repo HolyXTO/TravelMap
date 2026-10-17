@@ -746,11 +746,12 @@ h2 {
   top: 76px;
   right: 14px;
   display: grid;
-  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
   border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  background: #ffffffdb;
-  padding: 10px 8px;
+  border-radius: 20px;
+  background: #ffffffeb;
+  padding: 8px 7px;
   box-shadow: 0 14px 34px #0f172a24;
   backdrop-filter: blur(8px);
 }
@@ -758,17 +759,24 @@ h2 {
 .map-theme-picker button {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border: 3px solid #e5e7eb;
+  width: 32px;
+  height: 32px;
+  border: 2.5px solid #e5e7eb;
   border-radius: 999px;
   background: #ffffff;
-  padding: 3px;
+  padding: 2px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.map-theme-picker button:hover {
+  transform: scale(1.12);
+  border-color: #94a3b8;
 }
 
 .map-theme-picker button.active {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 4px #22c55e24;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px #10b98130;
+  transform: scale(1.08);
 }
 
 .map-theme-picker span {
@@ -783,10 +791,12 @@ h2 {
   top: calc(100% - 2px);
   right: auto;
   left: 50%;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   width: max-content;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 18px;
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, -8px) scale(0.96);
@@ -804,9 +814,9 @@ h2 {
 
 .prophet-theme-nav .nav-theme-picker button {
   flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
-  border-width: 3px;
+  width: 32px;
+  height: 32px;
+  border-width: 2.5px;
 }
 
 .leaflet-control-attribution {
@@ -4808,13 +4818,14 @@ h2 {
   .map-theme-picker {
     top: 68px;
     right: 10px;
-    gap: 8px;
-    padding: 8px 6px;
+    gap: 5px;
+    padding: 6px 5px;
+    border-radius: 16px;
   }
 
   .map-theme-picker button {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     border-width: 2px;
   }
 

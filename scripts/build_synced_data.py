@@ -289,7 +289,11 @@ def main():
         visited_at = upd["visited_at"] if upd else v.get("visited_at")
         note = upd["note_str"] if upd else (v.get("note") or "")
 
-        final_mock_visits.append({
+        is_sarajevo = v.get("place_id") == "W-3191281"
+        if is_sarajevo and visited_at == "2024-19-18":
+            visited_at = "2024-09-18"
+
+        visit_obj = {
             "id": vid,
             "profileId": v["profile_id"],
             "placeId": v["place_id"],
@@ -298,7 +302,15 @@ def main():
             "type": v.get("trip_type") or "旅行",
             "note": note,
             "photos": photos
-        })
+        }
+        try:
+            parsed_meta = json.loads(note) if note else {}
+            if parsed_meta.get("updatedAt"):
+                visit_obj["updatedAt"] = parsed_meta["updatedAt"]
+        except Exception:
+            pass
+
+        final_mock_visits.append(visit_obj)
 
     profiles_cleaned = [
         {"id": p["id"], "name": p["display_name"], "color": p["color"]}

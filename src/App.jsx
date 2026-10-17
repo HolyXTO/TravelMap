@@ -51,12 +51,20 @@ const staticVisits = initialVisits.map((v) => {
   if (!visitDates.length && (v.dateDisplay || v.visitedAt || v.visited_at)) {
     visitDates = [String(v.dateDisplay || v.visitedAt || v.visited_at).trim()];
   }
+  const updatedAt =
+    v.updatedAt ||
+    meta.updatedAt ||
+    v.createdAt ||
+    v.created_at ||
+    v.visitedAt ||
+    v.visited_at;
   return {
     id: v.id,
     profileId: v.profileId || v.profile_id,
     placeId: v.placeId || v.place_id,
     visitedAt: v.visitedAt || v.visited_at,
     createdAt: v.createdAt || v.created_at || v.visitedAt || v.visited_at,
+    updatedAt,
     dateDisplay: meta.dateDisplay || v.dateDisplay || v.visitedAt || v.visited_at,
     datePrecision: meta.datePrecision || v.datePrecision || "day",
     visitDates,
@@ -187,30 +195,39 @@ function countryDotColor(id) {
 
 function visitTone(visitInfo, profiles = [], mapTheme, activeProfile = "all") {
   if (!visitInfo || !visitInfo.count) return null;
-  if (activeProfile !== "all") {
-    return {
-      fill: mapTheme.visitedFill,
-      stroke: mapTheme.visitedStroke,
-      marker: mapTheme.markerFill,
-    };
-  }
-  const profileIds = visitInfo.profileIds || new Set();
-  const firstId = profiles[0]?.id;
-  const secondId = profiles[1]?.id;
-  if (firstId && secondId && profileIds.has(firstId) && profileIds.has(secondId)) {
-    return {
-      fill: mapTheme.visitedFill,
-      stroke: mapTheme.visitedStroke,
-      marker: mapTheme.markerFill,
-    };
-  }
-  if (firstId && profileIds.has(firstId)) return PROFILE_TONES[0];
-  if (secondId && profileIds.has(secondId)) return PROFILE_TONES[1];
-  return {
-    fill: mapTheme.visitedFill,
-    stroke: mapTheme.visitedStroke,
-    marker: mapTheme.markerFill,
+  const theme = mapTheme || MAP_THEMES[0];
+  const bothTone = {
+    fill: theme.bothFill || theme.visitedFill,
+    stroke: theme.bothStroke || theme.visitedStroke,
+    marker: theme.bothMarker || theme.markerFill,
   };
+  const xiaoTone = PROFILE_TONES[0];
+  const tangTone = PROFILE_TONES[1];
+
+  if (activeProfile === "person-a") {
+    return xiaoTone;
+  }
+  if (activeProfile === "person-b") {
+    return tangTone;
+  }
+  if (activeProfile !== "all") {
+    return bothTone;
+  }
+
+  const profileIds = visitInfo.profileIds || new Set();
+  const firstId = profiles[0]?.id || "person-a";
+  const secondId = profiles[1]?.id || "person-b";
+
+  const hasFirst = profileIds.has(firstId);
+  const hasSecond = profileIds.has(secondId);
+
+  if (hasFirst && hasSecond) {
+    return bothTone;
+  }
+  if (hasFirst) return xiaoTone;
+  if (hasSecond) return tangTone;
+
+  return bothTone;
 }
 
 const MAP_TILE_ATTRIBUTION =
@@ -372,88 +389,206 @@ function useNearViewport(rootMargin = "320px") {
 
 const MAP_THEMES = [
   {
-    id: "ocean",
-    label: "蓝色经典",
-    tile: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    swatches: ["#c8e9ff", "#1d4ed8"],
-    background: "#dbeafe",
-    selectedStroke: "#1d4ed8",
-    visitedFill: "#f59e0b",
-    countryBaseFill: "#f8d894",
-    visitedStroke: "#b45309",
-    bothFill: "#ec4899",
-    emptyFill: "#eef6e4",
-    emptyStroke: "#b8c7bf",
-    markerFill: "#be185d",
-    markerStroke: "#fff7ed",
-  },
-  {
-    id: "copper",
-    label: "暖棕",
-    tile: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    swatches: ["#f4dfc1", "#7c4a2d"],
-    background: "#d6dee0",
-    selectedStroke: "#7c4a2d",
-    visitedFill: "#e8ad7d",
-    countryBaseFill: "#f4d4b5",
-    visitedStroke: "#a1623c",
-    bothFill: "#b97845",
-    emptyFill: "#fff8ec",
-    emptyStroke: "#dac8ad",
-    markerFill: "#6b3f21",
-    markerStroke: "#fff7ed",
-  },
-  {
-    id: "ink",
-    label: "深墨",
-    tile: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
-    swatches: ["#172033", "#d6a800"],
-    background: "#eef2f7",
-    selectedStroke: "#f8fafc",
-    visitedFill: "#172033",
-    countryBaseFill: "#607089",
-    visitedStroke: "#f2e8f0",
-    bothFill: "#0f172a",
-    emptyFill: "#9fb1c8",
-    emptyStroke: "#cbd5e1",
-    markerFill: "#d6a800",
-    markerStroke: "#fff7d6",
-  },
-  {
-    id: "coral",
-    label: "柔和珊瑚",
-    tile: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    swatches: ["#f7d6a5", "#e87f63"],
-    background: "#e8f5fb",
-    selectedStroke: "#e76f51",
-    visitedFill: "#e98c70",
-    countryBaseFill: "#f3c6b8",
-    visitedStroke: "#bc6c45",
-    bothFill: "#8ab17d",
-    emptyFill: "#fff5e6",
-    emptyStroke: "#cfbda7",
-    markerFill: "#27364b",
+    id: "nordic",
+    label: "北欧凛冽",
+    category: "冷冽极简",
+    swatches: ["#bfd9e6", "#42a882"],
+    background: "#bfd9e6",
+    emptyFill: "#ffffff",
+    emptyStroke: "#9ec1d2",
+    countryBaseFill: "#dbeef5",
+    visitedFill: "#42a882",
+    visitedStroke: "#277a5e",
+    bothFill: "#42a882",
+    bothStroke: "#277a5e",
+    bothMarker: "#277a5e",
+    selectedStroke: "#1a5340",
+    markerFill: "#42a882",
     markerStroke: "#ffffff",
   },
   {
+    id: "ocean",
+    label: "浩瀚蔚蓝",
+    category: "海洋风尚",
+    swatches: ["#b9ddf8", "#34628c"],
+    background: "#b9ddf8",
+    emptyFill: "#ffffff",
+    emptyStroke: "#94c1e8",
+    countryBaseFill: "#e0f0fe",
+    visitedFill: "#34628c",
+    visitedStroke: "#1e4266",
+    bothFill: "#34628c",
+    bothStroke: "#1e4266",
+    bothMarker: "#1e4266",
+    selectedStroke: "#153350",
+    markerFill: "#34628c",
+    markerStroke: "#ffffff",
+  },
+  {
+    id: "vintage",
+    label: "传统羊皮纸",
+    category: "传统经典",
+    swatches: ["#9bb7c4", "#b85d19"],
+    background: "#9bb7c4",
+    emptyFill: "#faf6ee",
+    emptyStroke: "#c2b097",
+    countryBaseFill: "#f0e6d6",
+    visitedFill: "#b85d19",
+    visitedStroke: "#853808",
+    bothFill: "#b85d19",
+    bothStroke: "#853808",
+    bothMarker: "#853808",
+    selectedStroke: "#522203",
+    markerFill: "#b85d19",
+    markerStroke: "#fdfaf4",
+  },
+  {
+    id: "cyberpunk",
+    label: "赛博霓虹",
+    category: "未来科幻",
+    swatches: ["#080b16", "#00f0ff"],
+    background: "#080b16",
+    emptyFill: "#1d2436",
+    emptyStroke: "#2e3a59",
+    countryBaseFill: "#263047",
+    visitedFill: "#00f0ff",
+    visitedStroke: "#00b8c4",
+    bothFill: "#00f0ff",
+    bothStroke: "#38bdf8",
+    bothMarker: "#00f0ff",
+    selectedStroke: "#ffe600",
+    markerFill: "#ffe600",
+    markerStroke: "#080b16",
+  },
+  {
+    id: "midnight",
+    label: "深空曜黑",
+    category: "暗色极简",
+    swatches: ["#101114", "#e5b85a"],
+    background: "#101114",
+    emptyFill: "#262932",
+    emptyStroke: "#3c414f",
+    countryBaseFill: "#313540",
+    visitedFill: "#e5b85a",
+    visitedStroke: "#b88a32",
+    bothFill: "#e5b85a",
+    bothStroke: "#b88a32",
+    bothMarker: "#e5b85a",
+    selectedStroke: "#fbbf24",
+    markerFill: "#e5b85a",
+    markerStroke: "#101114",
+  },
+  {
     id: "mint",
-    label: "清新绿",
-    tile: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png",
-    swatches: ["#facc15", "#22c55e"],
-    background: "#e7f6ef",
-    selectedStroke: "#16a34a",
-    visitedFill: "#76c893",
-    countryBaseFill: "#cce8cc",
-    visitedStroke: "#40916c",
-    bothFill: "#facc15",
-    emptyFill: "#eef4d8",
-    emptyStroke: "#b7c9a0",
-    markerFill: "#1f3a5f",
-    markerStroke: "#f8fafc",
+    label: "清新薄荷",
+    category: "自然清新",
+    swatches: ["#c6e6d8", "#16a34a"],
+    background: "#c6e6d8",
+    emptyFill: "#ffffff",
+    emptyStroke: "#a2c7b5",
+    countryBaseFill: "#e6f5ee",
+    visitedFill: "#16a34a",
+    visitedStroke: "#15803d",
+    bothFill: "#16a34a",
+    bothStroke: "#14532d",
+    bothMarker: "#14532d",
+    selectedStroke: "#047857",
+    markerFill: "#16a34a",
+    markerStroke: "#ffffff",
+  },
+  {
+    id: "sunset",
+    label: "晚霞暖橘",
+    category: "暖色柔和",
+    swatches: ["#d5dbe4", "#ea580c"],
+    background: "#d5dbe4",
+    emptyFill: "#fff8f0",
+    emptyStroke: "#fed7aa",
+    countryBaseFill: "#faebd7",
+    visitedFill: "#ea580c",
+    visitedStroke: "#b93803",
+    bothFill: "#ea580c",
+    bothStroke: "#9a3412",
+    bothMarker: "#9a3412",
+    selectedStroke: "#c2410c",
+    markerFill: "#ea580c",
+    markerStroke: "#ffffff",
+  },
+  {
+    id: "morandi",
+    label: "莫兰迪灰",
+    category: "艺术微风",
+    swatches: ["#c2cdc9", "#8c6d53"],
+    background: "#c2cdc9",
+    emptyFill: "#f6f5f0",
+    emptyStroke: "#b0bcb8",
+    countryBaseFill: "#e5e3dc",
+    visitedFill: "#8c6d53",
+    visitedStroke: "#634d3a",
+    bothFill: "#8c6d53",
+    bothStroke: "#4d3a2b",
+    bothMarker: "#4d3a2b",
+    selectedStroke: "#443428",
+    markerFill: "#634d3a",
+    markerStroke: "#fbfaf8",
+  },
+  {
+    id: "nebula",
+    label: "暮色星云",
+    category: "幻夜星河",
+    swatches: ["#110e20", "#a855f7"],
+    background: "#110e20",
+    emptyFill: "#241e3d",
+    emptyStroke: "#3d3363",
+    countryBaseFill: "#2e264e",
+    visitedFill: "#a855f7",
+    visitedStroke: "#7e22ce",
+    bothFill: "#a855f7",
+    bothStroke: "#6b21a8",
+    bothMarker: "#a855f7",
+    selectedStroke: "#c084fc",
+    markerFill: "#c084fc",
+    markerStroke: "#110e20",
+  },
+  {
+    id: "celadon",
+    label: "东方青瓷",
+    category: "国风青绿",
+    swatches: ["#bad2ca", "#1f6d60"],
+    background: "#bad2ca",
+    emptyFill: "#faf9f4",
+    emptyStroke: "#98b3aa",
+    countryBaseFill: "#d4e4de",
+    visitedFill: "#1f6d60",
+    visitedStroke: "#134e44",
+    bothFill: "#1f6d60",
+    bothStroke: "#0f3832",
+    bothMarker: "#0f3832",
+    selectedStroke: "#06231f",
+    markerFill: "#1f6d60",
+    markerStroke: "#fafffc",
   },
 ];
 
-const MAP_THEME_PICKER_ORDER = ["copper", "ocean", "ink", "coral", "mint"];
+const MAP_THEME_PICKER_ORDER = [
+  "nordic",
+  "ocean",
+  "vintage",
+  "cyberpunk",
+  "midnight",
+  "mint",
+  "sunset",
+  "morandi",
+  "nebula",
+  "celadon",
+];
+
+const LEGACY_THEME_ID_MAP = {
+  copper: "vintage",
+  ink: "midnight",
+  coral: "sunset",
+};
+
 const ORDERED_MAP_THEMES = MAP_THEME_PICKER_ORDER
   .map((id) => MAP_THEMES.find((theme) => theme.id === id))
   .filter(Boolean);
@@ -1616,7 +1751,7 @@ function normalizeProfilesForDisplay(items = []) {
 }
 
 function parseVisitMeta(note) {
-  if (!note) return { rating: 0, text: "", comment: "", datePrecision: "day", dateDisplay: "", visitDates: [], transportMode: "" };
+  if (!note) return { rating: 0, text: "", comment: "", datePrecision: "day", dateDisplay: "", visitDates: [], transportMode: "", updatedAt: "" };
   try {
     const parsed = JSON.parse(note);
     if (parsed && typeof parsed === "object") {
@@ -1632,21 +1767,23 @@ function parseVisitMeta(note) {
         dateDisplay: parsed.dateDisplay || (visitDates[visitDates.length - 1] || ""),
         visitDates,
         transportMode: parsed.transportMode || "",
+        updatedAt: parsed.updatedAt || parsed.updated_at || "",
       };
     }
   } catch {
     // Existing plain-text notes are preserved as text.
   }
-  return { rating: 0, text: note, comment: "", datePrecision: "day", dateDisplay: "", visitDates: [], transportMode: "" };
+  return { rating: 0, text: note, comment: "", datePrecision: "day", dateDisplay: "", visitDates: [], transportMode: "", updatedAt: "" };
 }
 
-function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, text = "", comment = "", transportMode = "", visitDates = [] } = {}) {
+function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, text = "", comment = "", transportMode = "", visitDates = [], updatedAt = "" } = {}) {
   const normalizedRating = Math.max(0, Math.min(10, Number(rating) || 0));
   const cleanDates = Array.isArray(visitDates) ? visitDates.map((d) => String(d || "").trim()).filter(Boolean) : [];
   if (!cleanDates.length && dateDisplay) {
     cleanDates.push(String(dateDisplay).trim());
   }
   const primaryDisplay = cleanDates[cleanDates.length - 1] || dateDisplay || "";
+  const effectiveUpdatedAt = updatedAt || new Date().toISOString();
   if (!normalizedRating && !text && !comment && !primaryDisplay && !transportMode && !cleanDates.length) return "";
   return JSON.stringify({
     dateDisplay: primaryDisplay,
@@ -1656,6 +1793,7 @@ function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, t
     comment,
     transportMode,
     visitDates: cleanDates,
+    updatedAt: effectiveUpdatedAt,
   });
 }
 
@@ -2252,12 +2390,18 @@ function mapVisit(row) {
   if (!visitDates.length && (meta.dateDisplay || row.visited_at)) {
     visitDates = [String(meta.dateDisplay || row.visited_at).trim()];
   }
+  const updatedAt =
+    meta.updatedAt ||
+    row.updated_at ||
+    row.created_at ||
+    row.visited_at;
   return {
     id: row.id,
     profileId: row.profile_id,
     placeId: row.place_id,
     visitedAt: row.visited_at,
     createdAt: row.created_at || row.visited_at,
+    updatedAt,
     dateDisplay: meta.dateDisplay || row.visited_at,
     datePrecision: meta.datePrecision || "day",
     visitDates,
@@ -2483,7 +2627,11 @@ function App() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [activeMapThemeId, setActiveMapThemeId] = useState(() => {
-    return localStorage.getItem("travel_map_theme_id") || "copper";
+    const saved = localStorage.getItem("travel_map_theme_id");
+    if (!saved || saved === "vintage" || saved === "copper" || saved === "ink" || saved === "coral") {
+      return "nordic";
+    }
+    return (saved && LEGACY_THEME_ID_MAP[saved]) || saved || "nordic";
   });
 
   useEffect(() => {
@@ -2498,7 +2646,31 @@ function App() {
   }, [mapTileSource]);
 
   const [appProfiles, setAppProfiles] = useState(() => normalizeProfilesForDisplay(profiles));
-  const [visits, setVisits] = useState(staticVisits);
+  const [visits, setVisits] = useState(() => {
+    try {
+      const cached = localStorage.getItem("travel_cached_visits");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to read cached visits:", e);
+    }
+    return staticVisits;
+  });
+
+  useEffect(() => {
+    try {
+      if (visits && visits.length > 0) {
+        localStorage.setItem("travel_cached_visits", JSON.stringify(visits));
+      }
+    } catch (e) {
+      console.warn("Failed to cache visits:", e);
+    }
+  }, [visits]);
+
   const [recentInteractions, setRecentInteractions] = useState(() => {
     try {
       const saved = localStorage.getItem("travel_recent_interactions");
@@ -2597,8 +2769,12 @@ function App() {
       const dbVisits = visitsResult.data.map((row) => {
         const mapped = mapVisit(row);
         const meta = parseVisitMeta(row.note || "");
+        const staticMatch = staticVisits.find((sv) => sv.id === mapped.id);
+        const effectiveUpdatedAt =
+          meta.updatedAt ||
+          mapped.updatedAt ||
+          mapped.createdAt;
         if (!meta.visitDates || meta.visitDates.length === 0) {
-          const staticMatch = staticVisits.find((sv) => sv.id === mapped.id);
           if (staticMatch && staticMatch.visitDates?.length > 0) {
             return {
               ...mapped,
@@ -2608,10 +2784,14 @@ function App() {
               visitedAt: staticMatch.visitedAt || mapped.visitedAt,
               rating: staticMatch.rating || mapped.rating,
               comment: staticMatch.comment || mapped.comment,
+              updatedAt: effectiveUpdatedAt,
             };
           }
         }
-        return mapped;
+        return {
+          ...mapped,
+          updatedAt: effectiveUpdatedAt,
+        };
       });
       setVisits(dbVisits);
 
@@ -3315,6 +3495,7 @@ function App() {
         const cleanDates = (data.dates || []).map((d) => String(d || "").trim()).filter(Boolean);
         const latestDate = cleanDates[cleanDates.length - 1] || "";
         const normDate = normalizeVisitDateInput(latestDate);
+        const nowIso = new Date().toISOString();
         const notePayload = buildVisitNote({
           dateDisplay: normDate.display,
           datePrecision: normDate.precision,
@@ -3323,6 +3504,7 @@ function App() {
           comment: data.comment || "",
           visitDates: cleanDates,
           transportMode: existing?.transportMode || "",
+          updatedAt: nowIso,
         });
 
         if (existing) {
@@ -3362,6 +3544,15 @@ function App() {
         await uploadVisitPhotos(targetVisitId, files);
       }
 
+      const nowIso = new Date().toISOString();
+      setVisits((prev) =>
+        prev.map((v) =>
+          canonicalPlaceId(v.placeId) === canonicalId
+            ? { ...v, updatedAt: nowIso }
+            : v
+        )
+      );
+      setRecentInteractions((prev) => [canonicalId, ...prev.filter((id) => id !== canonicalId)]);
       await loadTravelData();
       setRecentInteractions((prev) => [canonicalId, ...prev.filter((id) => id !== canonicalId)]);
       setEditMessage("足迹已更新。");
@@ -3409,6 +3600,7 @@ function App() {
       const normalizedDate = normalizeVisitDateInput(visitedAt);
       const oldVisit = visits.find((v) => v.id === visitId);
       const targetComment = comment !== undefined ? comment : (oldVisit?.comment || "");
+      const nowIso = new Date().toISOString();
       const { error: updateError } = await supabase
         .from("visits")
         .update({
@@ -3420,6 +3612,8 @@ function App() {
             rating,
             text: oldVisit?.note || "",
             comment: targetComment,
+            visitDates: oldVisit?.visitDates || [],
+            updatedAt: nowIso,
           }),
         })
         .eq("id", visitId);
@@ -3429,6 +3623,17 @@ function App() {
       const photoFiles = files?.length ? files : file && file.size ? [file] : [];
       await uploadVisitPhotos(visitId, photoFiles);
 
+      if (oldVisit) {
+        const canonicalId = canonicalPlaceId(oldVisit.placeId);
+        setVisits((prev) =>
+          prev.map((v) =>
+            canonicalPlaceId(v.placeId) === canonicalId
+              ? { ...v, updatedAt: nowIso }
+              : v
+          )
+        );
+        setRecentInteractions((prev) => [canonicalId, ...prev.filter((id) => id !== canonicalId)]);
+      }
       await loadTravelData();
       if (oldVisit) {
         const canonicalId = canonicalPlaceId(oldVisit.placeId);
@@ -3493,6 +3698,8 @@ function App() {
               rating: normalizedRating,
               text: oldVisit.note || "",
               comment: targetComment,
+              visitDates: oldVisit.visitDates || [],
+              updatedAt: nowIso,
             }),
           })
           .eq("id", id);
@@ -5918,7 +6125,7 @@ function MapView({
                 ? mapTheme.countryBaseFill || mapTheme.visitedFill
                 : tone.fill
               : mapTheme.emptyFill,
-            fillOpacity: tone ? (isSubLevelCountryBase ? 0.34 : 0.72) : activeLevel === "country" ? 0.46 : 0.26,
+            fillOpacity: tone ? (isSubLevelCountryBase ? 0.45 : 0.92) : 1,
           };
         },
         onEachFeature: (feature, leafletLayer) => {
@@ -5950,11 +6157,11 @@ function MapView({
                 ? mapTheme.selectedStroke
                 : tone
                   ? tone.stroke
-                  : "#9aacbd",
+                  : mapTheme.emptyStroke || "#9aacbd",
               weight: isSelected ? 1.4 : activeLevel === "city" ? 0.5 : 0.7,
               opacity: 0.9,
-              fillColor: tone ? tone.fill : "#ffffff",
-              fillOpacity: tone ? 0.7 : 0.08,
+              fillColor: tone ? tone.fill : (mapTheme.emptyFill || "#ffffff"),
+              fillOpacity: tone ? 0.9 : 0.88,
             };
           },
           onEachFeature: (feature, leafletLayer) => {
@@ -7250,6 +7457,21 @@ function PlaceSearchPanel({
     });
 
     filtered.sort((a, b) => {
+      // 1. 最新修改/编辑的时间戳（真实数据驱动，跨设备、刷新后100%一致生效）
+      const aLatestModified = a.visits
+        .map((v) => v.updatedAt || v.createdAt || v.visitedAt || "")
+        .sort()
+        .pop() || "";
+      const bLatestModified = b.visits
+        .map((v) => v.updatedAt || v.createdAt || v.visitedAt || "")
+        .sort()
+        .pop() || "";
+
+      if (aLatestModified !== bLatestModified) {
+        return bLatestModified.localeCompare(aLatestModified);
+      }
+
+      // 2. 本地交互缓存辅助（当时间戳完全相同时）
       const aKey = canonicalPlaceId(a.place.mapId || a.place.id);
       const bKey = canonicalPlaceId(b.place.mapId || b.place.id);
       const aIdx = recentInteractions ? recentInteractions.indexOf(aKey) : -1;
@@ -7259,13 +7481,7 @@ function PlaceSearchPanel({
       if (aIdx !== -1) return -1;
       if (bIdx !== -1) return 1;
 
-      const aLatestCreated = a.visits.map((v) => v.createdAt || v.visitedAt || "").sort().pop() || "";
-      const bLatestCreated = b.visits.map((v) => v.createdAt || v.visitedAt || "").sort().pop() || "";
-
-      if (aLatestCreated !== bLatestCreated) {
-        return bLatestCreated.localeCompare(aLatestCreated);
-      }
-
+      // 3. 到访时间兜底
       const aLatestVisited = a.visits.map((v) => v.visitedAt || "").sort().pop() || "";
       const bLatestVisited = b.visits.map((v) => v.visitedAt || "").sort().pop() || "";
       return bLatestVisited.localeCompare(aLatestVisited);
@@ -10463,6 +10679,16 @@ function TravelRatingsSection({
 
   const saveCloudRatingsSettings = async (nextRatingsConfig, nextCustomTieBreakers) => {
     try {
+      const configToSave = nextRatingsConfig || ratingsConfig;
+      const tieBreakersToSave = nextCustomTieBreakers || customTieBreakers;
+
+      if (configToSave) {
+        localStorage.setItem("travel_ratings_config", JSON.stringify(configToSave));
+      }
+      if (tieBreakersToSave) {
+        localStorage.setItem("travel_ratings_tiebreakers", JSON.stringify(tieBreakersToSave));
+      }
+
       if (session) {
         const dbRecord = {
           id: "ratings_settings_config",
@@ -10473,14 +10699,17 @@ function TravelRatingsSection({
           end_date: null,
           rating: 0,
           summary: JSON.stringify({
-            ratingsConfig: nextRatingsConfig,
-            customTieBreakers: nextCustomTieBreakers,
+            ratingsConfig: configToSave,
+            customTieBreakers: tieBreakersToSave,
           }),
           center: [0, 0],
           addresses: [],
           created_by: session?.user?.id ?? null,
         };
-        await supabase.from("travel_notes").upsert(dbRecord, { onConflict: "id" });
+        const { error } = await supabase.from("travel_notes").upsert(dbRecord, { onConflict: "id" });
+        if (error) {
+          console.warn("Failed to save ratings settings to cloud:", error.message);
+        }
       }
     } catch (err) {
       console.warn("Failed to save ratings settings to cloud:", err);
@@ -10500,6 +10729,14 @@ function TravelRatingsSection({
           console.warn("Failed to load cloud ratings settings:", error.message);
           return;
         }
+
+        const localSavedConfig = localStorage.getItem("travel_ratings_config");
+        const localSavedTie = localStorage.getItem("travel_ratings_tiebreakers");
+        let localTieBreakers = {};
+        try {
+          if (localSavedTie) localTieBreakers = JSON.parse(localSavedTie);
+        } catch {}
+
         if (data && data.summary) {
           try {
             const parsed = JSON.parse(data.summary);
@@ -10507,20 +10744,25 @@ function TravelRatingsSection({
               setRatingsConfig(parsed.ratingsConfig);
               localStorage.setItem("travel_ratings_config", JSON.stringify(parsed.ratingsConfig));
             }
-            if (parsed.customTieBreakers) {
-              setCustomTieBreakers(parsed.customTieBreakers);
-              localStorage.setItem("travel_ratings_tiebreakers", JSON.stringify(parsed.customTieBreakers));
+
+            const cloudTie = parsed.customTieBreakers;
+            const hasCloudTie = cloudTie && typeof cloudTie === "object" && Object.keys(cloudTie).length > 0;
+            const hasLocalTie = localTieBreakers && typeof localTieBreakers === "object" && Object.keys(localTieBreakers).length > 0;
+
+            if (hasCloudTie) {
+              setCustomTieBreakers(cloudTie);
+              localStorage.setItem("travel_ratings_tiebreakers", JSON.stringify(cloudTie));
+            } else if (hasLocalTie) {
+              setCustomTieBreakers(localTieBreakers);
+              saveCloudRatingsSettings(parsed.ratingsConfig || ratingsConfig, localTieBreakers);
             }
           } catch (e) {
             console.error("Failed to parse cloud ratings settings:", e);
           }
         } else if (session) {
-          const localSaved = localStorage.getItem("travel_ratings_config");
-          const localTieBreakers = localStorage.getItem("travel_ratings_tiebreakers");
-          if (localSaved || localTieBreakers) {
-            const parsedConfig = localSaved ? JSON.parse(localSaved) : { upgraded: [], merged: {} };
-            const parsedTieBreakers = localTieBreakers ? JSON.parse(localTieBreakers) : {};
-            saveCloudRatingsSettings(parsedConfig, parsedTieBreakers);
+          if (localSavedConfig || localSavedTie) {
+            const parsedConfig = localSavedConfig ? JSON.parse(localSavedConfig) : { upgraded: [], merged: {} };
+            saveCloudRatingsSettings(parsedConfig, localTieBreakers);
           }
         }
       } catch (e) {
@@ -10681,6 +10923,8 @@ function TravelRatingsSection({
           if (idxA !== -1 && idxB !== -1) {
             return idxA - idxB;
           }
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
         }
         return 0;
       });
@@ -10773,34 +11017,32 @@ function TravelRatingsSection({
         [profileId]: newOrder,
       }));
 
-      let nextTieBreakers = {};
-      setCustomTieBreakers((prev) => {
-        const updated = {
-          ...prev,
-          [profileId]: newOrder,
-        };
-        nextTieBreakers = updated;
-        localStorage.setItem("travel_ratings_tiebreakers", JSON.stringify(updated));
-        return updated;
-      });
-      saveCloudRatingsSettings(ratingsConfig, nextTieBreakers);
+      const updatedTieBreakers = {
+        ...customTieBreakers,
+        [profileId]: newOrder,
+      };
+      setCustomTieBreakers(updatedTieBreakers);
+      try {
+        localStorage.setItem("travel_ratings_tiebreakers", JSON.stringify(updatedTieBreakers));
+      } catch (err) {
+        console.warn("Failed to save tiebreakers to localStorage:", err);
+      }
+      saveCloudRatingsSettings(ratingsConfig, updatedTieBreakers);
     }
   }
 
   function handleUpgradeToCountry(countryCode) {
-    let nextConfig = null;
-    setRatingsConfig((prev) => {
-      const updated = {
-        ...prev,
-        upgraded: Array.from(new Set([...(prev.upgraded || []), countryCode])),
-      };
-      nextConfig = updated;
+    const updated = {
+      ...ratingsConfig,
+      upgraded: Array.from(new Set([...(ratingsConfig.upgraded || []), countryCode])),
+    };
+    setRatingsConfig(updated);
+    try {
       localStorage.setItem("travel_ratings_config", JSON.stringify(updated));
-      return updated;
-    });
-    if (nextConfig) {
-      saveCloudRatingsSettings(nextConfig, customTieBreakers);
+    } catch (err) {
+      console.warn(err);
     }
+    saveCloudRatingsSettings(updated, customTieBreakers);
   }
 
   function handleOpenMergeModal(profileId, countryCode, clickedCity, allCityGroups) {
@@ -10828,22 +11070,20 @@ function TravelRatingsSection({
     const { countryCode, clickedCity, allCityGroups } = mergeTarget;
     const targetCityIds = Object.keys(selectedCities).filter((id) => selectedCities[id]);
 
-    let nextConfig = null;
-    setRatingsConfig((prev) => {
-      const updated = {
-        ...prev,
-        merged: {
-          ...(prev.merged || {}),
-          [countryCode]: targetCityIds,
-        },
-      };
-      nextConfig = updated;
+    const updated = {
+      ...ratingsConfig,
+      merged: {
+        ...(ratingsConfig.merged || {}),
+        [countryCode]: targetCityIds,
+      },
+    };
+    setRatingsConfig(updated);
+    try {
       localStorage.setItem("travel_ratings_config", JSON.stringify(updated));
-      return updated;
-    });
-    if (nextConfig) {
-      saveCloudRatingsSettings(nextConfig, customTieBreakers);
+    } catch (err) {
+      console.warn(err);
     }
+    saveCloudRatingsSettings(updated, customTieBreakers);
 
     const visitsToSync = allCityGroups
       .filter((cg) => targetCityIds.includes(cg.city.id))
@@ -10856,26 +11096,24 @@ function TravelRatingsSection({
   }
 
   function handleRestore(countryCode) {
-    let nextConfig = null;
-    setRatingsConfig((prev) => {
-      const upgradedList = prev.upgraded || [];
-      const mergedMap = prev.merged || {};
+    const upgradedList = ratingsConfig.upgraded || [];
+    const mergedMap = ratingsConfig.merged || {};
 
-      const nextUpgraded = upgradedList.filter((c) => c !== countryCode);
-      const nextMerged = { ...mergedMap };
-      delete nextMerged[countryCode];
+    const nextUpgraded = upgradedList.filter((c) => c !== countryCode);
+    const nextMerged = { ...mergedMap };
+    delete nextMerged[countryCode];
 
-      const updated = {
-        upgraded: nextUpgraded,
-        merged: nextMerged,
-      };
-      nextConfig = updated;
+    const updated = {
+      upgraded: nextUpgraded,
+      merged: nextMerged,
+    };
+    setRatingsConfig(updated);
+    try {
       localStorage.setItem("travel_ratings_config", JSON.stringify(updated));
-      return updated;
-    });
-    if (nextConfig) {
-      saveCloudRatingsSettings(nextConfig, customTieBreakers);
+    } catch (err) {
+      console.warn(err);
     }
+    saveCloudRatingsSettings(updated, customTieBreakers);
   }
 
   async function handleRatingChange(item, newRating) {
