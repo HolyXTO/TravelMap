@@ -31,9 +31,18 @@ import {
   Users,
   Calendar,
   Map as MapIcon,
+  Play,
+  Pause,
+  Sparkles,
+  Clock,
+  Compass,
+  GripVertical,
+  ArrowRightLeft,
+  CheckCircle2,
 } from "lucide-react";
 import {
   initialVisits,
+  initialRoutes,
   placeLevels,
   places,
   profiles,
@@ -1750,14 +1759,46 @@ function normalizeProfilesForDisplay(items = []) {
   return sortProfilesStable(items);
 }
 
+function normalizeDateStr(val) {
+  const s = String(val || "").trim().replace(/\//g, "-").replace(/\s+/g, "");
+  if (!s) return "";
+  if (s === "居住" || s === "多次") return s;
+  const mDay = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (mDay) {
+    return `${mDay[1]}-${mDay[2].padStart(2, "0")}-${mDay[3].padStart(2, "0")}`;
+  }
+  const mMonth = s.match(/^(\d{4})-(\d{1,2})$/);
+  if (mMonth) {
+    return `${mMonth[1]}-${mMonth[2].padStart(2, "0")}`;
+  }
+  return s;
+}
+
+function sortVisitDates(dates = []) {
+  if (!Array.isArray(dates)) return [];
+  const calendarDates = [];
+  const specialTags = [];
+  dates.forEach((d) => {
+    const s = normalizeDateStr(d);
+    if (!s) return;
+    if (s === "居住" || s === "多次") {
+      if (!specialTags.includes(s)) specialTags.push(s);
+    } else {
+      if (!calendarDates.includes(s)) calendarDates.push(s);
+    }
+  });
+  calendarDates.sort((a, b) => a.localeCompare(b));
+  return [...calendarDates, ...specialTags];
+}
+
 function parseVisitMeta(note) {
   if (!note) return { rating: 0, text: "", comment: "", datePrecision: "day", dateDisplay: "", visitDates: [], transportMode: "", updatedAt: "" };
   try {
     const parsed = JSON.parse(note);
     if (parsed && typeof parsed === "object") {
-      let visitDates = Array.isArray(parsed.visitDates) ? parsed.visitDates.map((d) => String(d || "").trim()).filter(Boolean) : [];
+      let visitDates = Array.isArray(parsed.visitDates) ? sortVisitDates(parsed.visitDates) : [];
       if (visitDates.length === 0 && parsed.dateDisplay) {
-        visitDates = [String(parsed.dateDisplay).trim()];
+        visitDates = sortVisitDates([parsed.dateDisplay]);
       }
       return {
         rating: Number(parsed.rating) || 0,
@@ -1778,10 +1819,7 @@ function parseVisitMeta(note) {
 
 function buildVisitNote({ dateDisplay = "", datePrecision = "day", rating = 0, text = "", comment = "", transportMode = "", visitDates = [], updatedAt = "" } = {}) {
   const normalizedRating = Math.max(0, Math.min(10, Number(rating) || 0));
-  const cleanDates = Array.isArray(visitDates) ? visitDates.map((d) => String(d || "").trim()).filter(Boolean) : [];
-  if (!cleanDates.length && dateDisplay) {
-    cleanDates.push(String(dateDisplay).trim());
-  }
+  const cleanDates = sortVisitDates(Array.isArray(visitDates) ? visitDates : [dateDisplay]);
   const primaryDisplay = cleanDates[cleanDates.length - 1] || dateDisplay || "";
   const effectiveUpdatedAt = updatedAt || new Date().toISOString();
   if (!normalizedRating && !text && !comment && !primaryDisplay && !transportMode && !cleanDates.length) return "";
@@ -1919,7 +1957,7 @@ function DatePrecisionInput({ disabled = false, onChange, value }) {
 
 function displayVisitDate(visit) {
   if (visit?.visitDates && visit.visitDates.length > 0) {
-    return visit.visitDates.join("、");
+    return sortVisitDates(visit.visitDates).join("、");
   }
   return visit?.dateDisplay || visit?.visitedAt || "";
 }
@@ -2688,7 +2726,7 @@ function App() {
     }
   }, [recentInteractions]);
 
-  const [routes, setRoutes] = useState([]);
+  const [routes, setRoutes] = useState(initialRoutes || []);
   const [routeMessage, setRouteMessage] = useState("");
   const [selectedPlaceId, setSelectedPlaceId] = useState("CHN");
   const [countryModalId, setCountryModalId] = useState(null);
@@ -2704,6 +2742,7 @@ function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [editingPlace, setEditingPlace] = useState(null);
   const [quickAddFocusRequest, setQuickAddFocusRequest] = useState(null);
+  const [mapFocusTarget, setMapFocusTarget] = useState(null);
   const [profileSettingsOpen, setProfileSettingsOpen] = useState(false);
   const [profileSettingsMessage, setProfileSettingsMessage] = useState("");
 
@@ -2798,12 +2837,12 @@ function App() {
       const routesResult = await withTimeout(supabase
         .from("travel_routes")
         .select("id, profile_id, start_place_id, end_place_id, traveled_at, note, created_by, created_at")
-        .order("created_at", { ascending: false }), 3500);
+        .order("created_at", { ascending: false }), 8000);
       if (routesResult.error) {
         console.warn("travel_routes is not ready yet", routesResult.error);
-        setRoutes([]);
+        setRoutes((prev) => (prev && prev.length > 0 ? prev : (initialRoutes || [])));
         setRouteMessage("轨迹表还未创建，执行 supabase/schema.sql 后可保存真实轨迹。");
-      } else {
+      } else if (routesResult.data && routesResult.data.length > 0) {
         setRoutes(routesResult.data.map(mapRoute));
         setRouteMessage("");
       }
@@ -2811,6 +2850,7 @@ function App() {
     } catch (error) {
       console.warn("Supabase fetch failed or timed out:", error);
       // 超时或失败时，完全不污染 state，继续使用已初始化好的纯净本地固化数据
+      setRoutes((prev) => (prev && prev.length > 0 ? prev : (initialRoutes || [])));
       setDataStatus("Supabase 暂不可用");
     }
   };
@@ -3286,9 +3326,9 @@ function App() {
   const journeyVisuals = useMemo(
     () => ({
       points: generatedJourneyVisuals.points,
-      arcs: routeArcs,
+      arcs: routeArcs.length > 0 ? routeArcs : generatedJourneyVisuals.arcs,
     }),
-    [generatedJourneyVisuals.points, routeArcs],
+    [generatedJourneyVisuals.points, generatedJourneyVisuals.arcs, routeArcs],
   );
 
   const worldShapeDots = useMemo(
@@ -3833,7 +3873,15 @@ function App() {
   }
 
   function scrollToPageSection(sectionId) {
-    if ((sectionId === "travel-notes-section" || sectionId === "visual-journey-section" || sectionId === "travel-ratings-section") && !journeyVisualsLoaded) {
+    const isVisualSection =
+      sectionId === "travel-notes-section" ||
+      sectionId === "visual-journey-section" ||
+      sectionId === "spherical-globe-section" ||
+      sectionId === "dot-matrix-section" ||
+      sectionId === "journey-timeline-section" ||
+      sectionId === "travel-ratings-section";
+
+    if (isVisualSection && !journeyVisualsLoaded) {
       setJourneyVisualsLoaded(true);
       setTimeout(() => {
         const target = document.getElementById(sectionId);
@@ -3842,6 +3890,11 @@ function App() {
         const top = target.getBoundingClientRect().top + window.scrollY - offset;
         window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
       }, 350);
+      return;
+    }
+
+    if (sectionId === "map-section") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -3921,9 +3974,22 @@ function App() {
           <button onClick={() => scrollToPageSection("overview-section")} type="button">
             统计数据
           </button>
-          <button onClick={() => scrollToPageSection("visual-journey-section")} type="button">
-            足迹可视化
-          </button>
+          <div className="prophet-dropdown-nav">
+            <button onClick={() => scrollToPageSection("visual-journey-section")} type="button">
+              足迹可视化
+            </button>
+            <div className="prophet-dropdown-menu">
+              <button onClick={() => scrollToPageSection("spherical-globe-section")} type="button">
+                球形足迹
+              </button>
+              <button onClick={() => scrollToPageSection("dot-matrix-section")} type="button">
+                点阵轨迹
+              </button>
+              <button onClick={() => scrollToPageSection("journey-timeline-section")} type="button">
+                时间线
+              </button>
+            </div>
+          </div>
           <button onClick={() => scrollToPageSection("travel-notes-section")} type="button">
             旅行记录
           </button>
@@ -4087,6 +4153,7 @@ function App() {
           visitedPlaces={visibleVisitedPlaces}
           onPlaceFocus={handleMapPlaceFocus}
           mapTileSource={mapTileSource}
+          mapFocusTarget={mapFocusTarget}
         />
       </section>
 
@@ -4267,6 +4334,45 @@ function App() {
             session={session}
             visits={visits}
             worldDots={worldShapeDots}
+            placeLookup={placeLookup}
+            onSelectPlace={(place) => {
+              if (!place) return;
+              const pid = place.id || place.placeId;
+              const targetPlace = findPlace(pid, placeLookup) || place;
+              setSelectedPlaceId(pid);
+              handleMapPlaceFocus(canonicalPlaceId(pid));
+
+              // 自动切换到合理地图层级，避免在国家层级以极大缩放显示粗糙矢量
+              const isChina =
+                targetPlace.country === "CHN" ||
+                targetPlace.countryId === "CHN" ||
+                String(targetPlace.id || "").startsWith("CN");
+
+              if (isChina && (targetPlace.level === "city" || targetPlace.level === "region")) {
+                setActiveLevel(targetPlace.level === "region" ? "region" : "city");
+              }
+
+              const latLng = placeLatLng(targetPlace);
+              if (latLng) {
+                const targetZoom =
+                  targetPlace.level === "country"
+                    ? 4
+                    : isChina
+                    ? (targetPlace.level === "city" ? 6 : 5)
+                    : 5;
+
+                setMapFocusTarget({
+                  placeId: pid,
+                  place: targetPlace,
+                  lat: latLng.lat,
+                  lng: latLng.lng,
+                  zoom: targetZoom,
+                  token: Date.now(),
+                });
+              }
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            onEditVisit={openVisitEditor}
           />
         ) : (
           <section className="journey-visual-placeholder" aria-label="足迹视觉展示">
@@ -4432,6 +4538,9 @@ function JourneyVisuals({
   session,
   visits,
   worldDots,
+  placeLookup,
+  onSelectPlace,
+  onEditVisit,
 }) {
   return (
     <section className="journey-visual-section" aria-label="足迹视觉展示">
@@ -4461,7 +4570,896 @@ function JourneyVisuals({
         />
         <AceternityStyleWorldMap arcs={arcs} points={points} worldDots={worldDots} />
       </div>
+      {/* 位于点阵轨迹下方的足迹时间线 */}
+      <VisualJourneyTimeline
+        visits={visits}
+        profiles={profiles}
+        activeProfile={activeProfile}
+        placeLookup={placeLookup}
+        onSelectPlace={onSelectPlace}
+        onEditVisit={onEditVisit}
+        isEditor={isEditor}
+      />
     </section>
+  );
+}
+
+const YEAR_THEME_LABELS = {
+  "2013": "浔阳初探 · 旅程起点",
+  "2015": "岭南初逢 · 羊城漫步",
+  "2017": "南国海疆 · 湾区北国",
+  "2018": "秦川蜀道 · 金陵姑苏",
+  "2019": "蓉城重游 · 锦官漫调",
+  "2020": "塞上江南 · 大漠津沽",
+  "2021": "华夏古都 · 赣鄂山水",
+  "2022": "荆楚漫步 · 澴川寻幽",
+  "2023": "黔山湘水 · 远涉重洋",
+  "2024": "欧罗巴壮游 · 极光与海",
+  "2025": "环球行迹 · 闽桂新程",
+  "2026": "雪域圣境 · 漫溯江南",
+  "常驻/多次": "江城常驻 · 岁月长青",
+};
+
+const SAME_DAY_ORDERS_STORAGE_KEY = "travelmap_timeline_sameday_orders";
+
+const DEFAULT_SAME_DAY_ORDERS = {
+  // 默认游历先后顺序预设：2025-06-10 布拉格在瓦莱塔之前
+  "2025-06-10": ["W-4548393", "W-2562305"],
+};
+
+function loadInitialSameDayOrders() {
+  let saved = {};
+  try {
+    const raw = localStorage.getItem(SAME_DAY_ORDERS_STORAGE_KEY);
+    if (raw) saved = JSON.parse(raw);
+  } catch (e) {
+    console.warn("Failed to read timeline same-day orders from localStorage", e);
+  }
+  return { ...DEFAULT_SAME_DAY_ORDERS, ...saved };
+}
+
+function VisualJourneyTimeline({
+  visits,
+  profiles,
+  activeProfile: parentActiveProfile,
+  placeLookup,
+  onSelectPlace,
+  onEditVisit,
+  isEditor,
+}) {
+  const [timelineProfile, setTimelineProfile] = useState("all");
+  const [selectedYear, setSelectedYear] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [scrubberIndex, setScrubberIndex] = useState(0);
+  const [viewMode, setViewMode] = useState("stream"); // "stream" (连续长轴) | "focus" (单年聚焦)
+  const timelineScrollRef = useRef(null);
+  const playTimerRef = useRef(null);
+
+  // 同一天游览多个地点的先后顺序状态
+  const [sameDayOrders, setSameDayOrders] = useState(loadInitialSameDayOrders);
+  const [draggingMomentId, setDraggingMomentId] = useState(null);
+  const [dragOverMomentId, setDragOverMomentId] = useState(null);
+  const [dropSuccessIds, setDropSuccessIds] = useState([]);
+  const [reorderToast, setReorderToast] = useState(null);
+  const toastTimerRef = useRef(null);
+  const successTimerRef = useRef(null);
+
+  // 尝试从云端加载同一天先后顺序设置
+  useEffect(() => {
+    let isMounted = true;
+    async function loadRemoteOrders() {
+      try {
+        const { data, error } = await supabase
+          .from("travel_notes")
+          .select("summary")
+          .eq("id", "config_timeline_sameday_orders")
+          .maybeSingle();
+        if (!error && data && data.summary && isMounted) {
+          const remoteOrders = JSON.parse(data.summary);
+          if (remoteOrders && typeof remoteOrders === "object") {
+            setSameDayOrders((prev) => {
+              const merged = { ...prev, ...remoteOrders };
+              try {
+                localStorage.setItem(SAME_DAY_ORDERS_STORAGE_KEY, JSON.stringify(merged));
+              } catch (e) {}
+              return merged;
+            });
+          }
+        }
+      } catch (e) {
+        // 静默容错
+      }
+    }
+    loadRemoteOrders();
+    return () => {
+      isMounted = false;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
+
+  // 同步外部人员筛选
+  useEffect(() => {
+    if (parentActiveProfile) {
+      setTimelineProfile(parentActiveProfile);
+    }
+  }, [parentActiveProfile]);
+
+  const xiaoProfile = profiles?.find((p) => p.name?.toLowerCase().includes("xiao") || p.id === "person-a");
+  const tangProfile = profiles?.find((p) => p.name?.toLowerCase().includes("tang") || p.id === "person-b");
+  const xiaoId = xiaoProfile ? xiaoProfile.id : "person-a";
+  const tangId = tangProfile ? tangProfile.id : "person-b";
+
+  // 解析并聚合合并所有足迹时刻
+  const allMoments = useMemo(() => {
+    if (!visits || !visits.length) return [];
+    const groupMap = {};
+
+    visits.forEach((v) => {
+      const meta = parseVisitMeta(v.note || "");
+      let rawDates = [];
+      if (Array.isArray(v.visitDates) && v.visitDates.length > 0) {
+        rawDates = v.visitDates;
+      } else if (Array.isArray(meta.visitDates) && meta.visitDates.length > 0) {
+        rawDates = meta.visitDates;
+      } else if (v.dateDisplay) {
+        rawDates = [v.dateDisplay];
+      } else if (meta.dateDisplay) {
+        rawDates = [meta.dateDisplay];
+      } else if (v.visitedAt) {
+        rawDates = [v.visitedAt];
+      }
+
+      const validDates = sortVisitDates(rawDates.filter((d) => d && d !== "居住" && d !== "多次"));
+      const tags = rawDates.filter((d) => d === "居住" || d === "多次");
+      if (v.dateDisplay && (v.dateDisplay === "居住" || v.dateDisplay === "多次") && !tags.includes(v.dateDisplay)) {
+        tags.push(v.dateDisplay);
+      }
+      if (meta.dateDisplay && (meta.dateDisplay === "居住" || meta.dateDisplay === "多次") && !tags.includes(meta.dateDisplay)) {
+        tags.push(meta.dateDisplay);
+      }
+
+      const effectiveDates = validDates.length > 0 ? validDates : (tags.length > 0 ? ["常驻/多次"] : []);
+
+      effectiveDates.forEach((d) => {
+        const canonicalId = canonicalPlaceId(v.placeId);
+        const key = `${d}___${canonicalId}`;
+
+        if (!groupMap[key]) {
+          const cityPlace = resolvePlaceForLevel(v.placeId, "city", placeLookup) || findPlace(v.placeId, placeLookup);
+          const countryPlace = resolvePlaceForLevel(v.placeId, "country", placeLookup);
+
+          let year = "其他";
+          let month = "";
+          let day = "";
+          if (d.startsWith("20") || d.startsWith("19")) {
+            year = d.slice(0, 4);
+            if (d.length >= 7) month = d.slice(5, 7);
+            if (d.length >= 10) day = d.slice(8, 10);
+          } else if (d === "常驻/多次") {
+            year = "常驻/多次";
+          }
+
+          groupMap[key] = {
+            id: key,
+            date: d,
+            year,
+            month,
+            day,
+            placeId: v.placeId,
+            canonicalId,
+            cityPlace,
+            countryPlace,
+            cityName: displayPlaceName(cityPlace),
+            countryName: displayCountryName(countryPlace),
+            profiles: [],
+            ratings: {},
+            comments: {},
+            tags: new Set(),
+            photos: [],
+            visits: [],
+          };
+        }
+
+        if (!groupMap[key].profiles.includes(v.profileId)) {
+          groupMap[key].profiles.push(v.profileId);
+        }
+        const rating = v.rating ?? meta.rating;
+        const comment = v.comment ?? meta.comment;
+        if (rating) groupMap[key].ratings[v.profileId] = rating;
+        if (comment) groupMap[key].comments[v.profileId] = comment;
+        tags.forEach((t) => groupMap[key].tags.add(t));
+        if (v.photos && v.photos.length) groupMap[key].photos.push(...v.photos);
+        groupMap[key].visits.push(v);
+      });
+    });
+
+    const list = Object.values(groupMap);
+    // 从早到晚排序：
+    list.sort((a, b) => {
+      if (a.date === "常驻/多次") return 1;
+      if (b.date === "常驻/多次") return -1;
+      const dateDiff = a.date.localeCompare(b.date);
+      if (dateDiff !== 0) return dateDiff;
+
+      // 同一天多地点先后顺序
+      const orderList = sameDayOrders[a.date] || DEFAULT_SAME_DAY_ORDERS[a.date];
+      if (orderList && Array.isArray(orderList)) {
+        const getRank = (item) => {
+          const idxFull = orderList.indexOf(item.id);
+          if (idxFull !== -1) return idxFull;
+          const idxCanonical = orderList.indexOf(item.canonicalId);
+          if (idxCanonical !== -1) return idxCanonical;
+          const idxPlace = orderList.indexOf(item.placeId);
+          if (idxPlace !== -1) return idxPlace;
+          const idxCity = orderList.indexOf(item.cityName);
+          if (idxCity !== -1) return idxCity;
+          return 999;
+        };
+        const rankA = getRank(a);
+        const rankB = getRank(b);
+        if (rankA !== rankB) return rankA - rankB;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
+    return list;
+  }, [visits, placeLookup, sameDayOrders]);
+
+  // 年份统计元数据
+  const yearsSummary = useMemo(() => {
+    const summary = {};
+    allMoments.forEach((m) => {
+      const y = m.year;
+      if (!summary[y]) {
+        summary[y] = {
+          year: y,
+          count: 0,
+          cities: new Set(),
+          countries: new Set(),
+          months: {},
+          themeTag: YEAR_THEME_LABELS[y] || "行止之间 · 岁月沉香",
+        };
+      }
+      summary[y].count++;
+      if (m.cityName) summary[y].cities.add(m.cityName);
+      if (m.countryName) summary[y].countries.add(m.countryName);
+      if (m.month) {
+        summary[y].months[m.month] = (summary[y].months[m.month] || 0) + 1;
+      }
+    });
+
+    const sortedYears = Object.keys(summary).sort((a, b) => {
+      if (a === "常驻/多次") return 1;
+      if (b === "常驻/多次") return -1;
+      return a.localeCompare(b);
+    });
+
+    let maxCount = 1;
+    sortedYears.forEach((y) => {
+      if (summary[y].count > maxCount) maxCount = summary[y].count;
+    });
+
+    return {
+      years: sortedYears,
+      data: summary,
+      maxCount,
+    };
+  }, [allMoments]);
+
+  const availableYears = yearsSummary.years;
+
+  // 筛选后的足迹
+  const filteredMoments = useMemo(() => {
+    return allMoments.filter((m) => {
+      // 人员筛选
+      if (timelineProfile === xiaoId) {
+        if (!m.profiles.includes(xiaoId)) return false;
+      } else if (timelineProfile === tangId) {
+        if (!m.profiles.includes(tangId)) return false;
+      }
+
+      // 年份筛选（单年聚焦模式或指定年份）
+      if (viewMode === "focus" || selectedYear !== "all") {
+        if (selectedYear !== "all" && m.year !== selectedYear) return false;
+        if (selectedMonth !== "all" && m.month && m.month !== selectedMonth) {
+          return false;
+        }
+      }
+
+      // 搜索关键词
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const matchCity = (m.cityName || "").toLowerCase().includes(q);
+        const matchCountry = (m.countryName || "").toLowerCase().includes(q);
+        const matchDate = (m.date || "").toLowerCase().includes(q);
+        const matchComment = Object.values(m.comments).some((c) => String(c).toLowerCase().includes(q));
+        if (!matchCity && !matchCountry && !matchDate && !matchComment) return false;
+      }
+
+      return true;
+    });
+  }, [allMoments, timelineProfile, viewMode, selectedYear, selectedMonth, searchQuery, xiaoId, tangId]);
+
+  // 按年份分组供视图渲染
+  const groupedMomentsByYear = useMemo(() => {
+    const groups = {};
+    filteredMoments.forEach((m) => {
+      if (!groups[m.year]) groups[m.year] = [];
+      groups[m.year].push(m);
+    });
+    return groups;
+  }, [filteredMoments]);
+
+  // 滚动至年份里程碑（仅在时间线内部容器内滚动，严禁触发浏览器外部页面滚动）
+  const scrollToYearElement = useCallback((year, smooth = true) => {
+    const container = timelineScrollRef.current;
+    const el = document.getElementById(`timeline-year-node-${year}`);
+    if (container && el) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const relativeTop = elRect.top - containerRect.top + container.scrollTop;
+      container.scrollTo({
+        top: Math.max(0, relativeTop),
+        behavior: smooth ? "smooth" : "auto",
+      });
+    }
+  }, []);
+
+  const handleScrubberChange = (e) => {
+    const idx = Number(e.target.value);
+    setScrubberIndex(idx);
+    const targetYear = availableYears[idx];
+    if (targetYear) {
+      if (viewMode === "focus") {
+        setSelectedYear(targetYear);
+        setSelectedMonth("all");
+      } else {
+        scrollToYearElement(targetYear, false);
+      }
+    }
+  };
+
+  const handleSelectYear = (year) => {
+    const idx = availableYears.indexOf(year);
+    if (idx !== -1) setScrubberIndex(idx);
+    if (viewMode === "focus") {
+      setSelectedYear(year);
+      setSelectedMonth("all");
+    } else {
+      scrollToYearElement(year, true);
+    }
+  };
+
+  // 时光回放定时器
+  useEffect(() => {
+    if (!isPlaying) {
+      if (playTimerRef.current) clearInterval(playTimerRef.current);
+      return;
+    }
+
+    playTimerRef.current = setInterval(() => {
+      setScrubberIndex((prev) => {
+        const next = (prev + 1) % availableYears.length;
+        const targetYear = availableYears[next];
+        if (viewMode === "focus") {
+          setSelectedYear(targetYear);
+          setSelectedMonth("all");
+        } else {
+          scrollToYearElement(targetYear, true);
+        }
+        return next;
+      });
+    }, 1800);
+
+    return () => {
+      if (playTimerRef.current) clearInterval(playTimerRef.current);
+    };
+  }, [isPlaying, availableYears, viewMode, scrollToYearElement]);
+
+  const currentScrubberYear = availableYears[scrubberIndex] || availableYears[0] || "2024";
+  const currentScrubberData = yearsSummary.data[currentScrubberYear];
+
+  const totalStats = useMemo(() => {
+    const cities = new Set();
+    const countries = new Set();
+    filteredMoments.forEach((m) => {
+      if (m.cityName) cities.add(m.cityName);
+      if (m.countryName) countries.add(m.countryName);
+    });
+    return {
+      momentsCount: filteredMoments.length,
+      cityCount: cities.size,
+      countryCount: countries.size,
+    };
+  }, [filteredMoments]);
+
+  // 统计每个日期的足迹数量，识别同一天游览多地的卡片
+  const sameDayCounts = useMemo(() => {
+    const counts = {};
+    allMoments.forEach((m) => {
+      if (m.date && m.date !== "常驻/多次") {
+        counts[m.date] = (counts[m.date] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [allMoments]);
+
+  // 拖拽开始
+  const handleDragStart = (e, moment) => {
+    if (e.target.closest("button") || e.target.closest("a")) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", moment.id);
+    setTimeout(() => {
+      setDraggingMomentId(moment.id);
+    }, 10);
+  };
+
+  // 拖拽悬停检查
+  const handleDragOver = (e, moment) => {
+    if (!draggingMomentId) return;
+    const dragged = allMoments.find((m) => m.id === draggingMomentId);
+    if (!dragged) return;
+
+    if (dragged.date === moment.date && dragged.id !== moment.id) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (dragOverMomentId !== moment.id) {
+        setDragOverMomentId(moment.id);
+      }
+    } else {
+      e.dataTransfer.dropEffect = "none";
+    }
+  };
+
+  // 拖拽离开
+  const handleDragLeave = (e, moment) => {
+    if (dragOverMomentId === moment.id) {
+      setDragOverMomentId(null);
+    }
+  };
+
+  // 拖拽放置完成排序
+  const handleDrop = (e, targetMoment) => {
+    e.preventDefault();
+    setDragOverMomentId(null);
+    if (!draggingMomentId) return;
+
+    const draggedMoment = allMoments.find((m) => m.id === draggingMomentId);
+    setDraggingMomentId(null);
+    if (
+      !draggedMoment ||
+      draggedMoment.date !== targetMoment.date ||
+      draggedMoment.id === targetMoment.id
+    ) {
+      return;
+    }
+
+    const date = draggedMoment.date;
+    const sameDayList = allMoments.filter((m) => m.date === date);
+    const oldIds = sameDayList.map((m) => m.id);
+
+    const fromIdx = oldIds.indexOf(draggedMoment.id);
+    const toIdx = oldIds.indexOf(targetMoment.id);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const newIds = [...oldIds];
+    const [removed] = newIds.splice(fromIdx, 1);
+    newIds.splice(toIdx, 0, removed);
+
+    const nextOrders = { ...sameDayOrders, [date]: newIds };
+    setSameDayOrders(nextOrders);
+
+    try {
+      localStorage.setItem(SAME_DAY_ORDERS_STORAGE_KEY, JSON.stringify(nextOrders));
+    } catch (err) {
+      console.warn("Failed to persist same-day order to localStorage", err);
+    }
+
+    if (supabase && isEditor) {
+      supabase
+        .from("travel_notes")
+        .upsert({
+          id: "config_timeline_sameday_orders",
+          city: "系统配置",
+          summary: JSON.stringify(nextOrders),
+        })
+        .then(({ error }) => {
+          if (error) console.warn("Sync same-day orders to Supabase failed:", error);
+        });
+    }
+
+    setDropSuccessIds([draggedMoment.id, targetMoment.id]);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    successTimerRef.current = setTimeout(() => {
+      setDropSuccessIds([]);
+    }, 1200);
+
+    const reorderedMoments = newIds.map((id) => sameDayList.find((m) => m.id === id)).filter(Boolean);
+    const orderDescriptions = reorderedMoments.map((m) => m.cityName).join(" → ");
+    const toastMsg = `✨ 已调整 ${date} 的先后顺序：${orderDescriptions}`;
+
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setReorderToast(toastMsg);
+    toastTimerRef.current = setTimeout(() => {
+      setReorderToast(null);
+    }, 3500);
+  };
+
+  // 拖拽结束
+  const handleDragEnd = () => {
+    setDraggingMomentId(null);
+    setDragOverMomentId(null);
+  };
+
+  return (
+    <div className="journey-timeline-card" id="journey-timeline-section">
+      {/* 头部标题与统计 */}
+      <div className="timeline-header">
+        <div className="timeline-title-row">
+          <div className="timeline-title-left">
+            <Sparkles size={22} className="timeline-sparkle-icon" />
+            <h3>
+              时光足迹 · <span className="timeline-sub-en">Journey Timeline</span>
+            </h3>
+            <div className="timeline-badge-group">
+              <span className="timeline-pill-badge highlight">
+                <Calendar size={13} /> 2013 - 2026 · 13年时光流转
+              </span>
+              <span className="timeline-pill-badge">
+                <Compass size={13} /> {totalStats.momentsCount}次足迹
+              </span>
+              <span className="timeline-pill-badge">
+                <MapPin size={13} /> {totalStats.cityCount} 座城市 · {totalStats.countryCount} 个国家
+              </span>
+            </div>
+          </div>
+
+          <div className="timeline-filter-group">
+            {/* 自动回溯播放按钮 */}
+            <button
+              type="button"
+              className={`timeline-play-btn ${isPlaying ? "playing" : ""}`}
+              onClick={() => setIsPlaying((p) => !p)}
+              title={isPlaying ? "点击暂停自动回溯" : "点击逐年自动回溯足迹时光"}
+            >
+              {isPlaying ? <Pause size={14} /> : <Play size={14} />}
+              {isPlaying ? "暂停回溯" : "时光回溯播放"}
+            </button>
+
+            {/* 模式切换：连续长轴 vs 年份聚焦 */}
+            <button
+              type="button"
+              className={`timeline-toggle-btn ${viewMode === "stream" ? "active" : ""}`}
+              onClick={() => {
+                setViewMode("stream");
+                setSelectedYear("all");
+                setSelectedMonth("all");
+              }}
+            >
+              连续长轴
+            </button>
+            <button
+              type="button"
+              className={`timeline-toggle-btn ${viewMode === "focus" ? "active" : ""}`}
+              onClick={() => {
+                setViewMode("focus");
+                setSelectedYear(currentScrubberYear);
+                setSelectedMonth("all");
+              }}
+            >
+              年份聚焦
+            </button>
+          </div>
+        </div>
+
+        {/* 控制与筛选栏 */}
+        <div className="timeline-controls-bar">
+          {/* 人员筛选 */}
+          <div className="timeline-filter-group">
+            <span style={{ fontSize: "12px", fontWeight: "700", color: "#64748b" }}>人员：</span>
+            <button
+              type="button"
+              className={`timeline-toggle-btn ${timelineProfile === "all" ? "active" : ""}`}
+              onClick={() => setTimelineProfile("all")}
+            >
+              全部（Xiao & Tang）
+            </button>
+            <button
+              type="button"
+              className={`timeline-toggle-btn xiao ${timelineProfile === xiaoId ? "active" : ""}`}
+              onClick={() => setTimelineProfile(xiaoId)}
+            >
+              Xiao
+            </button>
+            <button
+              type="button"
+              className={`timeline-toggle-btn tang ${timelineProfile === tangId ? "active" : ""}`}
+              onClick={() => setTimelineProfile(tangId)}
+            >
+              Tang
+            </button>
+          </div>
+
+          {/* 实时搜索框 */}
+          <div className="timeline-search-box">
+            <Search size={14} color="#94a3b8" />
+            <input
+              type="text"
+              placeholder="搜索城市、国家、日期..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }}
+              >
+                <X size={13} color="#94a3b8" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 宏观时间流速刻度与拖拽游标 */}
+      <div className="timeline-scrubber-section">
+        <div className="timeline-scrubber-top">
+          <span>
+            🗓️ 拖拽滑块或点击年份跳至该年足迹（柱高代表到访频次）：
+            <strong style={{ color: "#2563eb", marginLeft: 6 }}>
+              {currentScrubberYear}年 {currentScrubberData ? `(到访 ${currentScrubberData.count} 次)` : ""}
+            </strong>
+          </span>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              type="button"
+              className="timeline-locate-btn"
+              onClick={() => handleSelectYear(availableYears[0])}
+            >
+              起点 ({availableYears[0]})
+            </button>
+            <button
+              type="button"
+              className="timeline-locate-btn"
+              onClick={() => handleSelectYear(availableYears[availableYears.length - 1])}
+            >
+              最新 ({availableYears[availableYears.length - 1]})
+            </button>
+          </div>
+        </div>
+
+        {/* 热力刻度槽 */}
+        <div className="timeline-density-track">
+          {availableYears.map((y, idx) => {
+            const yearData = yearsSummary.data[y];
+            const count = yearData ? yearData.count : 0;
+            const heightPercent = Math.max(16, Math.min(100, Math.round((count / yearsSummary.maxCount) * 100)));
+            const isSelected = (viewMode === "focus" && selectedYear === y) || (viewMode === "stream" && scrubberIndex === idx);
+
+            return (
+              <div
+                key={y}
+                className={`timeline-year-notch ${isSelected ? "active" : ""}`}
+                onClick={() => handleSelectYear(y)}
+                title={`${y}年：到访 ${count} 次地点`}
+              >
+                <div className="timeline-notch-bar-wrap">
+                  <span className="timeline-notch-count">{count}</span>
+                  <div className="timeline-notch-bar" style={{ height: `${heightPercent}%` }} />
+                </div>
+                <span className="timeline-notch-label">{y === "常驻/多次" ? "常驻" : y}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 可拖拽游标滑块 */}
+        <div className="timeline-slider-rail-wrap">
+          <input
+            type="range"
+            min={0}
+            max={availableYears.length - 1}
+            value={scrubberIndex}
+            onChange={handleScrubberChange}
+            className="timeline-scrubber-slider"
+          />
+        </div>
+
+        {/* 月份细分子尺度标签（单年聚焦模式下展开） */}
+        {viewMode === "focus" && selectedYear !== "all" && yearsSummary.data[selectedYear] && (
+          <div className="timeline-month-chips">
+            <span className="timeline-month-title">📅 月份精细尺度：</span>
+            <button
+              type="button"
+              className={`timeline-month-pill ${selectedMonth === "all" ? "active" : ""}`}
+              onClick={() => setSelectedMonth("all")}
+            >
+              全年全部 ({yearsSummary.data[selectedYear].count})
+            </button>
+            {Object.keys(yearsSummary.data[selectedYear].months).sort().map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={`timeline-month-pill ${selectedMonth === m ? "active" : ""}`}
+                onClick={() => setSelectedMonth(m)}
+              >
+                {parseInt(m, 10)}月 ({yearsSummary.data[selectedYear].months[m]})
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 足迹时刻流长卷 */}
+      <div className="timeline-stream-container" ref={timelineScrollRef}>
+        {filteredMoments.length === 0 ? (
+          <div className="timeline-empty-hint">
+            <p>该筛选条件下暂无足迹记录</p>
+          </div>
+        ) : (
+          Object.keys(groupedMomentsByYear).map((year) => {
+            const yearMoments = groupedMomentsByYear[year];
+            const summary = yearsSummary.data[year];
+
+            return (
+              <div key={year} className="timeline-year-group" id={`timeline-year-node-${year}`}>
+                <div className="timeline-year-milestone">
+                  <div className="timeline-milestone-marker">
+                    <div className="timeline-milestone-dot" />
+                    <span className="timeline-year-text">{year === "常驻/多次" ? "常驻与多次到访" : `${year} 年`}</span>
+                    <span className="timeline-year-tag">{summary?.themeTag}</span>
+                  </div>
+                  {summary && (
+                    <div className="timeline-year-stats">
+                      <span>📍 {summary.cities.size} 座城市 · {summary.countries.size} 个国家</span>
+                      <span className="timeline-stat-sep">/</span>
+                      <span>{yearMoments.length} 处足迹</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="timeline-moments-grid">
+                  {yearMoments.map((moment) => {
+                    const hasXiao = moment.profiles.includes(xiaoId);
+                    const hasTang = moment.profiles.includes(tangId);
+                    const isDual = hasXiao && hasTang;
+
+                    const isSameDayMulti = (sameDayCounts[moment.date] || 0) > 1;
+                    let canReorder = false;
+
+                    if (isSameDayMulti) {
+                      const sameDayList = yearMoments.filter((m) => m.date === moment.date);
+                      if (sameDayList.length > 1) {
+                        canReorder = true;
+                      }
+                    }
+
+                    const isDraggingThis = draggingMomentId === moment.id;
+                    const isDragOverThis = dragOverMomentId === moment.id;
+                    const isJustDroppedThis = dropSuccessIds.includes(moment.id);
+
+                    // 计算评分字符串
+                    let ratingContent = null;
+                    const rXiao = moment.ratings[xiaoId];
+                    const rTang = moment.ratings[tangId];
+                    if (isDual) {
+                      if (rXiao && rTang && rXiao === rTang) {
+                        ratingContent = `★ ${rXiao.toFixed(1)}`;
+                      } else if (rXiao || rTang) {
+                        const parts = [];
+                        if (rXiao) parts.push(`Xiao ${rXiao.toFixed(1)}`);
+                        if (rTang) parts.push(`Tang ${rTang.toFixed(1)}`);
+                        ratingContent = `★ ${parts.join(" · ")}`;
+                      }
+                    } else if (rXiao) {
+                      ratingContent = `★ ${rXiao.toFixed(1)}`;
+                    } else if (rTang) {
+                      ratingContent = `★ ${rTang.toFixed(1)}`;
+                    }
+
+                    return (
+                      <div
+                        key={moment.id}
+                        className={`timeline-moment-card ${
+                          canReorder ? "is-reorderable" : ""
+                        } ${isDraggingThis ? "is-dragging" : ""} ${
+                          isDragOverThis ? "is-drag-over" : ""
+                        } ${isJustDroppedThis ? "drop-success" : ""}`}
+                        draggable={canReorder}
+                        onDragStart={(e) => canReorder && handleDragStart(e, moment)}
+                        onDragOver={(e) => canReorder && handleDragOver(e, moment)}
+                        onDragLeave={(e) => canReorder && handleDragLeave(e, moment)}
+                        onDrop={(e) => canReorder && handleDrop(e, moment)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        {isDragOverThis && (
+                          <div className="timeline-drag-target-indicator">
+                            <ArrowRightLeft size={12} className="timeline-indicator-icon" />
+                            <span>调换先后顺序</span>
+                          </div>
+                        )}
+
+                        <div className="timeline-card-header">
+                          <span className="timeline-date-chip">
+                            <Clock size={11} /> {moment.date}
+                          </span>
+
+                          {isDual ? (
+                            <span className="timeline-traveler-badge dual">👫 共同探索</span>
+                          ) : hasXiao ? (
+                            <span className="timeline-traveler-badge xiao">👤 Xiao</span>
+                          ) : (
+                            <span className="timeline-traveler-badge tang">👤 Tang</span>
+                          )}
+                        </div>
+
+                        <div className="timeline-card-place">
+                          {moment.countryPlace && <FlagIcon place={moment.countryPlace} />}
+                          <span className="timeline-card-city">{moment.cityName}</span>
+                          {moment.countryName && moment.countryName !== moment.cityName && (
+                            <span className="timeline-card-country">({moment.countryName})</span>
+                          )}
+                        </div>
+
+                        {(ratingContent || moment.tags.size > 0) && (
+                          <div className="timeline-card-meta">
+                            {ratingContent && (
+                              <span className="timeline-rating-badge">{ratingContent}</span>
+                            )}
+                            {Array.from(moment.tags).map((t) => (
+                              <span key={t} className="timeline-tag-badge">{t}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="timeline-card-actions">
+                          {onSelectPlace && (
+                            <button
+                              type="button"
+                              className="timeline-locate-btn"
+                              onClick={() => onSelectPlace(moment.cityPlace || moment.countryPlace)}
+                              title="在上方主地图中定位此地点"
+                            >
+                              <MapPin size={12} /> 在地图中定位
+                            </button>
+                          )}
+
+                          {isEditor && onEditVisit && moment.visits.length > 0 && (
+                            <button
+                              type="button"
+                              className="timeline-locate-btn"
+                              onClick={() => onEditVisit(moment.visits[0])}
+                              style={{ color: "#64748b" }}
+                            >
+                              <Pencil size={11} /> 编辑
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 调序成功浮动通知 */}
+      {reorderToast && (
+        <div className="timeline-reorder-toast">
+          <CheckCircle2 size={16} color="#34d399" />
+          <span>{reorderToast}</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -4814,6 +5812,7 @@ function AceternityStyleGlobeV2({
 
   return (
     <article
+      id="spherical-globe-section"
       className={`journey-card globe-card aceternity-globe-card ${isVisualActive ? "visual-active" : "visual-paused"}`}
       ref={cardRef}
     >
@@ -5692,6 +6691,7 @@ function AceternityStyleWorldMap({ arcs, points, worldDots }) {
 
   return (
     <article
+      id="dot-matrix-section"
       className={`journey-card dot-map-card aceternity-world-card ${isVisualActive ? "visual-active" : "visual-paused"}`}
       ref={cardRef}
     >
@@ -6058,12 +7058,40 @@ function MapView({
   visitedPlaces,
   onPlaceFocus,
   mapTileSource,
+  mapFocusTarget,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const lastLevelRef = useRef(null);
   const [activeVisitPreview, setActiveVisitPreview] = useState(null);
+
+  useEffect(() => {
+    if (!mapFocusTarget || !mapRef.current) return;
+    const { lat, lng, zoom = 6, place } = mapFocusTarget;
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      const map = mapRef.current;
+      map.invalidateSize();
+      map.flyTo([lat, lng], zoom, {
+        animate: true,
+        duration: 0.8,
+      });
+      const timer = setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      }, 850);
+      if (place) {
+        const cityMapId = resolveMapIdForLevel(place.mapId || place.id, "city", placeLookup);
+        const visitInfo =
+          visitedCityVisits?.get(cityMapId) ||
+          visitedCityVisits?.get(canonicalPlaceId(place.id)) ||
+          [];
+        setActiveVisitPreview({ place, visits: visitInfo });
+      }
+      return () => clearTimeout(timer);
+    }
+  }, [mapFocusTarget, placeLookup, visitedCityVisits]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -7917,12 +8945,8 @@ function VisitDatesEditor({ dates, setDates }) {
   };
 
   const handleRemoveDate = (idxToRemove) => {
-    setDates((prev) => prev.filter((_, i) => i !== idxToRemove));
-    if (editingIndex === idxToRemove) {
-      setEditingIndex(null);
-    } else if (editingIndex !== null && editingIndex > idxToRemove) {
-      setEditingIndex(editingIndex - 1);
-    }
+    setDates((prev) => sortVisitDates(prev.filter((_, i) => i !== idxToRemove)));
+    setEditingIndex(null);
   };
 
   const handleDateChange = (idx, val) => {
@@ -7931,6 +8955,11 @@ function VisitDatesEditor({ dates, setDates }) {
       next[idx] = val;
       return next;
     });
+  };
+
+  const handleConfirmDate = () => {
+    setDates((prev) => sortVisitDates(prev.filter(Boolean)));
+    setEditingIndex(null);
   };
 
   return (
@@ -7961,7 +8990,7 @@ function VisitDatesEditor({ dates, setDates }) {
                   type="button"
                   className="date-confirm-btn"
                   title="完成此时间编辑"
-                  onClick={() => setEditingIndex(null)}
+                  onClick={handleConfirmDate}
                 >
                   <Check size={14} />
                 </button>
@@ -8037,9 +9066,9 @@ function VisitEditDialog({
   // Xiao State
   const [xiaoEnabled, setXiaoEnabled] = useState(Boolean(initialXiaoVisit));
   const [xiaoDates, setXiaoDates] = useState(() => {
-    if (initialXiaoVisit?.visitDates?.length) return initialXiaoVisit.visitDates.filter(Boolean);
-    if (initialXiaoVisit?.dateDisplay) return [initialXiaoVisit.dateDisplay];
-    if (initialXiaoVisit?.visitedAt) return [initialXiaoVisit.visitedAt];
+    if (initialXiaoVisit?.visitDates?.length) return sortVisitDates(initialXiaoVisit.visitDates.filter(Boolean));
+    if (initialXiaoVisit?.dateDisplay) return sortVisitDates([initialXiaoVisit.dateDisplay]);
+    if (initialXiaoVisit?.visitedAt) return sortVisitDates([initialXiaoVisit.visitedAt]);
     return [];
   });
   const [xiaoType, setXiaoType] = useState(initialXiaoVisit?.type || "旅行");
@@ -8050,9 +9079,9 @@ function VisitEditDialog({
   // Tang State
   const [tangEnabled, setTangEnabled] = useState(Boolean(initialTangVisit));
   const [tangDates, setTangDates] = useState(() => {
-    if (initialTangVisit?.visitDates?.length) return initialTangVisit.visitDates.filter(Boolean);
-    if (initialTangVisit?.dateDisplay) return [initialTangVisit.dateDisplay];
-    if (initialTangVisit?.visitedAt) return [initialTangVisit.visitedAt];
+    if (initialTangVisit?.visitDates?.length) return sortVisitDates(initialTangVisit.visitDates.filter(Boolean));
+    if (initialTangVisit?.dateDisplay) return sortVisitDates([initialTangVisit.dateDisplay]);
+    if (initialTangVisit?.visitedAt) return sortVisitDates([initialTangVisit.visitedAt]);
     return [];
   });
   const [tangType, setTangType] = useState(initialTangVisit?.type || "旅行");
@@ -8064,11 +9093,11 @@ function VisitEditDialog({
     setXiaoEnabled(Boolean(initialXiaoVisit));
     setXiaoDates(
       initialXiaoVisit?.visitDates?.length
-        ? initialXiaoVisit.visitDates.filter(Boolean)
+        ? sortVisitDates(initialXiaoVisit.visitDates.filter(Boolean))
         : initialXiaoVisit?.dateDisplay
-        ? [initialXiaoVisit.dateDisplay]
+        ? sortVisitDates([initialXiaoVisit.dateDisplay])
         : initialXiaoVisit?.visitedAt
-        ? [initialXiaoVisit.visitedAt]
+        ? sortVisitDates([initialXiaoVisit.visitedAt])
         : []
     );
     setXiaoType(initialXiaoVisit?.type || "旅行");
@@ -8081,11 +9110,11 @@ function VisitEditDialog({
     setTangEnabled(Boolean(initialTangVisit));
     setTangDates(
       initialTangVisit?.visitDates?.length
-        ? initialTangVisit.visitDates.filter(Boolean)
+        ? sortVisitDates(initialTangVisit.visitDates.filter(Boolean))
         : initialTangVisit?.dateDisplay
-        ? [initialTangVisit.dateDisplay]
+        ? sortVisitDates([initialTangVisit.dateDisplay])
         : initialTangVisit?.visitedAt
-        ? [initialTangVisit.visitedAt]
+        ? sortVisitDates([initialTangVisit.visitedAt])
         : []
     );
     setTangType(initialTangVisit?.type || "旅行");
@@ -8099,11 +9128,14 @@ function VisitEditDialog({
     const formElement = event.currentTarget;
     const files = getPhotoFilesFromForm(formElement);
 
+    const sortedXiaoDates = sortVisitDates(xiaoDates);
+    const sortedTangDates = sortVisitDates(tangDates);
+
     const ok = await onSaveDualVisit({
       placeId: place.id,
       xiaoData: {
         enabled: xiaoEnabled,
-        dates: xiaoDates,
+        dates: sortedXiaoDates,
         type: xiaoType,
         rating: xiaoRating,
         comment: xiaoComment,
@@ -8111,7 +9143,7 @@ function VisitEditDialog({
       },
       tangData: {
         enabled: tangEnabled,
-        dates: tangDates,
+        dates: sortedTangDates,
         type: tangType,
         rating: tangRating,
         comment: tangComment,

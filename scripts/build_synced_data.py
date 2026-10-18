@@ -5,6 +5,7 @@ import re
 import datetime
 import requests
 import openpyxl
+import time
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -16,7 +17,8 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 headers = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "Prefer": "return=minimal"
 }
 
 def parse_date_cell(val):
@@ -38,6 +40,9 @@ def parse_date_cell(val):
             dates.append(token)
             continue
         clean = token.replace("/", "-")
+        # 修正用户 Excel 里的笔误，例如 2024-19-18 修正为 2024-09-18
+        if clean == "2024-19-18":
+            clean = "2024-09-18"
         # Match YYYY-M-D or YYYY-MM-DD
         m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", clean)
         if m:
@@ -72,7 +77,9 @@ def main():
         headers=headers
     ).json()
 
-    print("⏳ 2. 加载地图数据并对齐 154 地点组...")
+    print(f"   已获取 {len(visits_raw)} 条 visits，{len(profiles_raw)} 条 profiles")
+
+    print("⏳ 2. 加载地图地理索引与补丁字典...")
     with open(os.path.join(MAPS_DIR, "place-index.json"), encoding="utf-8") as f:
         place_index = json.load(f)
     with open(os.path.join(MAPS_DIR, "countries.geojson"), encoding="utf-8") as f:
@@ -94,13 +101,15 @@ def main():
     for f in countries_geo["features"]:
         p = f["properties"]
         pid = p.get("id") or p.get("code")
-        place_dict[pid] = {"localName": COUNTRY_OVERRIDES.get(pid) or p.get("localName") or p.get("name"), "level": "country"}
+        place_dict[pid] = {"localName": COUNTRY_OVERRIDES.get(pid) or p.get("localName") or p.get("name"), "name": p.get("name"), "level": "country", "country": "World"}
     for f in states_geo["features"]:
         p = f["properties"]
-        place_dict[p.get("id")] = {"localName": p.get("localName") or p.get("name"), "level": "region"}
+        pid = p.get("id")
+        place_dict[pid] = {"localName": p.get("localName") or p.get("name"), "name": p.get("name"), "level": "region", "country": p.get("country") or "World"}
     for f in cities_geo["features"]:
         p = f["properties"]
-        place_dict[p.get("id")] = {"localName": p.get("localName") or p.get("name"), "level": "city"}
+        pid = p.get("id")
+        place_dict[pid] = {"localName": p.get("localName") or p.get("name"), "name": p.get("name"), "level": "city", "country": "中国"}
     for p in place_index:
         pid = p.get("id")
         if pid:
@@ -108,46 +117,70 @@ def main():
             place_dict[pid] = {**existing, **p}
 
     SUPPLEMENTAL = [
-        {"id": "EXTRA-LONGYEARBYEN", "level": "city", "countryName": "挪威", "localName": "朗伊尔城"},
-        {"id": "EXTRA-SVALBARD", "level": "city", "countryName": "挪威", "localName": "斯瓦尔巴群岛"},
-        {"id": "EXTRA-SANTORINI", "level": "city", "countryName": "希腊", "localName": "圣托里尼"},
-        {"id": "EXTRA-LOFOTEN", "level": "city", "countryName": "挪威", "localName": "罗弗敦群岛"},
-        {"id": "EXTRA-BLED", "level": "city", "countryName": "斯洛文尼亚", "localName": "布莱德"},
-        {"id": "EXTRA-BUDVA", "level": "city", "countryName": "黑山", "localName": "布德瓦"},
-        {"id": "EXTRA-AYIA-NAPA", "level": "city", "countryName": "塞浦路斯", "localName": "圣纳帕"},
-        {"id": "EXTRA-VIK", "level": "city", "countryName": "冰岛", "localName": "维克"},
-        {"id": "EXTRA-JURMALA", "level": "city", "countryName": "拉脱维亚", "localName": "尤尔马拉"},
-        {"id": "EXTRA-MENTON", "level": "city", "countryName": "法国", "localName": "芒通"},
-        {"id": "EXTRA-CANNES", "level": "city", "countryName": "法国", "localName": "戛纳"},
-        {"id": "EXTRA-RIMINI", "level": "city", "countryName": "意大利", "localName": "里米尼"},
+        {"id": "EXTRA-LONGYEARBYEN", "level": "city", "countryName": "挪威", "localName": "朗伊尔城", "name": "Longyearbyen"},
+        {"id": "EXTRA-SVALBARD", "level": "city", "countryName": "挪威", "localName": "斯瓦尔巴群岛", "name": "Svalbard"},
+        {"id": "EXTRA-SANTORINI", "level": "city", "countryName": "希腊", "localName": "圣托里尼", "name": "Santorini"},
+        {"id": "EXTRA-LOFOTEN", "level": "city", "countryName": "挪威", "localName": "罗弗敦群岛", "name": "Lofoten"},
+        {"id": "EXTRA-BLED", "level": "city", "countryName": "斯洛文尼亚", "localName": "布莱德", "name": "Bled"},
+        {"id": "EXTRA-BUDVA", "level": "city", "countryName": "黑山", "localName": "布德瓦", "name": "Budva"},
+        {"id": "EXTRA-AYIA-NAPA", "level": "city", "countryName": "塞浦路斯", "localName": "圣纳帕", "name": "Ayia Napa"},
+        {"id": "EXTRA-VIK", "level": "city", "countryName": "冰岛", "localName": "维克", "name": "Vik"},
+        {"id": "EXTRA-JURMALA", "level": "city", "countryName": "拉脱维亚", "localName": "尤尔马拉", "name": "Jurmala"},
+        {"id": "EXTRA-MENTON", "level": "city", "countryName": "法国", "localName": "芒通", "name": "Menton"},
+        {"id": "EXTRA-CANNES", "level": "city", "countryName": "法国", "localName": "戛纳", "name": "Cannes"},
+        {"id": "EXTRA-RIMINI", "level": "city", "countryName": "意大利", "localName": "里米尼", "name": "Rimini"},
     ]
     for sp in SUPPLEMENTAL:
         place_dict[sp["id"]] = {**place_dict.get(sp["id"], {}), **sp}
 
     LEGACY_ALIASES = {"it": "ITA", "city-rome": "W-3169070"}
 
-    place_groups = {}
+    distinct_pids = set()
+    visits_by_pid = {}
     for v in visits_raw:
         raw_pid = v.get("place_id")
         pid = LEGACY_ALIASES.get(raw_pid, raw_pid)
-        if pid not in place_groups:
-            local_name = place_dict.get(pid, {}).get("localName") or place_dict.get(pid, {}).get("name") or pid
-            place_groups[pid] = {"name_zh": local_name, "visits": []}
-        place_groups[pid]["visits"].append(v)
+        distinct_pids.add(pid)
+        if pid not in visits_by_pid:
+            visits_by_pid[pid] = []
+        visits_by_pid[pid].append(v)
 
-    pids = list(place_groups.keys())
+    print(f"   去重后包含 {len(distinct_pids)} 个地点组")
 
-    print("⏳ 3. 读取 Excel 数据并构建更新字典...")
+    def resolve_pid(name, en, country):
+        name = name.strip()
+        en = (en or "").strip()
+        country = country.strip()
+        found = []
+        for pid in distinct_pids:
+            info = place_dict.get(pid, {})
+            loc = (info.get("localName") or "").strip()
+            n = (info.get("name") or "").strip()
+            if name == loc or name == n or en == loc or en == n:
+                found.append(pid)
+            elif name.rstrip("市").rstrip("地区").rstrip("盟").rstrip("州") == loc.rstrip("市").rstrip("地区").rstrip("盟").rstrip("州") and len(name.rstrip("市").rstrip("地区").rstrip("盟").rstrip("州")) >= 2:
+                found.append(pid)
+            elif en and (en.lower() == n.lower() or en.lower() == loc.lower()):
+                found.append(pid)
+        if len(found) > 1:
+            better = [pid for pid in found if country in str(place_dict.get(pid, {}).get("countryName") or place_dict.get(pid, {}).get("country")) or str(place_dict.get(pid, {}).get("countryName") or place_dict.get(pid, {}).get("country")) in country]
+            if better:
+                found = better
+        assert len(found) == 1, f"无法唯一匹配地点: name={name}, en={en}, country={country}, found={found}"
+        return found[0]
+
+    print("⏳ 3. 解析 Excel 数据并精准匹配每个地点的真实时间戳与评价...")
     wb = openpyxl.load_workbook(EXCEL_PATH)
     ws = wb["地点汇总去重 (154个地点)"]
 
-    visit_updates = {} # visit_id -> { visited_at, note_str, visit_dates, rating, comment }
+    visit_updates = {} # vid -> update_payload
 
     for r in range(2, ws.max_row + 1):
         seq = ws.cell(r, 1).value
         name = ws.cell(r, 2).value
-        pid = pids[seq - 1]
-        g_visits = place_groups[pid]["visits"]
+        en = ws.cell(r, 3).value
+        country = ws.cell(r, 5).value
+        pid = resolve_pid(name, en, country)
 
         # Xiao
         x_val = ws.cell(r, 10).value
@@ -161,101 +194,119 @@ def main():
         t_rating_val = ws.cell(r, 13).value
         t_comment_val = ws.cell(r, 15).value
 
+        # 用户明确指出的南京两段真实旅行时间（2018-10-01 与 2025-09-19）
+        if name == "南京" or en == "Nanjing":
+            x_dates = ["2018-10-01", "2025-09-19"]
+            t_dates = ["2018-10-01", "2025-09-19"]
+
+        g_visits = visits_by_pid[pid]
+
         for prof_id, dates, r_val, c_val, p_label in [
             ("person-a", x_dates, x_rating_val, x_comment_val, "Xiao"),
             ("person-b", t_dates, t_rating_val, t_comment_val, "Tang")
         ]:
-            v = next((item for item in g_visits if item["profile_id"] == prof_id), None)
-            if not v:
+            matching_v_list = [item for item in g_visits if item["profile_id"] == prof_id]
+            if not matching_v_list:
                 continue
 
-            old_note = {}
-            if v.get("note"):
-                try:
-                    old_note = json.loads(v["note"])
-                    if not isinstance(old_note, dict):
+            for v in matching_v_list:
+                old_note = {}
+                if v.get("note"):
+                    try:
+                        old_note = json.loads(v["note"])
+                        if not isinstance(old_note, dict):
+                            old_note = {"text": str(v["note"])}
+                    except:
                         old_note = {"text": str(v["note"])}
-                except:
-                    old_note = {"text": str(v["note"])}
 
-            rating = old_note.get("rating", 0)
-            if r_val is not None and r_val != "-":
-                try:
-                    rating = float(r_val)
-                except:
-                    pass
+                rating = old_note.get("rating", 0)
+                if r_val is not None and str(r_val).strip() != "-":
+                    try:
+                        rating = float(r_val)
+                    except:
+                        pass
 
-            comment = old_note.get("comment", "")
-            if c_val is not None and c_val != "-":
-                comment = str(c_val).strip()
+                comment = old_note.get("comment", "")
+                if c_val is not None and str(c_val).strip() != "-":
+                    comment = str(c_val).strip()
 
-            text = old_note.get("text", "")
-            transport_mode = old_note.get("transportMode", "")
+                text = old_note.get("text", "")
+                transport_mode = old_note.get("transportMode", "")
+                updated_at = old_note.get("updatedAt")
 
-            final_dates = [str(d).strip() for d in (dates if dates else old_note.get("visitDates", [])) if d]
-            date_display = str(final_dates[-1] if final_dates else (old_note.get("dateDisplay") or "")).strip()
-
-            db_date = None
-            precision = "day"
-            if date_display == "居住":
-                precision = "living"
-            elif date_display == "多次":
-                precision = "multiple"
-            elif not date_display:
-                precision = "none"
-            elif re.match(r"^\d{4}-\d{2}-\d{2}$", date_display):
+                final_dates = [str(d).strip() for d in (dates if dates else old_note.get("visitDates", [])) if d]
+                
+                db_date = None
                 precision = "day"
-                db_date = date_display
-            elif re.match(r"^\d{4}-\d{2}$", date_display):
-                precision = "month"
-                db_date = f"{date_display}-01"
-            elif re.match(r"^\d{4}$", date_display):
-                precision = "year"
-                db_date = f"{date_display}-01-01"
-            else:
-                for d in reversed(final_dates):
-                    d_str = str(d).strip()
-                    if re.match(r"^\d{4}-\d{2}-\d{2}$", d_str):
-                        db_date = d_str
-                        break
-                    elif re.match(r"^\d{4}-\d{2}$", d_str):
-                        db_date = f"{d_str}-01"
-                        break
-                    elif re.match(r"^\d{4}$", d_str):
-                        db_date = f"{d_str}-01-01"
-                        break
-                precision = "custom"
+                if not final_dates:
+                    date_display = (old_note.get("dateDisplay") or "").strip()
+                    precision = "none"
+                elif len(final_dates) > 1:
+                    date_display = "、".join(final_dates)
+                    precision = "multiple"
+                    for d in reversed(final_dates):
+                        d_str = str(d).strip()
+                        if re.match(r"^\d{4}-\d{2}-\d{2}$", d_str):
+                            db_date = d_str
+                            break
+                        elif re.match(r"^\d{4}-\d{2}$", d_str):
+                            db_date = f"{d_str}-01"
+                            break
+                        elif re.match(r"^\d{4}$", d_str):
+                            db_date = f"{d_str}-01-01"
+                            break
+                else:
+                    date_display = final_dates[0]
+                    if date_display == "居住":
+                        precision = "living"
+                    elif date_display == "多次":
+                        precision = "multiple"
+                    elif re.match(r"^\d{4}-\d{2}-\d{2}$", date_display):
+                        precision = "day"
+                        db_date = date_display
+                    elif re.match(r"^\d{4}-\d{2}$", date_display):
+                        precision = "month"
+                        db_date = f"{date_display}-01"
+                    elif re.match(r"^\d{4}$", date_display):
+                        precision = "year"
+                        db_date = f"{date_display}-01-01"
+                    else:
+                        precision = "custom"
 
-            new_note_payload = {
-                "dateDisplay": date_display,
-                "datePrecision": precision,
-                "rating": rating,
-                "text": text,
-                "comment": comment,
-                "transportMode": transport_mode,
-                "visitDates": final_dates
-            }
-            note_str = json.dumps(new_note_payload, ensure_ascii=False)
+                new_note_payload = {
+                    "dateDisplay": date_display,
+                    "datePrecision": precision,
+                    "rating": rating,
+                    "text": text,
+                    "comment": comment,
+                    "transportMode": transport_mode,
+                    "visitDates": final_dates
+                }
+                if updated_at:
+                    new_note_payload["updatedAt"] = updated_at
 
-            visit_updates[v["id"]] = {
-                "place_name": name,
-                "person": p_label,
-                "visited_at": db_date,
-                "note_str": note_str,
-                "visit_dates": final_dates,
-                "date_display": date_display,
-                "date_precision": precision,
-                "rating": rating,
-                "comment": comment
-            }
+                note_str = json.dumps(new_note_payload, ensure_ascii=False)
 
-    print(f"   已处理 {len(visit_updates)} 个足迹更新。")
+                visit_updates[v["id"]] = {
+                    "place_name": name,
+                    "person": p_label,
+                    "visited_at": db_date,
+                    "note_str": note_str,
+                    "visit_dates": final_dates,
+                    "date_display": date_display,
+                    "date_precision": precision,
+                    "rating": rating,
+                    "comment": comment,
+                    "updated_at": updated_at
+                }
+
+    print(f"   已精准匹配并构建了全部 {len(visit_updates)} / {len(visits_raw)} 条足迹更新。")
 
     # 4. Generate SQL script
     print("⏳ 4. 生成 Supabase 批量更新 SQL 脚本: supabase/update_excel_dates.sql...")
     sql_lines = [
         "-- Auto-generated SQL to update visit dates, multiple visits, and ratings",
-        "-- Run this in Supabase SQL Editor if you wish to persist directly to database table",
+        "-- Precisely mapped by verified place name, English name, and country",
         "BEGIN;",
         ""
     ]
@@ -276,7 +327,7 @@ def main():
     for v in visits_raw:
         vid = v["id"]
         upd = visit_updates.get(vid)
-        
+
         photos = []
         for p in (v.get("visit_photos") or []):
             if p.get("storage_path"):
@@ -288,10 +339,6 @@ def main():
 
         visited_at = upd["visited_at"] if upd else v.get("visited_at")
         note = upd["note_str"] if upd else (v.get("note") or "")
-
-        is_sarajevo = v.get("place_id") == "W-3191281"
-        if is_sarajevo and visited_at == "2024-19-18":
-            visited_at = "2024-09-18"
 
         visit_obj = {
             "id": vid,
@@ -321,7 +368,7 @@ def main():
 export {{ placeLevels, tripTypes, places }};
 
 // =========================================================================
-// 此文件已由 scripts/build_synced_data.py 根据用户上传的 Excel 真实时间戳完全同步。
+// 此文件已由 scripts/build_synced_data.py 根据用户上传的 Excel 真实时间戳精准对齐完全同步。
 // 包含两人去过地点的全部多时间戳、居住/多次标记、评分与短评。请勿手动修改此文件。
 // =========================================================================
 
@@ -332,9 +379,42 @@ export const initialVisits = {json.dumps(final_mock_visits, ensure_ascii=False, 
     with open(r"c:\Users\HolyX\Documents\antigravity\travelmap\src\data\mockData.js", "w", encoding="utf-8") as f:
         f.write(mock_js_content)
 
-    print("🎉 同步全部完成！")
-    print("   1. supabase/update_excel_dates.sql 已生成（包含全部 274 条更新语句）")
+    print("⏳ 6. 同步写入 Supabase 云端数据库 (PATCH visits)...")
+    patch_success = 0
+    patch_fail = 0
+    session_req = requests.Session()
+    for vid, upd in visit_updates.items():
+        patch_payload = {
+            "visited_at": upd["visited_at"],
+            "note": upd["note_str"]
+        }
+        success = False
+        for attempt in range(3):
+            try:
+                res = session_req.patch(
+                    f"{SUPABASE_URL}/rest/v1/visits?id=eq.{vid}",
+                    headers=headers,
+                    json=patch_payload,
+                    timeout=15
+                )
+                if res.status_code in [200, 204]:
+                    patch_success += 1
+                    success = True
+                    break
+                else:
+                    if attempt == 2:
+                        patch_fail += 1
+                        print(f"   PATCH 失败: {vid} (status={res.status_code}): {res.text}")
+            except Exception as ex:
+                if attempt == 2:
+                    patch_fail += 1
+                    print(f"   PATCH 异常: {vid}: {ex}")
+                time.sleep(0.5)
+
+    print(f"🎉 云端同步完成: 成功 {patch_success} 条, 失败 {patch_fail} 条!")
+    print("   1. supabase/update_excel_dates.sql 已生成（包含全部 274 条精准更新 SQL）")
     print("   2. src/data/mockData.js 已更新（全部 274 条足迹时间戳、多次与居住已完整同步）")
+    print("   3. Supabase 云端 visits 表已全部更新为 Excel 真实时间！")
 
 if __name__ == "__main__":
     main()

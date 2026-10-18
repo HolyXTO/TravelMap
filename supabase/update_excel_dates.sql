@@ -1,5 +1,5 @@
 -- Auto-generated SQL to update visit dates, multiple visits, and ratings
--- Run this in Supabase SQL Editor if you wish to persist directly to database table
+-- Precisely mapped by verified place name, English name, and country
 BEGIN;
 
 -- [湖州市] Xiao: ['2026-10-15']
@@ -23,9 +23,9 @@ UPDATE public.visits SET visited_at = '2026-09-29', note = '{"dateDisplay": "202
 -- [拉萨市] Tang: ['2026-09-29']
 UPDATE public.visits SET visited_at = '2026-09-29', note = '{"dateDisplay": "2026-09-29", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-09-29"]}' WHERE id = '7ad64e0a-7588-4704-8684-0b4f45dfacc6';
 -- [镇江市] Xiao: ['2026-09-27']
-UPDATE public.visits SET visited_at = '2026-09-27', note = '{"dateDisplay": "2026-09-27", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-09-27"]}' WHERE id = '7c0dfaff-9177-431b-a53f-8abf757c06b0';
+UPDATE public.visits SET visited_at = '2026-09-27', note = '{"dateDisplay": "2026-09-27", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-09-27"], "updatedAt": "2026-10-17T15:13:52.331Z"}' WHERE id = '7c0dfaff-9177-431b-a53f-8abf757c06b0';
 -- [镇江市] Tang: ['2026-09-27']
-UPDATE public.visits SET visited_at = '2026-09-27', note = '{"dateDisplay": "2026-09-27", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-09-27"]}' WHERE id = '927ab885-3da9-4805-85c8-275cc12f40c3';
+UPDATE public.visits SET visited_at = '2026-09-27', note = '{"dateDisplay": "2026-09-27", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-09-27"], "updatedAt": "2026-10-17T15:13:52.997Z"}' WHERE id = '927ab885-3da9-4805-85c8-275cc12f40c3';
 -- [扬州市] Xiao: ['2026-09-25']
 UPDATE public.visits SET visited_at = '2026-09-25', note = '{"dateDisplay": "2026-09-25", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-09-25"]}' WHERE id = '1670194f-4a6c-4c7c-ab6f-b259525707c3';
 -- [扬州市] Tang: ['2026-09-25']
@@ -37,9 +37,9 @@ UPDATE public.visits SET visited_at = '2026-07-26', note = '{"dateDisplay": "202
 -- [天津市] Tang: ['2020-12-05']
 UPDATE public.visits SET visited_at = '2020-12-05', note = '{"dateDisplay": "2020-12-05", "datePrecision": "day", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2020-12-05"]}' WHERE id = '89ff4baa-9144-493d-9626-4abaf9094998';
 -- [赫尔辛基] Xiao: ['2024-10-02']
-UPDATE public.visits SET visited_at = '2024-10-02', note = '{"dateDisplay": "2024-10-02", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-02"]}' WHERE id = '8e1d12b9-d659-4c0e-9281-bbc552fda34a';
+UPDATE public.visits SET visited_at = '2024-10-02', note = '{"dateDisplay": "2024-10-02", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-02"], "updatedAt": "2026-10-17T15:33:25.738Z"}' WHERE id = '8e1d12b9-d659-4c0e-9281-bbc552fda34a';
 -- [赫尔辛基] Tang: ['2024-10-02']
-UPDATE public.visits SET visited_at = '2024-10-02', note = '{"dateDisplay": "2024-10-02", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-02"]}' WHERE id = 'b4db7c48-f040-4e48-be99-c0e1e1706f0e';
+UPDATE public.visits SET visited_at = '2024-10-02', note = '{"dateDisplay": "2024-10-02", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-02"], "updatedAt": "2026-10-17T15:33:26.337Z"}' WHERE id = 'b4db7c48-f040-4e48-be99-c0e1e1706f0e';
 -- [株州市] Xiao: []
 UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "", "datePrecision": "none", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": []}' WHERE id = '2db27493-b4fb-4790-9b93-27e7a8e5c895';
 -- [株州市] Tang: []
@@ -93,17 +93,17 @@ UPDATE public.visits SET visited_at = '2024-09-12', note = '{"dateDisplay": "202
 -- [佛罗伦萨] Tang: ['2024-09-12']
 UPDATE public.visits SET visited_at = '2024-09-12', note = '{"dateDisplay": "2024-09-12", "datePrecision": "day", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-12"]}' WHERE id = '745419a2-7711-49ac-8818-c3448c1284ce';
 -- [杜布罗夫尼克] Xiao: ['2024-10-21']
-UPDATE public.visits SET visited_at = '2024-10-21', note = '{"dateDisplay": "2024-10-21", "datePrecision": "day", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-21"]}' WHERE id = 'eca1a974-a794-40ed-aba6-9255358d5a49';
+UPDATE public.visits SET visited_at = '2024-10-21', note = '{"dateDisplay": "2024-10-21", "datePrecision": "day", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-21"], "updatedAt": "2026-10-17T16:24:28.370Z"}' WHERE id = 'eca1a974-a794-40ed-aba6-9255358d5a49';
 -- [杜布罗夫尼克] Tang: ['2024-10-21']
-UPDATE public.visits SET visited_at = '2024-10-21', note = '{"dateDisplay": "2024-10-21", "datePrecision": "day", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-21"]}' WHERE id = '483cf827-e089-4064-b4fc-aaccb2319e71';
+UPDATE public.visits SET visited_at = '2024-10-21', note = '{"dateDisplay": "2024-10-21", "datePrecision": "day", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-21"], "updatedAt": "2026-10-17T16:24:29.961Z"}' WHERE id = '483cf827-e089-4064-b4fc-aaccb2319e71';
 -- [梵蒂冈] Xiao: ['2024-05-12']
 UPDATE public.visits SET visited_at = '2024-05-12', note = '{"dateDisplay": "2024-05-12", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-05-12"]}' WHERE id = '0c3cfa74-f660-4c7d-a03e-f4cf17fad3a8';
 -- [梵蒂冈] Tang: ['2024-05-12']
 UPDATE public.visits SET visited_at = '2024-05-12', note = '{"dateDisplay": "2024-05-12", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-05-12"]}' WHERE id = 'f81225c9-02ca-4390-98f3-1d63dd9919f7';
 -- [成都市] Xiao: ['2019-10-01', '2026-10-06']
-UPDATE public.visits SET visited_at = '2026-10-06', note = '{"dateDisplay": "2026-10-06", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2019-10-01", "2026-10-06"]}' WHERE id = 'ebefe772-752c-49df-83c6-addecb61efe5';
+UPDATE public.visits SET visited_at = '2026-10-06', note = '{"dateDisplay": "2019-10-01、2026-10-06", "datePrecision": "multiple", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2019-10-01", "2026-10-06"], "updatedAt": "2026-10-17T16:47:19.199Z"}' WHERE id = 'ebefe772-752c-49df-83c6-addecb61efe5';
 -- [成都市] Tang: ['2018-06-01', '2019-10-01', '2026-10-06']
-UPDATE public.visits SET visited_at = '2026-10-06', note = '{"dateDisplay": "2026-10-06", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2018-06-01", "2019-10-01", "2026-10-06"]}' WHERE id = 'baab7dbf-f6a1-4b4e-804c-91be27f9e1f7';
+UPDATE public.visits SET visited_at = '2026-10-06', note = '{"dateDisplay": "2018-06-01、2019-10-01、2026-10-06", "datePrecision": "multiple", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2018-06-01", "2019-10-01", "2026-10-06"], "updatedAt": "2026-10-17T16:47:20.855Z"}' WHERE id = 'baab7dbf-f6a1-4b4e-804c-91be27f9e1f7';
 -- [格但斯克] Xiao: ['2024-01-13']
 UPDATE public.visits SET visited_at = '2024-01-13', note = '{"dateDisplay": "2024-01-13", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-01-13"]}' WHERE id = '95c88056-0835-4aa5-9dca-f75ea3f557ec';
 -- [格但斯克] Tang: ['2024-01-13']
@@ -113,9 +113,9 @@ UPDATE public.visits SET visited_at = '2024-10-16', note = '{"dateDisplay": "202
 -- [卢布尔雅那] Tang: ['2024-10-16']
 UPDATE public.visits SET visited_at = '2024-10-16', note = '{"dateDisplay": "2024-10-16", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-16"]}' WHERE id = '953ddb16-8b70-4d33-b9e7-2b48b5e55cec';
 -- [布加勒斯特] Xiao: ['2024-09-08']
-UPDATE public.visits SET visited_at = '2024-09-08', note = '{"dateDisplay": "2024-09-08", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-08"]}' WHERE id = '29e9eebe-c961-46b2-9e7b-3c1f49db2337';
+UPDATE public.visits SET visited_at = '2024-09-08', note = '{"dateDisplay": "2024-09-08", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-08"], "updatedAt": "2026-10-17T15:59:33.728Z"}' WHERE id = '29e9eebe-c961-46b2-9e7b-3c1f49db2337';
 -- [布加勒斯特] Tang: ['2024-09-08']
-UPDATE public.visits SET visited_at = '2024-09-08', note = '{"dateDisplay": "2024-09-08", "datePrecision": "day", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-08"]}' WHERE id = '372eb2eb-b33d-4b1c-b58b-34fda79466c4';
+UPDATE public.visits SET visited_at = '2024-09-08', note = '{"dateDisplay": "2024-09-08", "datePrecision": "day", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-08"], "updatedAt": "2026-10-17T15:59:34.337Z"}' WHERE id = '372eb2eb-b33d-4b1c-b58b-34fda79466c4';
 -- [武汉市] Xiao: ['居住']
 UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "居住", "datePrecision": "living", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["居住"]}' WHERE id = '4ef6adcb-a4d0-4ebc-a917-aebd0280b2e7';
 -- [武汉市] Tang: ['居住']
@@ -168,14 +168,14 @@ UPDATE public.visits SET visited_at = '2024-04-27', note = '{"dateDisplay": "202
 UPDATE public.visits SET visited_at = '2023-05-01', note = '{"dateDisplay": "2023-05-01", "datePrecision": "day", "rating": 2.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-05-01"]}' WHERE id = 'e8423ed8-4c9f-4091-8efe-6f0b7867e6c1';
 -- [郑州市] Tang: ['2023-05-01']
 UPDATE public.visits SET visited_at = '2023-05-01', note = '{"dateDisplay": "2023-05-01", "datePrecision": "day", "rating": 3.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-05-01"]}' WHERE id = '7c0efebb-7393-4baa-94f9-1ee088055dc6';
--- [邵阳市] Xiao: []
-UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "", "datePrecision": "none", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": []}' WHERE id = 'ce2c1f20-8f88-4547-86d8-ebaad560dca1';
+-- [邵阳市] Xiao: ['多次']
+UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "多次", "datePrecision": "multiple", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["多次"]}' WHERE id = 'ce2c1f20-8f88-4547-86d8-ebaad560dca1';
 -- [邵阳市] Tang: ['居住']
 UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "居住", "datePrecision": "living", "rating": 4.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["居住"]}' WHERE id = '5f8d533a-16be-435e-92e5-cafa43a1b036';
 -- [西安市] Xiao: ['2018-04-04', '2021-12-03']
-UPDATE public.visits SET visited_at = '2021-12-03', note = '{"dateDisplay": "2021-12-03", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2018-04-04", "2021-12-03"]}' WHERE id = 'a4045963-75ec-4d78-b72a-f721860eefcb';
+UPDATE public.visits SET visited_at = '2021-12-03', note = '{"dateDisplay": "2018-04-04、2021-12-03", "datePrecision": "multiple", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2018-04-04", "2021-12-03"]}' WHERE id = 'a4045963-75ec-4d78-b72a-f721860eefcb';
 -- [西安市] Tang: ['2018-04-04', '2021-12-03']
-UPDATE public.visits SET visited_at = '2021-12-03', note = '{"dateDisplay": "2021-12-03", "datePrecision": "day", "rating": 6.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2018-04-04", "2021-12-03"]}' WHERE id = '1ea0255b-d0cd-4736-97a1-6a98ee6cbbae';
+UPDATE public.visits SET visited_at = '2021-12-03', note = '{"dateDisplay": "2018-04-04、2021-12-03", "datePrecision": "multiple", "rating": 6.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2018-04-04", "2021-12-03"]}' WHERE id = '1ea0255b-d0cd-4736-97a1-6a98ee6cbbae';
 -- [昆明市] Xiao: ['2026-04-30']
 UPDATE public.visits SET visited_at = '2026-04-30', note = '{"dateDisplay": "2026-04-30", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-04-30"]}' WHERE id = 'e38298d7-1370-4112-b155-2fd3ff2857a0';
 -- [昆明市] Tang: ['2026-04-30']
@@ -189,21 +189,21 @@ UPDATE public.visits SET visited_at = '2024-10-03', note = '{"dateDisplay": "202
 -- [塔林] Tang: ['2024-10-03']
 UPDATE public.visits SET visited_at = '2024-10-03', note = '{"dateDisplay": "2024-10-03", "datePrecision": "day", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-03"]}' WHERE id = '623812f7-c579-4952-b6d6-f42414e0e4f6';
 -- [海牙] Xiao: ['2024-04-26']
-UPDATE public.visits SET visited_at = '2024-04-26', note = '{"dateDisplay": "2024-04-26", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-04-26"]}' WHERE id = '4b9557de-2f9f-49db-afe0-0a9dfd2ad8a5';
+UPDATE public.visits SET visited_at = '2024-04-26', note = '{"dateDisplay": "2024-04-26", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-04-26"], "updatedAt": "2026-10-17T16:25:22.672Z"}' WHERE id = '4b9557de-2f9f-49db-afe0-0a9dfd2ad8a5';
 -- [海牙] Tang: ['2024-04-26']
-UPDATE public.visits SET visited_at = '2024-04-26', note = '{"dateDisplay": "2024-04-26", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-04-26"]}' WHERE id = '45aba189-e564-4bb3-a3c4-ec402e431701';
+UPDATE public.visits SET visited_at = '2024-04-26', note = '{"dateDisplay": "2024-04-26", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-04-26"], "updatedAt": "2026-10-17T16:25:23.350Z"}' WHERE id = '45aba189-e564-4bb3-a3c4-ec402e431701';
 -- [徐州市] Xiao: ['2026-06-19']
-UPDATE public.visits SET visited_at = '2026-06-19', note = '{"dateDisplay": "2026-06-19", "datePrecision": "day", "rating": 5.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-06-19"]}' WHERE id = '06ff5b38-29e0-496e-8a8b-aefd7265a2fe';
+UPDATE public.visits SET visited_at = '2026-06-19', note = '{"dateDisplay": "2026-06-19", "datePrecision": "day", "rating": 5.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-06-19"], "updatedAt": "2026-10-17T15:22:55.157Z"}' WHERE id = '06ff5b38-29e0-496e-8a8b-aefd7265a2fe';
 -- [徐州市] Tang: ['2026-06-19']
-UPDATE public.visits SET visited_at = '2026-06-19', note = '{"dateDisplay": "2026-06-19", "datePrecision": "day", "rating": 4.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-06-19"]}' WHERE id = '38c5b115-8fc5-49f9-b96e-13f05c5a86c5';
+UPDATE public.visits SET visited_at = '2026-06-19', note = '{"dateDisplay": "2026-06-19", "datePrecision": "day", "rating": 4.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2026-06-19"], "updatedAt": "2026-10-17T15:22:56.233Z"}' WHERE id = '38c5b115-8fc5-49f9-b96e-13f05c5a86c5';
 -- [金华市] Xiao: ['2025-05-31']
 UPDATE public.visits SET visited_at = '2025-05-31', note = '{"dateDisplay": "2025-05-31", "datePrecision": "day", "rating": 5.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-05-31"]}' WHERE id = '252fc202-559f-471c-bc3f-1791bbc08045';
 -- [金华市] Tang: ['2025-05-31']
 UPDATE public.visits SET visited_at = '2025-05-31', note = '{"dateDisplay": "2025-05-31", "datePrecision": "day", "rating": 5.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-05-31"]}' WHERE id = 'e6eaf7ca-90c4-44c1-a515-b2948b39af0c';
 -- [朗伊尔城] Xiao: ['2024-02-07']
-UPDATE public.visits SET visited_at = '2024-02-07', note = '{"dateDisplay": "2024-02-07", "datePrecision": "day", "rating": 10.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-02-07"]}' WHERE id = '37f2eeda-5705-4222-b9fe-2798a04e6573';
+UPDATE public.visits SET visited_at = '2024-02-07', note = '{"dateDisplay": "2024-02-07", "datePrecision": "day", "rating": 10.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-02-07"], "updatedAt": "2026-10-17T15:59:23.827Z"}' WHERE id = '37f2eeda-5705-4222-b9fe-2798a04e6573';
 -- [朗伊尔城] Tang: ['2024-02-07']
-UPDATE public.visits SET visited_at = '2024-02-07', note = '{"dateDisplay": "2024-02-07", "datePrecision": "day", "rating": 10.0, "text": "", "comment": "一二三四五六七八九十", "transportMode": "", "visitDates": ["2024-02-07"]}' WHERE id = '6dd12262-1aee-43e0-bf6a-02e7698a12e7';
+UPDATE public.visits SET visited_at = '2024-02-07', note = '{"dateDisplay": "2024-02-07", "datePrecision": "day", "rating": 10.0, "text": "", "comment": "一二三四五六七八九十", "transportMode": "", "visitDates": ["2024-02-07"], "updatedAt": "2026-10-17T15:59:24.608Z"}' WHERE id = '6dd12262-1aee-43e0-bf6a-02e7698a12e7';
 -- [里斯本] Xiao: ['2024-10-27']
 UPDATE public.visits SET visited_at = '2024-10-27', note = '{"dateDisplay": "2024-10-27", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-27"]}' WHERE id = '8b44ffd0-2eab-4030-8ade-ddda900b9da1';
 -- [里斯本] Tang: ['2024-10-27']
@@ -229,23 +229,23 @@ UPDATE public.visits SET visited_at = '2024-09-10', note = '{"dateDisplay": "202
 -- [地拉那] Tang: ['2024-09-10']
 UPDATE public.visits SET visited_at = '2024-09-10', note = '{"dateDisplay": "2024-09-10", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-10"]}' WHERE id = 'e43cc565-3922-484f-9a30-3ba6e76bc912';
 -- [维也纳] Xiao: ['2023-12-30', '2024-09-22']
-UPDATE public.visits SET visited_at = '2024-09-22', note = '{"dateDisplay": "2024-09-22", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-12-30", "2024-09-22"]}' WHERE id = 'd183bcac-9875-4acf-944c-da44a64460ec';
+UPDATE public.visits SET visited_at = '2024-09-22', note = '{"dateDisplay": "2023-12-30、2024-09-22", "datePrecision": "multiple", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-12-30", "2024-09-22"]}' WHERE id = 'd183bcac-9875-4acf-944c-da44a64460ec';
 -- [维也纳] Tang: ['2023-12-30', '2024-09-22']
-UPDATE public.visits SET visited_at = '2024-09-22', note = '{"dateDisplay": "2024-09-22", "datePrecision": "day", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-12-30", "2024-09-22"]}' WHERE id = '56fea376-6c90-4535-bfef-6fdc17802142';
+UPDATE public.visits SET visited_at = '2024-09-22', note = '{"dateDisplay": "2023-12-30、2024-09-22", "datePrecision": "multiple", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-12-30", "2024-09-22"]}' WHERE id = '56fea376-6c90-4535-bfef-6fdc17802142';
 -- [哥本哈根] Xiao: ['2024-08-15']
 UPDATE public.visits SET visited_at = '2024-08-15', note = '{"dateDisplay": "2024-08-15", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-08-15"]}' WHERE id = '083490b2-e6e2-4406-9c83-bcdd08e0a3eb';
 -- [哥本哈根] Tang: ['2024-08-15']
 UPDATE public.visits SET visited_at = '2024-08-15', note = '{"dateDisplay": "2024-08-15", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-08-15"]}' WHERE id = '28477ad2-1f2f-4a50-b8aa-8e027f7b963d';
 -- [佳木斯市] Xiao: ['居住']
 UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "居住", "datePrecision": "living", "rating": 5.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["居住"]}' WHERE id = '570dd77f-f03f-4c25-afc6-65f0e0f37070';
--- [佳木斯市] Tang: []
-UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "", "datePrecision": "none", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": []}' WHERE id = '93e582ff-9c2f-4e01-92ce-63e131266c42';
+-- [佳木斯市] Tang: ['多次']
+UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "多次", "datePrecision": "multiple", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["多次"]}' WHERE id = '93e582ff-9c2f-4e01-92ce-63e131266c42';
 -- [南昌市] Xiao: ['2021-10-03', '2023-04-13']
-UPDATE public.visits SET visited_at = '2023-04-13', note = '{"dateDisplay": "2023-04-13", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2021-10-03", "2023-04-13"]}' WHERE id = '30789656-d7d3-42d2-a6c2-1856055c9355';
+UPDATE public.visits SET visited_at = '2023-04-13', note = '{"dateDisplay": "2021-10-03、2023-04-13", "datePrecision": "multiple", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2021-10-03", "2023-04-13"]}' WHERE id = '30789656-d7d3-42d2-a6c2-1856055c9355';
 -- [南昌市] Tang: ['2021-10-03', '2023-04-13']
-UPDATE public.visits SET visited_at = '2023-04-13', note = '{"dateDisplay": "2023-04-13", "datePrecision": "day", "rating": 6.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2021-10-03", "2023-04-13"]}' WHERE id = 'be43f13f-dfbc-46e8-9c8e-785fd59e9761';
+UPDATE public.visits SET visited_at = '2023-04-13', note = '{"dateDisplay": "2021-10-03、2023-04-13", "datePrecision": "multiple", "rating": 6.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2021-10-03", "2023-04-13"]}' WHERE id = 'be43f13f-dfbc-46e8-9c8e-785fd59e9761';
 -- [九江市] Xiao: ['2013-07', '2025-07-31']
-UPDATE public.visits SET visited_at = '2025-07-31', note = '{"dateDisplay": "2025-07-31", "datePrecision": "day", "rating": 5.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2013-07", "2025-07-31"]}' WHERE id = '1d3f1b53-143c-4cde-bdd3-07c598b82eac';
+UPDATE public.visits SET visited_at = '2025-07-31', note = '{"dateDisplay": "2013-07、2025-07-31", "datePrecision": "multiple", "rating": 5.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2013-07", "2025-07-31"]}' WHERE id = '1d3f1b53-143c-4cde-bdd3-07c598b82eac';
 -- [九江市] Tang: ['2013-07']
 UPDATE public.visits SET visited_at = '2013-07-01', note = '{"dateDisplay": "2013-07", "datePrecision": "month", "rating": 6.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2013-07"]}' WHERE id = 'd26e8269-d326-4401-814f-cf64f72e2af3';
 -- [里加] Xiao: ['2024-10-05']
@@ -257,9 +257,9 @@ UPDATE public.visits SET visited_at = '2024-01-16', note = '{"dateDisplay": "202
 -- [乌尔姆] Tang: ['2024-01-16']
 UPDATE public.visits SET visited_at = '2024-01-16', note = '{"dateDisplay": "2024-01-16", "datePrecision": "day", "rating": 3.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-01-16"]}' WHERE id = 'c7f03b84-9b94-4a4e-b79b-8e0f4c54cdab';
 -- [奥斯陆] Xiao: ['2024-02-05', '2024-11-05']
-UPDATE public.visits SET visited_at = '2024-11-05', note = '{"dateDisplay": "2024-11-05", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-02-05", "2024-11-05"]}' WHERE id = 'bb5a29ba-a1bd-4f00-b73d-d730802c0256';
+UPDATE public.visits SET visited_at = '2024-11-05', note = '{"dateDisplay": "2024-02-05、2024-11-05", "datePrecision": "multiple", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-02-05", "2024-11-05"]}' WHERE id = 'bb5a29ba-a1bd-4f00-b73d-d730802c0256';
 -- [奥斯陆] Tang: ['2024-02-05', '2024-11-05']
-UPDATE public.visits SET visited_at = '2024-11-05', note = '{"dateDisplay": "2024-11-05", "datePrecision": "day", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-02-05", "2024-11-05"]}' WHERE id = '72e4d96f-abe4-4beb-bd03-f84087e2cead';
+UPDATE public.visits SET visited_at = '2024-11-05', note = '{"dateDisplay": "2024-02-05、2024-11-05", "datePrecision": "multiple", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-02-05", "2024-11-05"]}' WHERE id = '72e4d96f-abe4-4beb-bd03-f84087e2cead';
 -- [莱比锡] Xiao: ['2024-04-13']
 UPDATE public.visits SET visited_at = '2024-04-13', note = '{"dateDisplay": "2024-04-13", "datePrecision": "day", "rating": 6.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-04-13"]}' WHERE id = 'dc1b4031-4da9-4581-8cc0-bd388ca2e9b4';
 -- [莱比锡] Tang: ['2024-04-13']
@@ -269,17 +269,17 @@ UPDATE public.visits SET visited_at = '2023-12-27', note = '{"dateDisplay": "202
 -- [德累斯顿] Tang: ['2023-12-27']
 UPDATE public.visits SET visited_at = '2023-12-27', note = '{"dateDisplay": "2023-12-27", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-12-27"]}' WHERE id = '8fddc273-817c-43f1-b305-a589ee6de650';
 -- [慕尼黑] Xiao: ['2024-06-21', '2024-12-06']
-UPDATE public.visits SET visited_at = '2024-12-06', note = '{"dateDisplay": "2024-12-06", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-06-21", "2024-12-06"]}' WHERE id = '527f3b92-5add-4fd8-bf24-0438da40bbd1';
+UPDATE public.visits SET visited_at = '2024-12-06', note = '{"dateDisplay": "2024-06-21、2024-12-06", "datePrecision": "multiple", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-06-21", "2024-12-06"], "updatedAt": "2026-10-17T15:14:04.093Z"}' WHERE id = '527f3b92-5add-4fd8-bf24-0438da40bbd1';
 -- [慕尼黑] Tang: ['2024-06-21', '2024-12-06']
-UPDATE public.visits SET visited_at = '2024-12-06', note = '{"dateDisplay": "2024-12-06", "datePrecision": "day", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-06-21", "2024-12-06"]}' WHERE id = 'bdc66ee2-0c1b-4cf3-9008-61349747f1af';
+UPDATE public.visits SET visited_at = '2024-12-06', note = '{"dateDisplay": "2024-06-21、2024-12-06", "datePrecision": "multiple", "rating": 9.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-06-21", "2024-12-06"], "updatedAt": "2026-10-17T15:14:04.684Z"}' WHERE id = 'bdc66ee2-0c1b-4cf3-9008-61349747f1af';
 -- [科隆] Xiao: ['2024-09-24']
 UPDATE public.visits SET visited_at = '2024-09-24', note = '{"dateDisplay": "2024-09-24", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-24"]}' WHERE id = 'b7804438-a5d9-46ce-8b9b-91069bd7911e';
 -- [科隆] Tang: ['2024-09-24']
 UPDATE public.visits SET visited_at = '2024-09-24', note = '{"dateDisplay": "2024-09-24", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-24"]}' WHERE id = '7669bd38-d4b4-4cb8-81d5-4f675d916139';
 -- [柏林] Xiao: ['2024-03-10', '2024-06-29', '2024-07-13', '2024-09-21', '2024-10-09', '2024-11-30', '2024-12-11']
-UPDATE public.visits SET visited_at = '2024-12-11', note = '{"dateDisplay": "2024-12-11", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-03-10", "2024-06-29", "2024-07-13", "2024-09-21", "2024-10-09", "2024-11-30", "2024-12-11"]}' WHERE id = 'df8632b2-7e33-4192-9068-2f5dbcb9b931';
+UPDATE public.visits SET visited_at = '2024-12-11', note = '{"dateDisplay": "2024-03-10、2024-06-29、2024-07-13、2024-09-21、2024-10-09、2024-11-30、2024-12-11", "datePrecision": "multiple", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-03-10", "2024-06-29", "2024-07-13", "2024-09-21", "2024-10-09", "2024-11-30", "2024-12-11"], "updatedAt": "2026-10-17T15:22:42.639Z"}' WHERE id = 'df8632b2-7e33-4192-9068-2f5dbcb9b931';
 -- [柏林] Tang: ['2024-03-10', '2024-06-29', '2024-07-13', '2024-09-21', '2024-10-09', '2024-11-30', '2024-12-11']
-UPDATE public.visits SET visited_at = '2024-12-11', note = '{"dateDisplay": "2024-12-11", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-03-10", "2024-06-29", "2024-07-13", "2024-09-21", "2024-10-09", "2024-11-30", "2024-12-11"]}' WHERE id = '76c0bb20-2ad2-45ed-8b78-b9f4945208b1';
+UPDATE public.visits SET visited_at = '2024-12-11', note = '{"dateDisplay": "2024-03-10、2024-06-29、2024-07-13、2024-09-21、2024-10-09、2024-11-30、2024-12-11", "datePrecision": "multiple", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-03-10", "2024-06-29", "2024-07-13", "2024-09-21", "2024-10-09", "2024-11-30", "2024-12-11"], "updatedAt": "2026-10-17T15:22:43.343Z"}' WHERE id = '76c0bb20-2ad2-45ed-8b78-b9f4945208b1';
 -- [圣马力诺] Xiao: ['2024-09-14']
 UPDATE public.visits SET visited_at = '2024-09-14', note = '{"dateDisplay": "2024-09-14", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-14"]}' WHERE id = '5ca7e714-0ffc-48fb-8b29-95dad845266a';
 -- [圣马力诺] Tang: ['2024-09-14']
@@ -300,16 +300,18 @@ UPDATE public.visits SET visited_at = '2026-05-01', note = '{"dateDisplay": "202
 UPDATE public.visits SET visited_at = '2024-05-10', note = '{"dateDisplay": "2024-05-10", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-05-10"]}' WHERE id = 'e78096ed-523e-4c2f-9219-e0d8f49336a5';
 -- [罗马] Tang: ['2024-05-10']
 UPDATE public.visits SET visited_at = '2024-05-10', note = '{"dateDisplay": "2024-05-10", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-05-10"]}' WHERE id = '4c695805-6696-487e-b564-6f929ea51893';
--- [塞拉耶佛] Xiao: ['2024-19-18']
-UPDATE public.visits SET visited_at = '2024-19-18', note = '{"dateDisplay": "2024-19-18", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-19-18"]}' WHERE id = 'ab119161-1f58-4ea3-95dd-63bb4970416d';
--- [塞拉耶佛] Tang: ['2024-19-18']
-UPDATE public.visits SET visited_at = '2024-19-18', note = '{"dateDisplay": "2024-19-18", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-19-18"]}' WHERE id = '2e729aff-b9ee-48cc-9636-f50877bafc6e';
+-- [罗马] Tang: ['2024-05-10']
+UPDATE public.visits SET visited_at = '2024-05-10', note = '{"dateDisplay": "2024-05-10", "datePrecision": "day", "rating": 8.5, "text": "啦啦啦", "comment": "", "transportMode": "", "visitDates": ["2024-05-10"]}' WHERE id = 'ff4f1c94-15e7-456b-abe0-5b4a45138e91';
+-- [塞拉耶佛] Xiao: ['2024-09-18']
+UPDATE public.visits SET visited_at = '2024-09-18', note = '{"dateDisplay": "2024-09-18", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-18"]}' WHERE id = 'ab119161-1f58-4ea3-95dd-63bb4970416d';
+-- [塞拉耶佛] Tang: ['2024-09-18']
+UPDATE public.visits SET visited_at = '2024-09-18', note = '{"dateDisplay": "2024-09-18", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-18"]}' WHERE id = '2e729aff-b9ee-48cc-9636-f50877bafc6e';
 -- [哈尔滨市] Xiao: ['2025-01-20']
 UPDATE public.visits SET visited_at = '2025-01-20', note = '{"dateDisplay": "2025-01-20", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-01-20"]}' WHERE id = '52e98dfa-7669-4bed-9cf3-ade9a73b1696';
 -- [哈尔滨市] Tang: ['2025-01-20']
 UPDATE public.visits SET visited_at = '2025-01-20', note = '{"dateDisplay": "2025-01-20", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-01-20"]}' WHERE id = '91915a30-0fd6-4765-833a-c78575578e25';
--- [北京市] Xiao: []
-UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "", "datePrecision": "none", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": []}' WHERE id = '22f16eff-8e93-4dcf-88c6-6119cfe500b1';
+-- [北京市] Xiao: ['多次']
+UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "多次", "datePrecision": "multiple", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["多次"], "updatedAt": "2026-10-17T15:36:45.659Z"}' WHERE id = '22f16eff-8e93-4dcf-88c6-6119cfe500b1';
 -- [北京市] Tang: ['居住']
 UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "居住", "datePrecision": "living", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["居住"]}' WHERE id = '514d2cbf-becb-4f32-b762-455b3d749932';
 -- [米兰] Xiao: ['2024-07-30']
@@ -341,9 +343,9 @@ UPDATE public.visits SET visited_at = '2024-03-30', note = '{"dateDisplay": "202
 -- [拉纳卡] Tang: ['2024-03-30']
 UPDATE public.visits SET visited_at = '2024-03-30', note = '{"dateDisplay": "2024-03-30", "datePrecision": "day", "rating": 4.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-03-30"]}' WHERE id = 'e002598c-7d58-4d7c-9250-5d4efb619057';
 -- [贝尔格莱德] Xiao: ['2024-10-14']
-UPDATE public.visits SET visited_at = '2024-10-14', note = '{"dateDisplay": "2024-10-14", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-14"]}' WHERE id = 'ee7dbf44-9937-42c4-a2f2-c4a1aaec0bb5';
+UPDATE public.visits SET visited_at = '2024-10-14', note = '{"dateDisplay": "2024-10-14", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-14"], "updatedAt": "2026-10-17T15:13:37.320Z"}' WHERE id = 'ee7dbf44-9937-42c4-a2f2-c4a1aaec0bb5';
 -- [贝尔格莱德] Tang: ['2024-10-14']
-UPDATE public.visits SET visited_at = '2024-10-14', note = '{"dateDisplay": "2024-10-14", "datePrecision": "day", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-14"]}' WHERE id = '02760616-80f0-41bc-b76c-a986b17f5d17';
+UPDATE public.visits SET visited_at = '2024-10-14', note = '{"dateDisplay": "2024-10-14", "datePrecision": "day", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-14"], "updatedAt": "2026-10-17T15:13:38.865Z"}' WHERE id = '02760616-80f0-41bc-b76c-a986b17f5d17';
 -- [布莱德] Xiao: ['2024-10-16']
 UPDATE public.visits SET visited_at = '2024-10-16', note = '{"dateDisplay": "2024-10-16", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-16"]}' WHERE id = '023dfb58-1bc6-4568-bc7d-ce0e362c4c26';
 -- [布莱德] Tang: ['2024-10-16']
@@ -373,9 +375,9 @@ UPDATE public.visits SET visited_at = '2024-01-14', note = '{"dateDisplay": "202
 -- [瓦都兹] Tang: ['2024-01-14']
 UPDATE public.visits SET visited_at = '2024-01-14', note = '{"dateDisplay": "2024-01-14", "datePrecision": "day", "rating": 8.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-01-14"]}' WHERE id = 'afe265bb-64d3-4aeb-80d8-91c44ad0f86c';
 -- [布拉格] Xiao: ['2024-03-08', '2024-11-01']
-UPDATE public.visits SET visited_at = '2024-11-01', note = '{"dateDisplay": "2024-11-01", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-03-08", "2024-11-01"]}' WHERE id = '16a12931-a7a2-443c-9431-912ac894435c';
+UPDATE public.visits SET visited_at = '2024-11-01', note = '{"dateDisplay": "2024-03-08、2024-11-01", "datePrecision": "multiple", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-03-08", "2024-11-01"]}' WHERE id = '16a12931-a7a2-443c-9431-912ac894435c';
 -- [布拉格] Tang: ['2024-03-08', '2024-11-01']
-UPDATE public.visits SET visited_at = '2024-11-01', note = '{"dateDisplay": "2024-11-01", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-03-08", "2024-11-01"]}' WHERE id = '365d0692-2ce1-4368-a719-b4bf3041d1ff';
+UPDATE public.visits SET visited_at = '2024-11-01', note = '{"dateDisplay": "2024-03-08、2024-11-01", "datePrecision": "multiple", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-03-08", "2024-11-01"]}' WHERE id = '365d0692-2ce1-4368-a719-b4bf3041d1ff';
 -- [布拉迪斯拉发] Xiao: ['2024-09-22']
 UPDATE public.visits SET visited_at = '2024-09-22', note = '{"dateDisplay": "2024-09-22", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-09-22"]}' WHERE id = 'fc045eb3-bf1b-4e87-bf03-24c20a652d57';
 -- [布拉迪斯拉发] Tang: ['2024-09-22']
@@ -396,10 +398,10 @@ UPDATE public.visits SET visited_at = '2021-09-19', note = '{"dateDisplay": "202
 UPDATE public.visits SET visited_at = '2021-06-12', note = '{"dateDisplay": "2021-06-12", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2021-06-12"]}' WHERE id = 'c72f6398-10cf-418d-a432-ca85706981ad';
 -- [威海市] Tang: ['2021-06-12']
 UPDATE public.visits SET visited_at = '2021-06-12', note = '{"dateDisplay": "2021-06-12", "datePrecision": "day", "rating": 6.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2021-06-12"]}' WHERE id = '9954755a-5980-4268-83cf-eca7f4a30a66';
--- [南京市] Xiao: ['2025-09-19']
-UPDATE public.visits SET visited_at = '2025-09-19', note = '{"dateDisplay": "2025-09-19", "datePrecision": "day", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-09-19"]}' WHERE id = 'e34b3f51-784e-44bd-814a-f5651fc81683';
--- [南京市] Tang: ['2025-09-19']
-UPDATE public.visits SET visited_at = '2025-09-19', note = '{"dateDisplay": "2025-09-19", "datePrecision": "day", "rating": 6.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-09-19"]}' WHERE id = '746f9626-bb2e-45f7-b5ee-b09b48842955';
+-- [南京市] Xiao: ['2018-10-01', '2025-09-19']
+UPDATE public.visits SET visited_at = '2025-09-19', note = '{"dateDisplay": "2018-10-01、2025-09-19", "datePrecision": "multiple", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2018-10-01", "2025-09-19"]}' WHERE id = 'e34b3f51-784e-44bd-814a-f5651fc81683';
+-- [南京市] Tang: ['2018-10-01', '2025-09-19']
+UPDATE public.visits SET visited_at = '2025-09-19', note = '{"dateDisplay": "2018-10-01、2025-09-19", "datePrecision": "multiple", "rating": 6.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2018-10-01", "2025-09-19"]}' WHERE id = '746f9626-bb2e-45f7-b5ee-b09b48842955';
 -- [衢州市] Xiao: ['2025-05-31']
 UPDATE public.visits SET visited_at = '2025-05-31', note = '{"dateDisplay": "2025-05-31", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-05-31"]}' WHERE id = '97a4e966-86bc-4d75-9e1e-59a6fbb763f0';
 -- [衢州市] Tang: ['2025-05-31']
@@ -433,9 +435,9 @@ UPDATE public.visits SET visited_at = '2025-04-06', note = '{"dateDisplay": "202
 -- [重庆市] Tang: ['2025-04-06']
 UPDATE public.visits SET visited_at = '2025-04-06', note = '{"dateDisplay": "2025-04-06", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-04-06"]}' WHERE id = '8a88a674-b902-45dd-8abf-d7da26c970ba';
 -- [长沙市] Xiao: ['2023-10-28', '2025-03-05', '2025-05-01', '2025-06-07']
-UPDATE public.visits SET visited_at = '2025-06-07', note = '{"dateDisplay": "2025-06-07", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-10-28", "2025-03-05", "2025-05-01", "2025-06-07"]}' WHERE id = 'd334db74-3456-4acf-b34c-d68ae098a90e';
+UPDATE public.visits SET visited_at = '2025-06-07', note = '{"dateDisplay": "2023-10-28、2025-03-05、2025-05-01、2025-06-07", "datePrecision": "multiple", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-10-28", "2025-03-05", "2025-05-01", "2025-06-07"]}' WHERE id = 'd334db74-3456-4acf-b34c-d68ae098a90e';
 -- [长沙市] Tang: ['2023-10-28', '2025-03-05', '2025-05-01', '2025-06-07']
-UPDATE public.visits SET visited_at = '2025-06-07', note = '{"dateDisplay": "2025-06-07", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-10-28", "2025-03-05", "2025-05-01", "2025-06-07"]}' WHERE id = '5a44d167-1a60-48a4-a846-a20e19ea5ec5';
+UPDATE public.visits SET visited_at = '2025-06-07', note = '{"dateDisplay": "2023-10-28、2025-03-05、2025-05-01、2025-06-07", "datePrecision": "multiple", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2023-10-28", "2025-03-05", "2025-05-01", "2025-06-07"]}' WHERE id = '5a44d167-1a60-48a4-a846-a20e19ea5ec5';
 -- [孝感市] Xiao: ['2022-07-10']
 UPDATE public.visits SET visited_at = '2022-07-10', note = '{"dateDisplay": "2022-07-10", "datePrecision": "day", "rating": 5.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2022-07-10"]}' WHERE id = '52cc7471-28e2-410b-9271-05fe39cba511';
 -- [孝感市] Tang: ['2022-07-10']
@@ -457,9 +459,9 @@ UPDATE public.visits SET visited_at = '2021-01-02', note = '{"dateDisplay": "202
 -- [太原市] Tang: ['2021-01-02']
 UPDATE public.visits SET visited_at = '2021-01-02', note = '{"dateDisplay": "2021-01-02", "datePrecision": "day", "rating": 4.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2021-01-02"]}' WHERE id = 'bc0c1a7c-2426-4112-9f74-8f79dd3b47bb';
 -- [上海市] Xiao: ['2025-12-31']
-UPDATE public.visits SET visited_at = '2025-12-31', note = '{"dateDisplay": "2025-12-31", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-12-31"]}' WHERE id = '86b42ca8-402b-4106-924c-db0c101db3ef';
+UPDATE public.visits SET visited_at = '2025-12-31', note = '{"dateDisplay": "2025-12-31", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-12-31"], "updatedAt": "2026-10-17T16:48:18.838Z"}' WHERE id = '86b42ca8-402b-4106-924c-db0c101db3ef';
 -- [上海市] Tang: ['2025-12-31']
-UPDATE public.visits SET visited_at = '2025-12-31', note = '{"dateDisplay": "2025-12-31", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-12-31"]}' WHERE id = 'b512d517-11f3-4afd-b765-a3f850a03bc9';
+UPDATE public.visits SET visited_at = '2025-12-31', note = '{"dateDisplay": "2025-12-31", "datePrecision": "day", "rating": 8.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-12-31"], "updatedAt": "2026-10-17T16:48:19.846Z"}' WHERE id = 'b512d517-11f3-4afd-b765-a3f850a03bc9';
 -- [芒通] Xiao: ['2024-10-30']
 UPDATE public.visits SET visited_at = '2024-10-30', note = '{"dateDisplay": "2024-10-30", "datePrecision": "day", "rating": 7.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2024-10-30"]}' WHERE id = 'd0636268-45dd-470a-9506-4cf2f5be3cdf';
 -- [芒通] Tang: ['2024-10-30']
@@ -523,7 +525,7 @@ UPDATE public.visits SET visited_at = '2023-06-23', note = '{"dateDisplay": "202
 -- [三亚市] Xiao: ['2017']
 UPDATE public.visits SET visited_at = '2017-01-01', note = '{"dateDisplay": "2017", "datePrecision": "year", "rating": 7.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2017"]}' WHERE id = '66b3e5ae-955d-4f43-9b19-389d2e2a2552';
 -- [香港] Xiao: ['2017', '2023-08-22']
-UPDATE public.visits SET visited_at = '2023-08-22', note = '{"dateDisplay": "2023-08-22", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2017", "2023-08-22"]}' WHERE id = 'f2dd3506-d33d-4e3e-8c72-b88ef9b17d0e';
+UPDATE public.visits SET visited_at = '2023-08-22', note = '{"dateDisplay": "2017、2023-08-22", "datePrecision": "multiple", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2017", "2023-08-22"]}' WHERE id = 'f2dd3506-d33d-4e3e-8c72-b88ef9b17d0e';
 -- [深圳市] Xiao: ['2017']
 UPDATE public.visits SET visited_at = '2017-01-01', note = '{"dateDisplay": "2017", "datePrecision": "year", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2017"]}' WHERE id = '3972ee6f-87d6-4168-b01b-69165353568d';
 -- [宁波市] Xiao: ['2026-01-28']
@@ -532,8 +534,8 @@ UPDATE public.visits SET visited_at = '2026-01-28', note = '{"dateDisplay": "202
 UPDATE public.visits SET visited_at = '2025-12-03', note = '{"dateDisplay": "2025-12-03", "datePrecision": "day", "rating": 5.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-12-03"]}' WHERE id = 'dd2ecd90-f899-4246-aeeb-e70775dd3eca';
 -- [沈阳市] Xiao: ['2025-02-06']
 UPDATE public.visits SET visited_at = '2025-02-06', note = '{"dateDisplay": "2025-02-06", "datePrecision": "day", "rating": 6.5, "text": "", "comment": "", "transportMode": "", "visitDates": ["2025-02-06"]}' WHERE id = '41cb92a3-06cc-450e-b7a8-e3b2282bd2e7';
--- [铁岭市] Xiao: []
-UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "", "datePrecision": "none", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": []}' WHERE id = '90b2b349-02c4-432f-b880-3dd57977feab';
+-- [铁岭市] Xiao: ['多次']
+UPDATE public.visits SET visited_at = NULL, note = '{"dateDisplay": "多次", "datePrecision": "multiple", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["多次"]}' WHERE id = '90b2b349-02c4-432f-b880-3dd57977feab';
 -- [长春市] Xiao: ['2017']
 UPDATE public.visits SET visited_at = '2017-01-01', note = '{"dateDisplay": "2017", "datePrecision": "year", "rating": 5.0, "text": "", "comment": "", "transportMode": "", "visitDates": ["2017"]}' WHERE id = '8a480549-6df3-4fe2-a611-7971ec875dea';
 -- [牡丹江市] Xiao: []
