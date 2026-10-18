@@ -52,6 +52,7 @@ import countryGalleryImages from "./data/countryGallery";
 import provinceGalleryImages from "./data/provinceGallery";
 import { supabase } from "./lib/supabase";
 import { defaultTravelNotes } from "./data/defaultNotes";
+import TravelGuessGame from "./TravelGuessGame";
 
 
 const staticVisits = initialVisits.map((v) => {
@@ -3879,7 +3880,8 @@ function App() {
       sectionId === "spherical-globe-section" ||
       sectionId === "dot-matrix-section" ||
       sectionId === "journey-timeline-section" ||
-      sectionId === "travel-ratings-section";
+      sectionId === "travel-ratings-section" ||
+      sectionId === "travel-game-section";
 
     if (isVisualSection && !journeyVisualsLoaded) {
       setJourneyVisualsLoaded(true);
@@ -3995,6 +3997,9 @@ function App() {
           </button>
           <button onClick={() => scrollToPageSection("travel-ratings-section")} type="button">
             评分
+          </button>
+          <button onClick={() => scrollToPageSection("travel-game-section")} type="button">
+            小游戏
           </button>
         </nav>
         
@@ -4404,6 +4409,12 @@ function App() {
         visits={visits}
         onUpdateVisitRatings={updateVisitRatings}
         placeLookup={placeLookup}
+      />
+      {/* 图寻小游戏 */}
+      <TravelGuessGame
+        mapPlaces={mapPlaces}
+        placeLookup={placeLookup}
+        searchPlaces={searchPlaces}
       />
       {editingPlace && (
         <VisitEditDialog
