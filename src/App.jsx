@@ -4028,12 +4028,31 @@ function App() {
           <button onClick={() => scrollToPageSection("travel-ratings-section")} type="button">
             评分
           </button>
-          <button onClick={() => scrollToPageSection("travel-game-section")} type="button">
-            小游戏
-          </button>
-        </nav>
-        
-        <div className="topbar-right-controls">
+          <div className="prophet-dropdown-nav">
+            <button onClick={() => scrollToPageSection("travel-game-section")} type="button">
+              地图游戏
+            </button>
+            <div className="prophet-dropdown-menu">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveGameTab("fill");
+                  scrollToPageSection("travel-game-section");
+                }}
+              >
+                地图盲填
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveGameTab("guess");
+                  scrollToPageSection("travel-game-section");
+                }}
+              >
+                实景图寻
+              </button>
+            </div>
+          </div>
           <div className="prophet-theme-nav">
             <button type="button">地图主题</button>
             <MapThemePicker
@@ -4043,6 +4062,9 @@ function App() {
               variant="nav"
             />
           </div>
+        </nav>
+        
+        <div className="topbar-right-controls">
           <div className="status-strip prophet-status"
             aria-label="项目状态"
             onClick={() => setAuthPanelOpen(true)}
@@ -4442,7 +4464,7 @@ function App() {
       />
       {/* 小游戏区域（支持“中国地图盲填”与“旅行图寻”双模式切换） */}
       <section className="travel-games-master-container" id="travel-game-section">
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
           <div className="travel-games-tab-switcher">
             <button
               type="button"
@@ -4451,7 +4473,6 @@ function App() {
             >
               <MapIcon size={16} />
               <span>中国地图盲填</span>
-              <span className="game-tab-pill-badge">389区</span>
             </button>
             <button
               type="button"
@@ -4460,7 +4481,6 @@ function App() {
             >
               <Compass size={16} />
               <span>实景图寻探索</span>
-              <span className="game-tab-pill-badge">题库</span>
             </button>
           </div>
         </div>

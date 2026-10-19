@@ -630,7 +630,7 @@ async function fetchCloudLeaderboards() {
 
     const grouped = { global: [], domestic: [], foreign: [] };
     for (const row of data) {
-      if (row.id && row.id.startsWith("test-")) continue;
+      if (!row.id || row.id.startsWith("test-") || row.id.startsWith("mapfill-") || (row.player_name && row.player_name.startsWith("test-"))) continue;
       const cat = row.category || "global";
       if (!grouped[cat]) grouped[cat] = [];
       if (grouped[cat].length < 10) {
@@ -1094,11 +1094,22 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
     }
   };
 
-  // Switch Category Tab
+  // Switch Category Tab (仅切换选中的分类，不自动开局；进行中对局切换前先确认)
   const handleCategoryChange = (cat) => {
     if (cat === activeCategory) return;
+    if (gameState === "playing" || gameState === "round_result") {
+      if (!window.confirm("当前挑战正在进行中，切换题库将重置本轮答题进度，确定切换？")) {
+        return;
+      }
+      setGameState("idle");
+      setRoundQuestions([]);
+      setCurrentIndex(0);
+      setGuessPin(null);
+      setCurrentFeedback(null);
+      setHistory([]);
+      setScore(0);
+    }
     setActiveCategory(cat);
-    startNewGame(cat);
   };
 
   // Best guess and average distance calculation
@@ -1127,7 +1138,7 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
         <div className="travel-game-title-group">
           <h2 className="notes-hero-title">
             <Compass className="notes-hero-icon" size={24} />
-            <span>GEO GUESS</span>
+            <span className="game-hero-brand-text">GEO GUESS</span>
             <span className="notes-title-sub">旅行图寻 · 经纬探索</span>
           </h2>
           <p className="travel-game-subtitle">
