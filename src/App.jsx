@@ -1036,6 +1036,19 @@ const SUPPLEMENTAL_PLACES = [
     center: [12.568, 44.067],
     aliases: ["Rimini, Italy"],
   },
+  {
+    id: "EXTRA-FRIEDRICHSHAFEN",
+    level: "city",
+    parentId: "DEU",
+    countryCode: "DEU",
+    countryName: "德国",
+    isoA2: "DE",
+    name: "Friedrichshafen",
+    localName: "腓特烈港",
+    province: "Baden-Württemberg",
+    center: [9.474, 47.651],
+    aliases: ["Friedrichshafen, Germany", "腓特烈港 (德国)", "博登湖", "Bodensee"],
+  },
 ];
 
 const LEGACY_PLACE_ID_ALIASES = {
