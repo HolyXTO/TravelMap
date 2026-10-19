@@ -630,6 +630,7 @@ async function fetchCloudLeaderboards() {
 
     const grouped = { global: [], domestic: [], foreign: [] };
     for (const row of data) {
+      if (row.id && row.id.startsWith("test-")) continue;
       const cat = row.category || "global";
       if (!grouped[cat]) grouped[cat] = [];
       if (grouped[cat].length < 10) {
@@ -664,9 +665,23 @@ async function uploadRecordToCloud(record) {
       avg_dist: record.avgDist ?? 0,
       history: Array.isArray(record.history) ? record.history : [],
     };
-    await supabase.from("travel_guess_leaderboards").upsert(payload, { onConflict: "id" });
+    // 优先使用标准 insert（只需 insert 策略权限，避免因未开启 update 策略导致 RLS 42501 拦截）
+    const { error: insertErr } = await supabase.from("travel_guess_leaderboards").insert(payload);
+    if (insertErr) {
+      if (insertErr.code === "23505") {
+        // 主键已存在，说明云端已有该记录，无需重复写入
+        return;
+      }
+      // 兜底尝试 upsert
+      const { error: upsertErr } = await supabase
+        .from("travel_guess_leaderboards")
+        .upsert(payload, { onConflict: "id" });
+      if (upsertErr) {
+        console.warn("Cloud leaderboard upload error:", upsertErr);
+      }
+    }
   } catch (e) {
-    // Silently continue if table not yet created
+    console.warn("Cloud leaderboard upload exception:", e);
   }
 }
 

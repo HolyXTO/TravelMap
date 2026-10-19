@@ -33,3 +33,17 @@ drop policy if exists "public_insert_leaderboards" on public.travel_guess_leader
 create policy "public_insert_leaderboards"
   on public.travel_guess_leaderboards for insert
   with check (true);
+
+-- 策略 3：允许更新已有战绩（支持 upsert 及跨设备对局记录合并）
+drop policy if exists "public_update_leaderboards" on public.travel_guess_leaderboards;
+create policy "public_update_leaderboards"
+  on public.travel_guess_leaderboards for update
+  using (true)
+  with check (true);
+
+-- 策略 4：允许删除记录（支持管理与清理测试数据）
+drop policy if exists "public_delete_leaderboards" on public.travel_guess_leaderboards;
+create policy "public_delete_leaderboards"
+  on public.travel_guess_leaderboards for delete
+  using (true);
+
