@@ -53,6 +53,7 @@ import provinceGalleryImages from "./data/provinceGallery";
 import { supabase } from "./lib/supabase";
 import { defaultTravelNotes } from "./data/defaultNotes";
 import TravelGuessGame from "./TravelGuessGame";
+import LeftSidebarNav from "./LeftSidebarNav";
 
 
 const staticVisits = initialVisits.map((v) => {
@@ -3961,6 +3962,17 @@ function App() {
   return (
     <main className="app-shell">
       <style dangerouslySetInnerHTML={{ __html: dynamicCss }} />
+      <LeftSidebarNav
+        scrollToPageSection={scrollToPageSection}
+        activeLevel={activeLevel}
+        changeLevel={changeLevel}
+        activeProfile={activeProfile}
+        setActiveProfile={setActiveProfile}
+        activeMapThemeId={activeMapThemeId}
+        setActiveMapThemeId={setActiveMapThemeId}
+        themes={ORDERED_MAP_THEMES}
+        profiles={appProfiles}
+      />
       <header className="topbar">
         <div className="prophet-brand">
           <span className="prophet-brand-icon" aria-hidden="true">
@@ -4176,7 +4188,7 @@ function App() {
       </section>
 
       {/* 极点统计长展示框 */}
-      <section className="journey-extremes-panel" aria-label="足迹四极统计">
+      <section className="journey-extremes-panel" id="extremes-section" aria-label="足迹四极统计">
         <div className="extremes-header-container">
           <div className="extremes-header">
             <p className="eyebrow">Extremes</p>
