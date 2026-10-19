@@ -53,6 +53,7 @@ import provinceGalleryImages from "./data/provinceGallery";
 import { supabase } from "./lib/supabase";
 import { defaultTravelNotes } from "./data/defaultNotes";
 import TravelGuessGame from "./TravelGuessGame";
+import MapFillGame from "./MapFillGame";
 import LeftSidebarNav from "./LeftSidebarNav";
 
 
@@ -2698,6 +2699,8 @@ function App() {
     localStorage.setItem("map_tile_source", mapTileSource);
   }, [mapTileSource]);
 
+  const [activeGameTab, setActiveGameTab] = useState("fill");
+
   const [appProfiles, setAppProfiles] = useState(() => normalizeProfilesForDisplay(profiles));
   const [visits, setVisits] = useState(() => {
     try {
@@ -3972,6 +3975,8 @@ function App() {
         setActiveMapThemeId={setActiveMapThemeId}
         themes={ORDERED_MAP_THEMES}
         profiles={appProfiles}
+        activeGameTab={activeGameTab}
+        setActiveGameTab={setActiveGameTab}
       />
       <header className="topbar">
         <div className="prophet-brand">
@@ -4435,12 +4440,41 @@ function App() {
         onUpdateVisitRatings={updateVisitRatings}
         placeLookup={placeLookup}
       />
-      {/* 图寻小游戏 */}
-      <TravelGuessGame
-        mapPlaces={mapPlaces}
-        placeLookup={placeLookup}
-        searchPlaces={searchPlaces}
-      />
+      {/* 小游戏区域（支持“中国地图盲填”与“旅行图寻”双模式切换） */}
+      <section className="travel-games-master-container" id="travel-game-section">
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
+          <div className="travel-games-tab-switcher">
+            <button
+              type="button"
+              className={`game-nav-tab-btn ${activeGameTab === "fill" ? "is-active" : ""}`}
+              onClick={() => setActiveGameTab("fill")}
+            >
+              <MapIcon size={16} />
+              <span>中国地图盲填</span>
+              <span className="game-tab-pill-badge">389区</span>
+            </button>
+            <button
+              type="button"
+              className={`game-nav-tab-btn ${activeGameTab === "guess" ? "is-active" : ""}`}
+              onClick={() => setActiveGameTab("guess")}
+            >
+              <Compass size={16} />
+              <span>实景图寻探索</span>
+              <span className="game-tab-pill-badge">题库</span>
+            </button>
+          </div>
+        </div>
+
+        {activeGameTab === "fill" ? (
+          <MapFillGame />
+        ) : (
+          <TravelGuessGame
+            mapPlaces={mapPlaces}
+            placeLookup={placeLookup}
+            searchPlaces={searchPlaces}
+          />
+        )}
+      </section>
       {editingPlace && (
         <VisitEditDialog
           authMessage={editMessage}

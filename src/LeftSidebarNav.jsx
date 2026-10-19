@@ -16,6 +16,8 @@ import {
   Plane,
   Eye,
   Flag,
+  Pin,
+  PinOff,
 } from "lucide-react";
 
 export default function LeftSidebarNav({
@@ -27,13 +29,39 @@ export default function LeftSidebarNav({
   activeMapThemeId,
   setActiveMapThemeId,
   themes = [],
+  activeGameTab = "fill",
+  setActiveGameTab,
 }) {
+  const [isPinned, setIsPinned] = useState(() => {
+    try {
+      return localStorage.getItem("travel_sidebar_pinned") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const drawerRef = useRef(null);
   const leaveTimerRef = useRef(null);
   const switchTimerRef = useRef(null);
   const mouseHistoryRef = useRef([]);
+
+  const togglePin = (e) => {
+    e.stopPropagation();
+    setIsPinned((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("travel_sidebar_pinned", String(next));
+      } catch (err) {
+        console.warn(err);
+      }
+      // 取消固定时立即关闭可能展开的二级子功能
+      if (!next) {
+        setActiveMenuId(null);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     return () => {
@@ -143,13 +171,13 @@ export default function LeftSidebarNav({
     }
 
     if (isAiming) {
-      // 关键！用户正以对角线方向划向子菜单：开启 300ms 保护期，中途途径任何其他主项都不关闭目标子菜单！
+      // 用户正以对角线方向划向子菜单：开启 260ms 保护期，中途途径任何其他主项都不关闭目标子菜单
       switchTimerRef.current = setTimeout(() => {
         setActiveMenuId(item.id);
         switchTimerRef.current = null;
-      }, 300);
+      }, 260);
     } else {
-      // 用户正在垂直浏览主菜单项，40ms 极速响应切换，丝滑毫无粘滞感
+      // 用户正在垂直浏览主菜单项，40ms 极速响应切换
       switchTimerRef.current = setTimeout(() => {
         setActiveMenuId(item.id);
         switchTimerRef.current = null;
@@ -158,14 +186,44 @@ export default function LeftSidebarNav({
   };
 
   const handleFlyoutMouseEnter = () => {
-    // 鼠标成功进入二级子功能面板！立即取消切换倒计时，锁定当前子面板
+    // 鼠标成功进入二级子功能面板：立即取消切换与离开倒计时，锁定当前子面板
     if (switchTimerRef.current) {
       clearTimeout(switchTimerRef.current);
       switchTimerRef.current = null;
     }
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
   };
 
-  const handleMouseEnter = () => {
+  const handleFlyoutMouseLeave = (e) => {
+    // 鼠标离开二级子面板
+    const related = e.relatedTarget;
+    // 如果没有移回抽屉内部（即移出了二级功能面板），立即关闭二级子菜单！
+    if (!drawerRef.current || !drawerRef.current.contains(related)) {
+      if (switchTimerRef.current) {
+        clearTimeout(switchTimerRef.current);
+        switchTimerRef.current = null;
+      }
+      setActiveMenuId(null);
+    }
+  };
+
+  const handleMenuMouseLeave = (e) => {
+    // 鼠标离开主菜单项列表区域
+    const related = e.relatedTarget;
+    // 如果鼠标移向的不是当前已经展开的二级子功能面板，则关闭二级子面板
+    if (!related || !related.closest || !related.closest(".left-submenu-flyout")) {
+      if (switchTimerRef.current) {
+        clearTimeout(switchTimerRef.current);
+        switchTimerRef.current = null;
+      }
+      setActiveMenuId(null);
+    }
+  };
+
+  const handleWrapperMouseEnter = () => {
     if (leaveTimerRef.current) {
       clearTimeout(leaveTimerRef.current);
       leaveTimerRef.current = null;
@@ -173,18 +231,21 @@ export default function LeftSidebarNav({
     setIsExpanded(true);
   };
 
-  const handleMouseLeave = () => {
+  const handleWrapperMouseLeave = (e) => {
     if (switchTimerRef.current) {
       clearTimeout(switchTimerRef.current);
       switchTimerRef.current = null;
     }
-    if (leaveTimerRef.current) {
-      clearTimeout(leaveTimerRef.current);
+    // 离开侧边栏时关闭所有二级子菜单
+    setActiveMenuId(null);
+
+    // 如果处于未固定状态，平滑收起侧边栏
+    if (!isPinned) {
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = setTimeout(() => {
+        setIsExpanded(false);
+      }, 220);
     }
-    leaveTimerRef.current = setTimeout(() => {
-      setIsExpanded(false);
-      setActiveMenuId(null);
-    }, 350);
   };
 
   const menuItems = [
@@ -347,17 +408,31 @@ export default function LeftSidebarNav({
     {
       id: "game",
       title: "小游戏",
-      enTitle: "GeoGuessr",
+      enTitle: "Geo Games",
       icon: Gamepad2,
       accentColor: "#0891b2",
       bgColor: "#ecfeff",
       action: () => scrollToPageSection("travel-game-section"),
       submenus: [
         {
-          title: "开始图寻挑战",
-          desc: "实景旅拍插旗测距经纬探索",
-          icon: Gamepad2,
-          action: () => scrollToPageSection("travel-game-section"),
+          title: "中国地图盲填",
+          desc: "389个行政区轮廓交互记忆大挑战",
+          icon: MapIcon,
+          isActive: activeGameTab === "fill",
+          action: () => {
+            if (setActiveGameTab) setActiveGameTab("fill");
+            scrollToPageSection("travel-game-section");
+          },
+        },
+        {
+          title: "实景图寻探索",
+          desc: "旅拍实景照片插旗测距探索",
+          icon: Compass,
+          isActive: activeGameTab === "guess",
+          action: () => {
+            if (setActiveGameTab) setActiveGameTab("guess");
+            scrollToPageSection("travel-game-section");
+          },
         },
       ],
     },
@@ -380,34 +455,61 @@ export default function LeftSidebarNav({
     },
   ];
 
+  const hasFlyoutOpen = Boolean(activeMenuId);
+  const isCurrentlyExpanded = isPinned || isExpanded;
+
   return (
     <aside
-      className={`left-sidebar-wrapper ${isExpanded ? "sidebar-expanded" : "sidebar-collapsed"}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      className={`left-sidebar-wrapper ${
+        isCurrentlyExpanded ? "sidebar-expanded" : "sidebar-collapsed"
+      } ${isPinned ? "sidebar-pinned" : ""} ${hasFlyoutOpen ? "has-flyout-open" : ""}`}
+      onMouseEnter={handleWrapperMouseEnter}
+      onMouseLeave={handleWrapperMouseLeave}
       onMouseMove={handleMouseMove}
       aria-label="左侧快捷导航功能栏"
     >
       {/* 边缘微型指示标签（未写文字，仅使用高质感极简手柄条，大幅增高） */}
-      <div className="left-sidebar-peek-tab" title="鼠标滑入展开快捷导航">
+      <div
+        className="left-sidebar-peek-tab"
+        title="鼠标滑入展开快捷导航"
+        onClick={handleWrapperMouseEnter}
+      >
         <span className="peek-tab-indicator-bar" />
         <span className="peek-tab-dot" />
         <ChevronRight size={15} className="peek-tab-arrow" />
       </div>
 
       {/* 滑出式侧边功能栏主卡片 */}
-      <nav className="left-sidebar-drawer" ref={drawerRef}>
+      <nav
+        className="left-sidebar-drawer"
+        ref={drawerRef}
+      >
         {/* 顶部标题区 */}
         <div className="left-sidebar-header">
           <div className="sidebar-brand-row">
-            <span className="sidebar-brand-gem" />
-            <span className="sidebar-brand-title">功能导航</span>
+            <div className="sidebar-brand-left">
+              <span className="sidebar-brand-gem" />
+              <span className="sidebar-brand-title">功能导航</span>
+            </div>
+            <button
+              type="button"
+              className={`sidebar-pin-btn ${isPinned ? "is-pinned" : ""}`}
+              onClick={togglePin}
+              title={isPinned ? "取消固定功能导航栏" : "固定功能导航栏"}
+              aria-label={isPinned ? "取消固定功能导航栏" : "固定功能导航栏"}
+            >
+              {isPinned ? <PinOff size={13} /> : <Pin size={13} />}
+              <span className="pin-btn-text">{isPinned ? "已固定" : "固定"}</span>
+            </button>
           </div>
           <span className="sidebar-brand-subtitle">TRAVELMAP SHORTCUTS</span>
         </div>
 
         {/* 主菜单列表 */}
-        <ul className="left-sidebar-menu">
+        <ul
+          className="left-sidebar-menu"
+          onMouseLeave={handleMenuMouseLeave}
+        >
           {menuItems.map((item) => {
             const ItemIcon = item.icon;
             const hasSubmenu = item.submenus && item.submenus.length > 0;
@@ -452,6 +554,7 @@ export default function LeftSidebarNav({
                   <div
                     className="left-submenu-flyout"
                     onMouseEnter={handleFlyoutMouseEnter}
+                    onMouseLeave={handleFlyoutMouseLeave}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="submenu-flyout-header">

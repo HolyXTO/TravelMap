@@ -1121,12 +1121,12 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
     : null;
 
   return (
-    <section className="travel-game-section" id="travel-game-section">
+    <section className="travel-game-section" id="travel-guess-section">
       {/* 顶部标题栏与题库选择 */}
       <div className="travel-game-header-row">
-        <div>
+        <div className="travel-game-title-group">
           <h2 className="notes-hero-title">
-            <Compass className="notes-hero-icon" />
+            <Compass className="notes-hero-icon" size={24} />
             <span>GEO GUESS</span>
             <span className="notes-title-sub">旅行图寻 · 经纬探索</span>
           </h2>
