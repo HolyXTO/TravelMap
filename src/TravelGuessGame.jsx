@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import gameData from "./data/guessGameData.json";
 import initialLeaderboards from "./data/initialLeaderboards.json";
+import { supabase } from "./lib/supabase";
 
 // Calculate Great Circle Distance in KM using Haversine formula (precise with decimal precision)
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
@@ -585,6 +586,90 @@ const CATEGORY_LABELS = {
   foreign: "国外排行榜",
 };
 
+function mergeCategoryRecords(listA, listB) {
+  const a = Array.isArray(listA) ? listA : [];
+  const b = Array.isArray(listB) ? listB : [];
+  const seen = new Set();
+  const merged = [];
+  for (const item of [...a, ...b]) {
+    if (item && item.id && !seen.has(item.id)) {
+      seen.add(item.id);
+      merged.push(item);
+    }
+  }
+  merged.sort((x, y) => {
+    if (y.score !== x.score) return y.score - x.score;
+    if (x.avgDist !== y.avgDist) return x.avgDist - y.avgDist;
+    return new Date(y.date) - new Date(x.date);
+  });
+  return merged.slice(0, 10);
+}
+
+function mergeAllBoards(b1, b2) {
+  return {
+    global: mergeCategoryRecords(b1?.global, b2?.global),
+    domestic: mergeCategoryRecords(b1?.domestic, b2?.domestic),
+    foreign: mergeCategoryRecords(b1?.foreign, b2?.foreign),
+  };
+}
+
+async function fetchCloudLeaderboards() {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from("travel_guess_leaderboards")
+      .select("*")
+      .order("score", { ascending: false })
+      .order("avg_dist", { ascending: true })
+      .order("date", { ascending: false })
+      .limit(60);
+
+    if (error || !Array.isArray(data)) {
+      return null;
+    }
+
+    const grouped = { global: [], domestic: [], foreign: [] };
+    for (const row of data) {
+      const cat = row.category || "global";
+      if (!grouped[cat]) grouped[cat] = [];
+      if (grouped[cat].length < 10) {
+        grouped[cat].push({
+          id: row.id,
+          playerName: row.player_name,
+          score: row.score,
+          category: cat,
+          date: row.date,
+          bestDist: row.best_dist,
+          avgDist: row.avg_dist,
+          history: Array.isArray(row.history) ? row.history : [],
+        });
+      }
+    }
+    return grouped;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function uploadRecordToCloud(record) {
+  if (!supabase || !record) return;
+  try {
+    const payload = {
+      id: record.id,
+      category: record.category || "global",
+      player_name: record.playerName || "旅行探险家",
+      score: record.score,
+      date: record.date || new Date().toISOString(),
+      best_dist: record.bestDist ?? 0,
+      avg_dist: record.avgDist ?? 0,
+      history: Array.isArray(record.history) ? record.history : [],
+    };
+    await supabase.from("travel_guess_leaderboards").upsert(payload, { onConflict: "id" });
+  } catch (e) {
+    // Silently continue if table not yet created
+  }
+}
+
 function loadStoredLeaderboards() {
   const fallback = {
     global: Array.isArray(initialLeaderboards?.global) ? initialLeaderboards.global : [],
@@ -596,30 +681,7 @@ function loadStoredLeaderboards() {
     const raw = localStorage.getItem(LEADERBOARDS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      const mergeCategory = (storedList, defaultList) => {
-        const stored = Array.isArray(storedList) ? storedList : [];
-        const defaults = Array.isArray(defaultList) ? defaultList : [];
-        const seen = new Set();
-        const merged = [];
-        for (const item of [...stored, ...defaults]) {
-          if (item && item.id && !seen.has(item.id)) {
-            seen.add(item.id);
-            merged.push(item);
-          }
-        }
-        merged.sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
-          if (a.avgDist !== b.avgDist) return a.avgDist - b.avgDist;
-          return new Date(b.date) - new Date(a.date);
-        });
-        return merged.slice(0, 10);
-      };
-
-      return {
-        global: mergeCategory(parsed.global, fallback.global),
-        domestic: mergeCategory(parsed.domestic, fallback.domestic),
-        foreign: mergeCategory(parsed.foreign, fallback.foreign),
-      };
+      return mergeAllBoards(parsed, fallback);
     }
   } catch (e) {}
 
@@ -680,6 +742,38 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
   const [selectedMatchDetail, setSelectedMatchDetail] = useState(null);
   const [leaderboards, setLeaderboards] = useState(() => loadStoredLeaderboards());
   const [newRankAchieved, setNewRankAchieved] = useState(null);
+
+  // Asynchronously synchronize leaderboards with Supabase cloud
+  const syncWithCloud = useCallback(async () => {
+    const cloudBoards = await fetchCloudLeaderboards();
+    if (cloudBoards) {
+      setLeaderboards((prev) => {
+        const merged = mergeAllBoards(prev, cloudBoards);
+        saveStoredLeaderboards(merged);
+        return merged;
+      });
+    }
+
+    // Back-sync any un-uploaded local records to Supabase
+    try {
+      const local = loadStoredLeaderboards();
+      for (const cat of ["global", "domestic", "foreign"]) {
+        for (const item of local[cat] || []) {
+          uploadRecordToCloud(item);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    syncWithCloud();
+  }, [syncWithCloud]);
+
+  useEffect(() => {
+    if (isLeaderboardOpen) {
+      syncWithCloud();
+    }
+  }, [isLeaderboardOpen, syncWithCloud]);
 
   const handlePlayerNameChange = (val) => {
     setPlayerName(val);
@@ -975,6 +1069,11 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
       } else {
         setNewRankAchieved(null);
       }
+
+      // Asynchronously upload record to Supabase cloud and re-sync
+      uploadRecordToCloud(record).then(() => {
+        syncWithCloud();
+      });
 
       setGameState("finished");
     }
