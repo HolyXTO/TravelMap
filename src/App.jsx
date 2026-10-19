@@ -9425,13 +9425,6 @@ function CountryGalleryCard({ country }) {
 
   return (
     <article className={`country-gallery-card ${country.isVisited ? "" : "locked"}`}>
-      <div className="country-gallery-card-copy">
-        <strong className={country.name.length >= 9 ? "long-name" : ""}>
-          <span>{country.name}</span>
-          <FlagIcon place={country.place} />
-        </strong>
-        <small>{country.subtitle}</small>
-      </div>
       <div
         className="country-gallery-photo-frame"
         onMouseEnter={() => setWasHovered(true)}
@@ -9449,6 +9442,13 @@ function CountryGalleryCard({ country }) {
             onError={handleImageLoadError}
           />
         ))}
+      </div>
+      <div className="country-gallery-card-copy">
+        <strong className={country.name.length >= 9 ? "long-name" : ""}>
+          <span>{country.name}</span>
+          <FlagIcon place={country.place} />
+        </strong>
+        <small>{country.subtitle}</small>
       </div>
     </article>
   );
@@ -10128,11 +10128,6 @@ function ProvinceGalleryCard({ province }) {
 
   return (
     <article className={`country-gallery-card ${province.isVisited ? "" : "locked"}`}>
-      <div className="country-gallery-card-copy">
-        <strong className="province-name" style={{ fontSize: "0.86rem", whiteSpace: "normal", display: "block", textAlign: "center" }}>
-          <span>{province.name}</span>
-        </strong>
-      </div>
       <div
         className="country-gallery-photo-frame"
         onMouseEnter={() => setWasHovered(true)}
@@ -10150,6 +10145,11 @@ function ProvinceGalleryCard({ province }) {
             onError={handleImageLoadError}
           />
         ))}
+      </div>
+      <div className="country-gallery-card-copy">
+        <strong className="province-name" style={{ fontSize: "0.86rem", whiteSpace: "normal", display: "block", textAlign: "center" }}>
+          <span>{province.name}</span>
+        </strong>
       </div>
     </article>
   );
