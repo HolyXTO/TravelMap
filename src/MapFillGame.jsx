@@ -127,32 +127,65 @@ function getRatingTitle(count, isWorld = false) {
   }
 }
 
-// 合并与去重记录（过滤测试记录，优先按得分降序、用时升序排序）
-function mergeLeaderboardRecords(existingList = [], incomingList = []) {
-  const map = new Map();
-  for (const item of existingList) {
-    if (isMockRecord(item)) continue;
-    const key =
-      item.id ||
-      `${item.playerName}-${item.score}-${item.elapsedSeconds}`;
-    map.set(key, item);
+// 全局排行榜去重与清洗（以云端真实战绩为唯一准则，消除跨设备/本地旧缓存不同步产生的重复项）
+function deduplicateLeaderboard(list = []) {
+  if (!Array.isArray(list)) return [];
+  const seenNormIds = new Set();
+  const seenFingerprints = new Set();
+  const result = [];
+
+  for (const item of list) {
+    if (!item || isMockRecord(item)) continue;
+    const score = Number(item.score);
+    if (!Number.isFinite(score) || score <= 0) continue;
+
+    // 统一去除前缀后的基础 ID（例如 mapfill-china-rec-1792416724294 与 rec-1792416724294 归一化为同一种 ID）
+    const rawId = String(item.id || "");
+    const normId = rawId.replace(/^mapfill-(china|world)-/, "").trim();
+
+    // 玩家特征指纹：玩家名 + 分数 + 用时秒数
+    const normName = String(item.playerName || item.player_name || "")
+      .trim()
+      .toLowerCase();
+    const elapsed = Math.round(Number(item.elapsedSeconds ?? item.best_dist ?? 0));
+    const fingerprint = `${normName}_${score}_${elapsed}`;
+    // 日期指纹（同一玩家同一天同一分钟同分数）
+    const dateMinute = String(item.date || "").slice(0, 16);
+    const dateFingerprint = normName && dateMinute ? `${normName}_${score}_${dateMinute}` : null;
+
+    if (normId && seenNormIds.has(normId)) continue;
+    if (fingerprint && seenFingerprints.has(fingerprint)) continue;
+    if (dateFingerprint && seenFingerprints.has(dateFingerprint)) continue;
+
+    if (normId) seenNormIds.add(normId);
+    if (fingerprint) seenFingerprints.add(fingerprint);
+    if (dateFingerprint) seenFingerprints.add(dateFingerprint);
+
+    const isWorld = item.mode === "world";
+    result.push({
+      ...item,
+      id: rawId.startsWith("mapfill-") ? rawId : `mapfill-${item.mode || "china"}-${rawId}`,
+      playerName: String(item.playerName || item.player_name || "").trim() || "旅行探险家",
+      score,
+      total: item.total || (isWorld ? 197 : 389),
+      elapsedSeconds: elapsed,
+      apm: Math.round(Number(item.apm ?? item.avg_dist ?? 0)),
+      date: item.date || new Date().toISOString(),
+      title: item.title || getRatingTitle(score, isWorld),
+      mode: item.mode || "china",
+    });
   }
-  for (const item of incomingList) {
-    if (isMockRecord(item)) continue;
-    const key =
-      item.id ||
-      `${item.playerName}-${item.score}-${item.elapsedSeconds}`;
-    map.set(key, item);
-  }
-  const merged = Array.from(map.values());
-  merged.sort((a, b) => {
+
+  // 严格按得分降序，同分按用时升序排序
+  result.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return (a.elapsedSeconds || 0) - (b.elapsedSeconds || 0);
   });
-  return merged.slice(0, 15);
+
+  return result.slice(0, 15);
 }
 
-// 从 Supabase 云端拉取地图填充排行榜
+// 从 Supabase 云端拉取地图填充排行榜（各设备统一从云端获取完全一致的数据）
 async function fetchCloudMapFillLeaderboards(mode = "china") {
   if (!supabase) return null;
   const isWorld = mode === "world";
@@ -167,10 +200,10 @@ async function fetchCloudMapFillLeaderboards(mode = "china") {
       .order("score", { ascending: false })
       .order("elapsed_seconds", { ascending: true })
       .order("date", { ascending: false })
-      .limit(20);
+      .limit(30);
 
-    if (!dErr && Array.isArray(dedicated) && dedicated.length >= 0) {
-      return dedicated
+    if (!dErr && Array.isArray(dedicated) && dedicated.length > 0) {
+      const formatted = dedicated
         .filter((r) => !isMockRecord({ id: r.id, playerName: r.player_name }))
         .map((r) => ({
           id: r.id,
@@ -183,6 +216,7 @@ async function fetchCloudMapFillLeaderboards(mode = "china") {
           date: r.date,
           mode: r.mode,
         }));
+      return deduplicateLeaderboard(formatted);
     }
   } catch (e) {
     // 继续尝试通用表
@@ -220,9 +254,8 @@ async function fetchCloudMapFillLeaderboards(mode = "china") {
         date: row.date,
         mode: mode,
       });
-      if (list.length >= 15) break;
     }
-    return list;
+    return deduplicateLeaderboard(list);
   } catch (e) {
     console.warn("fetchCloudMapFillLeaderboards error:", e);
     return null;
@@ -313,15 +346,18 @@ function MapFillGame() {
     }
   });
 
-  // 中国地图排行榜（过滤本地可能残留的 mock 测试记录）
+  // 中国地图排行榜（以云端真实战绩为准，本地缓存自动清洗去重）
   const [chinaLeaderboard, setChinaLeaderboard] = useState(() => {
     try {
       const saved = localStorage.getItem("china_map_fill_leaderboard");
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const valid = parsed.filter((item) => !isMockRecord(item));
-          return valid;
+          const clean = deduplicateLeaderboard(parsed);
+          try {
+            localStorage.setItem("china_map_fill_leaderboard", JSON.stringify(clean));
+          } catch (e) {}
+          return clean;
         }
       }
     } catch (e) {
@@ -330,15 +366,18 @@ function MapFillGame() {
     return INITIAL_CHINA_LEADERBOARD;
   });
 
-  // 全球地图排行榜（过滤本地可能残留的 mock 测试记录）
+  // 全球地图排行榜（以云端真实战绩为准，本地缓存自动清洗去重）
   const [worldLeaderboard, setWorldLeaderboard] = useState(() => {
     try {
       const saved = localStorage.getItem("world_map_fill_leaderboard");
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const valid = parsed.filter((item) => !isMockRecord(item));
-          return valid;
+          const clean = deduplicateLeaderboard(parsed);
+          try {
+            localStorage.setItem("world_map_fill_leaderboard", JSON.stringify(clean));
+          } catch (e) {}
+          return clean;
         }
       }
     } catch (e) {
@@ -482,59 +521,38 @@ function MapFillGame() {
     };
   }, [gameState]);
 
-  // 初始化加载云端排行榜并与本地非测试数据合并同步
+  // 初始化从云端拉取真实权威排行榜（以云端为绝对准则，各设备展示完全统一，不回传本地残留数据）
   useEffect(() => {
     let isMounted = true;
     async function syncCloudLeaderboards() {
       // 1. 同步中国地图排行榜
       const cloudChina = await fetchCloudMapFillLeaderboards("china");
-      if (isMounted && cloudChina) {
-        setChinaLeaderboard((prev) => {
-          const merged = mergeLeaderboardRecords(prev, cloudChina);
-          try {
-            localStorage.setItem(
-              "china_map_fill_leaderboard",
-              JSON.stringify(merged)
-            );
-          } catch (e) {
-            console.warn(e);
-          }
-          // 如果本地有但云端还没有的非 mock 真实战绩，反向同步到云端
-          prev.forEach((localRec) => {
-            if (
-              !isMockRecord(localRec) &&
-              !cloudChina.some((c) => c.id === localRec.id)
-            ) {
-              uploadMapFillRecordToCloud(localRec, "china");
-            }
-          });
-          return merged;
-        });
+      if (isMounted && Array.isArray(cloudChina)) {
+        const clean = deduplicateLeaderboard(cloudChina);
+        setChinaLeaderboard(clean);
+        try {
+          localStorage.setItem(
+            "china_map_fill_leaderboard",
+            JSON.stringify(clean)
+          );
+        } catch (e) {
+          console.warn(e);
+        }
       }
 
       // 2. 同步世界地图排行榜
       const cloudWorld = await fetchCloudMapFillLeaderboards("world");
-      if (isMounted && cloudWorld) {
-        setWorldLeaderboard((prev) => {
-          const merged = mergeLeaderboardRecords(prev, cloudWorld);
-          try {
-            localStorage.setItem(
-              "world_map_fill_leaderboard",
-              JSON.stringify(merged)
-            );
-          } catch (e) {
-            console.warn(e);
-          }
-          prev.forEach((localRec) => {
-            if (
-              !isMockRecord(localRec) &&
-              !cloudWorld.some((c) => c.id === localRec.id)
-            ) {
-              uploadMapFillRecordToCloud(localRec, "world");
-            }
-          });
-          return merged;
-        });
+      if (isMounted && Array.isArray(cloudWorld)) {
+        const clean = deduplicateLeaderboard(cloudWorld);
+        setWorldLeaderboard(clean);
+        try {
+          localStorage.setItem(
+            "world_map_fill_leaderboard",
+            JSON.stringify(clean)
+          );
+        } catch (e) {
+          console.warn(e);
+        }
       }
     }
 
@@ -544,35 +562,30 @@ function MapFillGame() {
     };
   }, []);
 
-  // 打开排行榜弹窗时重新拉取最新云端排行
+  // 打开排行榜弹窗时重新拉取最新云端排行（保证各设备所见绝对统一）
   useEffect(() => {
     if (!isLeaderboardOpen) return;
     let isMounted = true;
     const mode = activeMapMode === "world" ? "world" : "china";
     fetchCloudMapFillLeaderboards(mode).then((cloudData) => {
-      if (isMounted && cloudData) {
+      if (isMounted && Array.isArray(cloudData)) {
+        const clean = deduplicateLeaderboard(cloudData);
         if (mode === "world") {
-          setWorldLeaderboard((prev) => {
-            const merged = mergeLeaderboardRecords(prev, cloudData);
-            try {
-              localStorage.setItem(
-                "world_map_fill_leaderboard",
-                JSON.stringify(merged)
-              );
-            } catch (e) {}
-            return merged;
-          });
+          setWorldLeaderboard(clean);
+          try {
+            localStorage.setItem(
+              "world_map_fill_leaderboard",
+              JSON.stringify(clean)
+            );
+          } catch (e) {}
         } else {
-          setChinaLeaderboard((prev) => {
-            const merged = mergeLeaderboardRecords(prev, cloudData);
-            try {
-              localStorage.setItem(
-                "china_map_fill_leaderboard",
-                JSON.stringify(merged)
-              );
-            } catch (e) {}
-            return merged;
-          });
+          setChinaLeaderboard(clean);
+          try {
+            localStorage.setItem(
+              "china_map_fill_leaderboard",
+              JSON.stringify(clean)
+            );
+          } catch (e) {}
         }
       }
     });
@@ -581,7 +594,7 @@ function MapFillGame() {
     };
   }, [isLeaderboardOpen, activeMapMode]);
 
-  // 保存成绩至荣誉排行榜（本地即时持久化 + 云端跨设备实时同步）
+  // 保存成绩至荣誉排行榜（本地即时乐观更新 + 实时持久化至 Supabase 云端跨设备共享）
   const recordToLeaderboard = useCallback(
     (count, seconds) => {
       if (count <= 0) return;
@@ -602,36 +615,60 @@ function MapFillGame() {
 
       if (isWorldMode) {
         setWorldLeaderboard((prev) => {
-          const merged = mergeLeaderboardRecords([...prev, newEntry], []);
+          const clean = deduplicateLeaderboard([newEntry, ...prev]);
           try {
             localStorage.setItem(
               "world_map_fill_leaderboard",
-              JSON.stringify(merged)
+              JSON.stringify(clean)
             );
           } catch (e) {
             console.warn("Failed to persist world leaderboard:", e);
           }
-          return merged;
+          return clean;
         });
       } else {
         setChinaLeaderboard((prev) => {
-          const merged = mergeLeaderboardRecords([...prev, newEntry], []);
+          const clean = deduplicateLeaderboard([newEntry, ...prev]);
           try {
             localStorage.setItem(
               "china_map_fill_leaderboard",
-              JSON.stringify(merged)
+              JSON.stringify(clean)
             );
           } catch (e) {
             console.warn("Failed to persist china leaderboard:", e);
           }
-          return merged;
+          return clean;
         });
       }
 
-      // 异步上传至 Supabase 云端数据库，实现多设备互通
-      uploadMapFillRecordToCloud(newEntry, mode).catch((err) => {
-        console.warn("Async uploadMapFillRecordToCloud failed:", err);
-      });
+      // 实时上传至 Supabase 云端数据库，完成后拉取权威列表保持各端 100% 同步
+      uploadMapFillRecordToCloud(newEntry, mode)
+        .then(() => fetchCloudMapFillLeaderboards(mode))
+        .then((latestCloud) => {
+          if (Array.isArray(latestCloud)) {
+            const clean = deduplicateLeaderboard(latestCloud);
+            if (isWorldMode) {
+              setWorldLeaderboard(clean);
+              try {
+                localStorage.setItem(
+                  "world_map_fill_leaderboard",
+                  JSON.stringify(clean)
+                );
+              } catch (e) {}
+            } else {
+              setChinaLeaderboard(clean);
+              try {
+                localStorage.setItem(
+                  "china_map_fill_leaderboard",
+                  JSON.stringify(clean)
+                );
+              } catch (e) {}
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Async uploadMapFillRecordToCloud sync failed:", err);
+        });
     },
     [playerName, totalCount, isWorldMode]
   );
