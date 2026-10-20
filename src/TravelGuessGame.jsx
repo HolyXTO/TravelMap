@@ -207,9 +207,28 @@ function fisherYatesShuffle(arr) {
 }
 
 // Session-level unplayed deck management for strictly equal photo probability and zero repetition
-const DECK_STORAGE_KEY_PREFIX = "travel_guess_deck_v2_";
+const DECK_STORAGE_VERSION = "v3_";
+const DECK_STORAGE_KEY_PREFIX = `travel_guess_deck_${DECK_STORAGE_VERSION}`;
+
+// Purge any stale deck caches from older versions (v1, v2, etc.)
+function cleanupStaleDecks() {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith("travel_guess_deck_") && !key.startsWith(DECK_STORAGE_KEY_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => sessionStorage.removeItem(k));
+  } catch (e) {
+    // Ignore storage errors
+  }
+}
 
 function getOrInitDeck(category, allQuestions) {
+  cleanupStaleDecks();
+
   let pool = allQuestions;
   if (category === "domestic") {
     pool = allQuestions.filter((q) => q.region === "domestic");
@@ -219,15 +238,31 @@ function getOrInitDeck(category, allQuestions) {
 
   const poolIds = pool.map((q) => q.id);
   const poolIdSet = new Set(poolIds);
+  const storageKey = `${DECK_STORAGE_KEY_PREFIX}${category}_${pool.length}`;
 
   // Try reading from sessionStorage
   try {
-    const storedJson = sessionStorage.getItem(DECK_STORAGE_KEY_PREFIX + category);
+    const storedJson = sessionStorage.getItem(storageKey);
     if (storedJson) {
       const storedDeck = JSON.parse(storedJson);
-      const validDeck = storedDeck.filter((id) => poolIdSet.has(id));
-      if (validDeck.length >= 10) {
-        return validDeck;
+      if (Array.isArray(storedDeck)) {
+        // Filter out any stale/deleted IDs
+        const validDeck = storedDeck.filter((id) => poolIdSet.has(id));
+        const validSet = new Set(validDeck);
+
+        // Check for newly added questions in the pool that aren't yet in this deck
+        const missingIds = poolIds.filter((id) => !validSet.has(id));
+
+        if (missingIds.length > 0) {
+          // Prepend newly added questions (shuffled) directly to the front so player gets them immediately
+          const mergedDeck = [...fisherYatesShuffle(missingIds), ...validDeck];
+          sessionStorage.setItem(storageKey, JSON.stringify(mergedDeck));
+          return mergedDeck;
+        }
+
+        if (validDeck.length > 0) {
+          return validDeck;
+        }
       }
     }
   } catch (e) {
@@ -237,12 +272,12 @@ function getOrInitDeck(category, allQuestions) {
   // Reshuffle the entire pool uniformly with Fisher-Yates algorithm
   const newDeck = fisherYatesShuffle(poolIds);
   try {
-    sessionStorage.setItem(DECK_STORAGE_KEY_PREFIX + category, JSON.stringify(newDeck));
+    sessionStorage.setItem(storageKey, JSON.stringify(newDeck));
   } catch (e) {}
   return newDeck;
 }
 
-// Draw 10 questions with strict equal probability, non-repeating deck cycle, and city diversity
+// Draw 10 questions with strict equal probability, continuous replenishing deck cycle, and city diversity
 function generateRoundQuestions(category, allQuestions) {
   let pool = allQuestions;
   if (category === "domestic") {
@@ -251,48 +286,54 @@ function generateRoundQuestions(category, allQuestions) {
     pool = allQuestions.filter((q) => q.region === "foreign");
   }
 
+  const poolIds = pool.map((q) => q.id);
   const questionMap = new Map(pool.map((q) => [q.id, q]));
+  const storageKey = `${DECK_STORAGE_KEY_PREFIX}${category}_${pool.length}`;
+
   let deck = getOrInitDeck(category, allQuestions);
 
-  // If remaining cards in deck are fewer than 10, reshuffle all pool items to start a fresh cycle
+  // If remaining cards in deck are fewer than 10, continuously replenish by appending a newly shuffled cycle
+  // (Zero cards discarded: every single photo in the pool is played before repeating)
   if (deck.length < 10) {
-    deck = fisherYatesShuffle(pool.map((q) => q.id));
+    deck = [...deck, ...fisherYatesShuffle(poolIds)];
   }
 
   // Draw 10 items from top of deck, enforcing max 2 photos per city within the single 10-question round
   const selectedQuestions = [];
   const cityCount = new Map();
-  const remainingDeck = [];
+  const skippedForThisRound = [];
 
-  for (const qId of deck) {
-    if (selectedQuestions.length < 10) {
-      const q = questionMap.get(qId);
-      if (q) {
-        const cCityCount = cityCount.get(q.cityId) || 0;
-        // Limit max 2 from the same city per round of 10 for geographic diversity
-        if (cCityCount < 2) {
-          selectedQuestions.push(q);
-          cityCount.set(q.cityId, cCityCount + 1);
-          continue;
-        }
+  while (selectedQuestions.length < 10 && deck.length > 0) {
+    const qId = deck.shift();
+    const q = questionMap.get(qId);
+    if (q) {
+      const cCityCount = cityCount.get(q.cityId) || 0;
+      if (cCityCount < 2) {
+        selectedQuestions.push(q);
+        cityCount.set(q.cityId, cCityCount + 1);
+        continue;
       }
     }
-    // If not selected in this round, keep in remaining deck for subsequent rounds
-    remainingDeck.push(qId);
+    // Skipped solely due to city quota in this single round
+    skippedForThisRound.push(qId);
   }
 
-  // If city constraint prevented reaching 10, fill from top of remainingDeck
-  while (selectedQuestions.length < 10 && remainingDeck.length > 0) {
-    const qId = remainingDeck.shift();
+  // If deck ran out before reaching 10 (fallback fill from skipped cards)
+  while (selectedQuestions.length < 10 && skippedForThisRound.length > 0) {
+    const qId = skippedForThisRound.shift();
     const q = questionMap.get(qId);
     if (q) {
       selectedQuestions.push(q);
     }
   }
 
-  // Update sessionStorage with the remaining deck
+  // Prepend skipped cards back to the FRONT of deck so they are evaluated immediately in the next round
+  // when city quotas are reset, preventing city photo starvation
+  deck = [...skippedForThisRound, ...deck];
+
+  // Update sessionStorage with remaining deck
   try {
-    sessionStorage.setItem(DECK_STORAGE_KEY_PREFIX + category, JSON.stringify(remainingDeck));
+    sessionStorage.setItem(storageKey, JSON.stringify(deck));
   } catch (e) {}
 
   return fisherYatesShuffle(selectedQuestions);
@@ -738,6 +779,22 @@ function checkAndInsertLeaderboard(category, newRecord) {
 export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }) {
   const [activeCategory, setActiveCategory] = useState("global");
   const [gameState, setGameState] = useState("idle"); // "idle" | "playing" | "finished"
+
+  // Question counts by category for UI badges and tabs
+  const categoryCounts = useMemo(() => {
+    const all = gameData.questions || [];
+    let domestic = 0;
+    let foreign = 0;
+    for (const q of all) {
+      if (q.region === "domestic") domestic++;
+      else if (q.region === "foreign") foreign++;
+    }
+    return {
+      global: all.length,
+      domestic,
+      foreign,
+    };
+  }, []);
 
   const [roundQuestions, setRoundQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -1193,21 +1250,21 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
               className={`game-tab-btn ${activeCategory === "global" ? "active" : ""}`}
               onClick={() => handleCategoryChange("global")}
             >
-              全球
+              全球 <span className="game-tab-count">({categoryCounts.global.toLocaleString()})</span>
             </button>
             <button
               type="button"
               className={`game-tab-btn ${activeCategory === "domestic" ? "active" : ""}`}
               onClick={() => handleCategoryChange("domestic")}
             >
-              国内
+              国内 <span className="game-tab-count">({categoryCounts.domestic.toLocaleString()})</span>
             </button>
             <button
               type="button"
               className={`game-tab-btn ${activeCategory === "foreign" ? "active" : ""}`}
               onClick={() => handleCategoryChange("foreign")}
             >
-              国外
+              国外 <span className="game-tab-count">({categoryCounts.foreign.toLocaleString()})</span>
             </button>
           </div>
         </div>
@@ -1225,8 +1282,7 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
               </div>
               <h3>欢迎来到旅行图寻世界！</h3>
               <p className="game-welcome-desc">
-                我们从真实旅程中精选了数百处高解析全画幅风景。考验您观察力与地理直觉的时刻到了——仔细观察照片中的建筑风格、光影植物与招牌字迹，在地图上插下您的图钉，挑战
-                50,000 分大满贯！
+                精选全画幅真实旅程高解析图库共 {categoryCounts.global.toLocaleString()} 处风景（国内 {categoryCounts.domestic.toLocaleString()} 处、国外 {categoryCounts.foreign.toLocaleString()} 处）。仔细观察照片中的建筑风格、光影植物与招牌字迹，在地图上插下您的图钉，挑战 50,000 分大满贯！
               </p>
 
               {/* 玩家昵称输入设置区 */}

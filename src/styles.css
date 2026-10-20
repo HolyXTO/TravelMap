@@ -9312,6 +9312,13 @@ h2 {
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
+.game-tab-count {
+  font-size: 0.82rem;
+  font-weight: 600;
+  opacity: 0.8;
+  margin-left: 2px;
+}
+
 .travel-game-card {
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.9);
