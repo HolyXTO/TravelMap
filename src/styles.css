@@ -10556,6 +10556,110 @@ h2 {
 }
 
 /* =========================================================================
+   Petal Maps / 华为底图定制视觉呈现 (对标 tuxun.fun 图寻底图)
+   ========================================================================= */
+
+/* 华为底图底色 (未加载切片时平滑过渡) */
+.game-map-wrapper .leaflet-container {
+  background-color: #ebe9e4 !important;
+}
+
+/* 图寻风格左上角独立圆形缩放按钮 */
+.game-map-wrapper .leaflet-top.leaflet-left {
+  top: 14px;
+  left: 14px;
+}
+
+.game-map-wrapper .leaflet-control-zoom {
+  border: none !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.game-map-wrapper .leaflet-control-zoom-in,
+.game-map-wrapper .leaflet-control-zoom-out {
+  width: 40px !important;
+  height: 40px !important;
+  line-height: 38px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  color: #1e293b !important;
+  font-size: 24px !important;
+  font-weight: 300 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  border: 1.5px solid rgba(15, 23, 42, 0.45) !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+}
+
+.game-map-wrapper .leaflet-control-zoom-in:hover,
+.game-map-wrapper .leaflet-control-zoom-out:hover {
+  background: #f8fafc !important;
+  border-color: #0f172a !important;
+  transform: scale(1.06);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+}
+
+.game-map-wrapper .leaflet-control-zoom-in:active,
+.game-map-wrapper .leaflet-control-zoom-out:active {
+  transform: scale(0.96);
+}
+
+/* 右下角“华为地图 ℹ”品牌与审图合规徽章 (对标 tuxun.fun) */
+.petal-attribution-pill {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 4px 11px 4px 13px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e293b;
+  user-select: none;
+  pointer-events: auto;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  transition: all 0.15s ease;
+  letter-spacing: 0.01em;
+}
+
+.petal-attribution-pill:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+.petal-attribution-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1e293b;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+}
+
+/* =========================================================================
    GeoGuessr Custom Leaflet Markers & Beacons
    ========================================================================= */
 

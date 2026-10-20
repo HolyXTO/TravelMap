@@ -911,13 +911,28 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
         attributionControl: false,
       });
 
-      // Free reliable OpenStreetMap tiles
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        subdomains: ["a", "b", "c"],
+      // 华为 Petal Maps 高清底图 (tuxun.fun 图寻同款底图，具备高清视网膜渲染与全球中文地名注记)
+      const HUAWEI_MAP_TILE_URL =
+        "https://maprastertile-drcn.dbankcdn.cn/display-service/v1/online-render/getTile/26.02.03.16/{z}/{x}/{y}/?language=zh&p=46&scale=2&mapType=ROADMAP&presetStyleId=standard&pattern=JPG&key=DAEDANitav6P7Q0lWzCzKkLErbrJG4kS1u%2FCpEe5ZyxW5u0nSkb40bJ%2BYAugRN03fhf0BszLS1rCrzAogRHDZkxaMrloaHPQGO6LNg==";
+
+      const tileLayer = L.tileLayer(HUAWEI_MAP_TILE_URL, {
+        minZoom: 1,
+        maxZoom: 18,
+        tileSize: 256,
+        zoomOffset: 0,
       }).addTo(map);
 
-      L.control.zoom({ position: "bottomright" }).addTo(map);
+      // 瓦片容灾兜底保障机制
+      tileLayer.on("tileerror", (e) => {
+        if (e.tile && !e.tile.__fallback) {
+          e.tile.__fallback = true;
+          const { x, y, z } = e.coords;
+          e.tile.src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+        }
+      });
+
+      // 缩放控件置于左上角 (对标 tuxun.fun 独立圆形缩放按钮)
+      L.control.zoom({ position: "topleft" }).addTo(map);
 
       revealLayerRef.current = L.featureGroup().addTo(map);
 
@@ -1548,6 +1563,15 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                     <RotateCcw size={14} />
                     <span>复位视角</span>
                   </button>
+                </div>
+
+                {/* 华为地图版权与审图号徽章 (对标 tuxun.fun 底图规范) */}
+                <div
+                  className="petal-attribution-pill"
+                  title="底图服务：华为 Petal Maps · 审图号：GS(2022)2885号"
+                >
+                  <span className="petal-attribution-text">华为地图</span>
+                  <span className="petal-attribution-icon">ℹ</span>
                 </div>
               </div>
             </div>
