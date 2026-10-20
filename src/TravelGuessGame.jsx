@@ -207,7 +207,7 @@ function fisherYatesShuffle(arr) {
 }
 
 // Session-level unplayed deck management for strictly equal photo probability and zero repetition
-const DECK_STORAGE_VERSION = "v4_";
+const DECK_STORAGE_VERSION = "v5_";
 const DECK_STORAGE_KEY_PREFIX = `travel_guess_deck_${DECK_STORAGE_VERSION}`;
 
 // Purge any stale deck caches from older versions (v1, v2, v3, etc.)
@@ -248,7 +248,7 @@ function getOrInitDeck(category, allQuestions) {
       if (Array.isArray(storedDeck)) {
         // Keep valid unplayed IDs
         const validDeck = storedDeck.filter((id) => poolIdSet.has(id));
-        if (validDeck.length >= 10) {
+        if (validDeck.length > 0) {
           return validDeck;
         }
       }
