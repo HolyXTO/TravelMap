@@ -55,6 +55,7 @@ import { defaultTravelNotes } from "./data/defaultNotes";
 import TravelGuessGame from "./TravelGuessGame";
 import MapFillGame from "./MapFillGame";
 import LeftSidebarNav from "./LeftSidebarNav";
+import QuestionBankStatsPopover from "./QuestionBankStatsPopover";
 
 
 const staticVisits = initialVisits.map((v) => {
@@ -2699,7 +2700,7 @@ function App() {
     localStorage.setItem("map_tile_source", mapTileSource);
   }, [mapTileSource]);
 
-  const [activeGameTab, setActiveGameTab] = useState("fill");
+  const [activeGameTab, setActiveGameTab] = useState("guess");
 
   const [appProfiles, setAppProfiles] = useState(() => normalizeProfilesForDisplay(profiles));
   const [visits, setVisits] = useState(() => {
@@ -4036,20 +4037,20 @@ function App() {
               <button
                 type="button"
                 onClick={() => {
-                  setActiveGameTab("fill");
-                  scrollToPageSection("travel-game-section");
-                }}
-              >
-                地图盲填
-              </button>
-              <button
-                type="button"
-                onClick={() => {
                   setActiveGameTab("guess");
                   scrollToPageSection("travel-game-section");
                 }}
               >
                 实景图寻
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveGameTab("fill");
+                  scrollToPageSection("travel-game-section");
+                }}
+              >
+                地图盲填
               </button>
             </div>
           </div>
@@ -4468,19 +4469,19 @@ function App() {
           <div className="travel-games-tab-switcher">
             <button
               type="button"
-              className={`game-nav-tab-btn ${activeGameTab === "fill" ? "is-active" : ""}`}
-              onClick={() => setActiveGameTab("fill")}
-            >
-              <MapIcon size={16} />
-              <span>中国地图盲填</span>
-            </button>
-            <button
-              type="button"
               className={`game-nav-tab-btn ${activeGameTab === "guess" ? "is-active" : ""}`}
               onClick={() => setActiveGameTab("guess")}
             >
               <Compass size={16} />
-              <span>实景图寻探索</span>
+              <span>实景图寻</span>
+            </button>
+            <button
+              type="button"
+              className={`game-nav-tab-btn ${activeGameTab === "fill" ? "is-active" : ""}`}
+              onClick={() => setActiveGameTab("fill")}
+            >
+              <MapIcon size={16} />
+              <span>地图盲填</span>
             </button>
           </div>
         </div>
@@ -10392,6 +10393,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
     }
   });
   const [isRecycleBinOpen, setIsRecycleBinOpen] = useState(false);
+  const [isQuestionBankStatsOpen, setIsQuestionBankStatsOpen] = useState(false);
 
   useEffect(() => {
     if (isRowsSettingsOpen) {
@@ -11529,13 +11531,29 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
         </div>
       )}
 
-      {/* 底部隐藏按钮：回收站 (最左, right: 104px) */}
+      {/* 底部隐藏按钮：图寻题库全景分布 (在三个按钮最左侧, right: 150px) */}
+      <button
+        aria-label="实景图寻题库全景分布与统计"
+        className="hidden-question-bank-trigger"
+        onClick={() => {
+          setIsQuestionBankStatsOpen((prev) => !prev);
+          setIsRecycleBinOpen(false);
+          setIsRowsSettingsOpen(false);
+        }}
+        title="实景图寻题库全景分布 (1,346 题)"
+        type="button"
+      >
+        <Database size={17} />
+      </button>
+
+      {/* 底部隐藏按钮：回收站 (right: 104px) */}
       <button
         aria-label="旅行记录回收站"
         className="hidden-recycle-bin-trigger"
         onClick={() => {
           setIsRecycleBinOpen((prev) => !prev);
           setIsRowsSettingsOpen(false);
+          setIsQuestionBankStatsOpen(false);
         }}
         title="旅行记录回收站"
         type="button"
@@ -11550,12 +11568,19 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
         onClick={() => {
           setIsRowsSettingsOpen((prev) => !prev);
           setIsRecycleBinOpen(false);
+          setIsQuestionBankStatsOpen(false);
         }}
         title="设置旅行记录显示行数"
         type="button"
       >
         <Layers3 size={17} />
       </button>
+
+      {/* 图寻题库详细数据全景分布弹窗 */}
+      <QuestionBankStatsPopover
+        isOpen={isQuestionBankStatsOpen}
+        onClose={() => setIsQuestionBankStatsOpen(false)}
+      />
 
       {/* 默认行数弹窗 */}
       {isRowsSettingsOpen && (

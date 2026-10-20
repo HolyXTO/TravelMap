@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import chinaGameData from "./data/chinaPrefecturesGameData.json";
 import worldGameData from "./data/worldCountriesGameData.json";
+import provinceGameData from "./data/chinaProvincesGameData.json";
 import { supabase } from "./lib/supabase";
 
 // 七大地理大区排序与色彩 (中国地图)
@@ -58,6 +59,7 @@ const WORLD_CONTINENT_CONFIG = [
 
 // 初始高光荣誉榜设为空数组（杜绝任何测试假数据）
 const INITIAL_CHINA_LEADERBOARD = [];
+const INITIAL_PROVINCE_LEADERBOARD = [];
 const INITIAL_WORLD_LEADERBOARD = [];
 
 // 判定是否属于旧的测试/虚拟记录（彻底剔除测试假数据）
@@ -97,6 +99,7 @@ function isMockRecord(entry) {
     id.startsWith("test-") ||
     id.startsWith("record-") ||
     id.startsWith("world-rec-") ||
+    id.startsWith("province-rec-") ||
     id.includes("test")
   ) {
     return true;
@@ -109,21 +112,28 @@ function isMockRecord(entry) {
 }
 
 // 评级称号计算函数
-function getRatingTitle(count, isWorld = false) {
-  if (!isWorld) {
-    if (count >= 389) return "🏆 九州至尊 · 华夏活地图";
-    if (count >= 300) return "🎖️ 神级巡抚 · 行走大英豪";
-    if (count >= 200) return "🌟 华夏探险家 · 博闻强识";
-    if (count >= 100) return "🧭 进阶旅人 · 见多识广";
-    if (count >= 40) return "🎒 启程行者 · 渐入佳境";
+function getRatingTitle(count, mode = "china") {
+  if (mode === "province") {
+    if (count >= 34) return "🏆 九州一统 · 华夏活地图";
+    if (count >= 30) return "🎖️ 神级巡抚 · 行走大英豪";
+    if (count >= 24) return "🌟 华夏探险家 · 博闻强识";
+    if (count >= 15) return "🧭 进阶旅人 · 见多识广";
+    if (count >= 6) return "🎒 启程行者 · 渐入佳境";
     return "🌱 初出茅庐 · 继续探索";
-  } else {
+  } else if (mode === "world" || mode === true) {
     if (count >= 197) return "🏆 万国通鉴 · 全球地理大师";
     if (count >= 160) return "🎖️ 神级巡礼 · 行走联合国";
     if (count >= 120) return "🌟 环球探险家 · 渊博学识";
     if (count >= 60) return "🧭 进阶行者 · 见多识广";
     if (count >= 25) return "🎒 启程旅人 · 渐入佳境";
     return "🌱 初识世界 · 继续探索";
+  } else {
+    if (count >= 389) return "🏆 九州至尊 · 华夏活地图";
+    if (count >= 300) return "🎖️ 神级巡抚 · 行走大英豪";
+    if (count >= 200) return "🌟 华夏探险家 · 博闻强识";
+    if (count >= 100) return "🧭 进阶旅人 · 见多识广";
+    if (count >= 40) return "🎒 启程行者 · 渐入佳境";
+    return "🌱 初出茅庐 · 继续探索";
   }
 }
 
@@ -141,7 +151,7 @@ function deduplicateLeaderboard(list = []) {
 
     // 统一去除前缀后的基础 ID（例如 mapfill-china-rec-1792416724294 与 rec-1792416724294 归一化为同一种 ID）
     const rawId = String(item.id || "");
-    const normId = rawId.replace(/^mapfill-(china|world)-/, "").trim();
+    const normId = rawId.replace(/^mapfill-(china|world|province)-/, "").trim();
 
     // 玩家特征指纹：玩家名 + 分数 + 用时秒数
     const normName = String(item.playerName || item.player_name || "")
@@ -162,16 +172,17 @@ function deduplicateLeaderboard(list = []) {
     if (dateFingerprint) seenFingerprints.add(dateFingerprint);
 
     const isWorld = item.mode === "world";
+    const isProv = item.mode === "province";
     result.push({
       ...item,
       id: rawId.startsWith("mapfill-") ? rawId : `mapfill-${item.mode || "china"}-${rawId}`,
       playerName: String(item.playerName || item.player_name || "").trim() || "旅行探险家",
       score,
-      total: item.total || (isWorld ? 197 : 389),
+      total: item.total || (isWorld ? 197 : (isProv ? 34 : 389)),
       elapsedSeconds: elapsed,
       apm: Math.round(Number(item.apm ?? item.avg_dist ?? 0)),
       date: item.date || new Date().toISOString(),
-      title: item.title || getRatingTitle(score, isWorld),
+      title: item.title || getRatingTitle(score, item.mode),
       mode: item.mode || "china",
     });
   }
@@ -189,6 +200,8 @@ function deduplicateLeaderboard(list = []) {
 async function fetchCloudMapFillLeaderboards(mode = "china") {
   if (!supabase) return null;
   const isWorld = mode === "world";
+  const isProv = mode === "province";
+  const defaultTotal = isWorld ? 197 : (isProv ? 34 : 389);
 
   // 1. 尝试单独的 map_fill_leaderboards 专属表
   try {
@@ -209,10 +222,10 @@ async function fetchCloudMapFillLeaderboards(mode = "china") {
           id: r.id,
           playerName: r.player_name,
           score: r.score,
-          total: r.total || (isWorld ? 197 : 389),
+          total: r.total || defaultTotal,
           elapsedSeconds: r.elapsed_seconds,
           apm: r.apm,
-          title: r.title || getRatingTitle(r.score, isWorld),
+          title: r.title || getRatingTitle(r.score, mode),
           date: r.date,
           mode: r.mode,
         }));
@@ -247,10 +260,10 @@ async function fetchCloudMapFillLeaderboards(mode = "china") {
         id: row.id,
         playerName: row.player_name,
         score: row.score,
-        total: historyMeta.total || (isWorld ? 197 : 389),
+        total: historyMeta.total || defaultTotal,
         elapsedSeconds: Math.round(row.best_dist || 0),
         apm: Math.round(row.avg_dist || 0),
-        title: historyMeta.title || getRatingTitle(row.score, isWorld),
+        title: historyMeta.title || getRatingTitle(row.score, mode),
         date: row.date,
         mode: mode,
       });
@@ -266,6 +279,8 @@ async function fetchCloudMapFillLeaderboards(mode = "china") {
 async function uploadMapFillRecordToCloud(record, mode = "china") {
   if (!supabase || !record) return;
   const isWorld = mode === "world";
+  const isProv = mode === "province";
+  const defaultTotal = isWorld ? 197 : (isProv ? 34 : 389);
   const rowId =
     record.id && record.id.startsWith("mapfill-")
       ? record.id
@@ -278,10 +293,10 @@ async function uploadMapFillRecordToCloud(record, mode = "china") {
       mode: mode,
       player_name: (record.playerName || "").trim() || "旅行探险家",
       score: record.score,
-      total: record.total || (isWorld ? 197 : 389),
+      total: record.total || defaultTotal,
       elapsed_seconds: record.elapsedSeconds || 0,
       apm: record.apm || 0,
-      title: record.title || getRatingTitle(record.score, isWorld),
+      title: record.title || getRatingTitle(record.score, mode),
       date: record.date || new Date().toISOString(),
     };
     const { error: dErr } = await supabase
@@ -294,7 +309,7 @@ async function uploadMapFillRecordToCloud(record, mode = "china") {
 
   // 2. 兼容写入 travel_guess_leaderboards
   try {
-    const category = isWorld ? "global" : "domestic";
+    const category = isWorld ? "global" : (isProv ? "province" : "domestic");
     const payload = {
       id: rowId,
       category: category,
@@ -307,8 +322,8 @@ async function uploadMapFillRecordToCloud(record, mode = "china") {
         {
           game: "mapfill",
           mode: mode,
-          total: record.total || (isWorld ? 197 : 389),
-          title: record.title || getRatingTitle(record.score, isWorld),
+          total: record.total || defaultTotal,
+          title: record.title || getRatingTitle(record.score, mode),
         },
       ],
     };
@@ -324,12 +339,18 @@ async function uploadMapFillRecordToCloud(record, mode = "china") {
 }
 
 function MapFillGame() {
-  // 模式选择：中国地图 ('china') / 全球地图 ('world') / 省级地图 ('province')
-  const [activeMapMode, setActiveMapMode] = useState("china");
+  // 模式选择：全球地图 ('world') / 中国地图 ('china') / 省级地图 ('province')
+  const [activeMapMode, setActiveMapMode] = useState("world");
   const isWorldMode = activeMapMode === "world";
+  const isProvinceMode = activeMapMode === "province";
+  const isChinaPrefectureMode = activeMapMode === "china";
 
-  // 当前激活的数据源 (中国 389 单元 / 全球 197 国)
-  const currentData = isWorldMode ? worldGameData : chinaGameData;
+  // 当前激活的数据源 (中国 389 单元 / 全球 197 国 / 省级 34 单元)
+  const currentData = isWorldMode
+    ? worldGameData
+    : isProvinceMode
+    ? provinceGameData
+    : chinaGameData;
   const { metadata, items, aliasMap } = currentData;
   const totalCount = metadata.totalCount || items.length;
 
@@ -366,6 +387,26 @@ function MapFillGame() {
     return INITIAL_CHINA_LEADERBOARD;
   });
 
+  // 省级地图排行榜（以云端真实战绩为准，本地缓存自动清洗去重）
+  const [provinceLeaderboard, setProvinceLeaderboard] = useState(() => {
+    try {
+      const saved = localStorage.getItem("province_map_fill_leaderboard");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const clean = deduplicateLeaderboard(parsed);
+          try {
+            localStorage.setItem("province_map_fill_leaderboard", JSON.stringify(clean));
+          } catch (e) {}
+          return clean;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load province map fill leaderboard:", e);
+    }
+    return INITIAL_PROVINCE_LEADERBOARD;
+  });
+
   // 全球地图排行榜（以云端真实战绩为准，本地缓存自动清洗去重）
   const [worldLeaderboard, setWorldLeaderboard] = useState(() => {
     try {
@@ -386,7 +427,11 @@ function MapFillGame() {
     return INITIAL_WORLD_LEADERBOARD;
   });
 
-  const leaderboard = isWorldMode ? worldLeaderboard : chinaLeaderboard;
+  const leaderboard = isWorldMode
+    ? worldLeaderboard
+    : isProvinceMode
+    ? provinceLeaderboard
+    : chinaLeaderboard;
 
   // 核心游戏状态：'idle' (初始主界面/欢迎页) | 'playing' (答题中) | 'surrendered' (交卷揭晓) | 'completed' (完美通关)
   const [gameState, setGameState] = useState("idle");
@@ -449,7 +494,7 @@ function MapFillGame() {
 
   // 按省份和区域对中国城市进行归类分组
   const regionGrouped = useMemo(() => {
-    if (isWorldMode) return {};
+    if (isWorldMode || isProvinceMode) return {};
     const regions = {};
     CHINA_REGION_CONFIG.slice(1).forEach((r) => {
       regions[r.name] = { count: 0, guessed: 0, provinces: {} };
@@ -462,7 +507,7 @@ function MapFillGame() {
         regions[reg] = { count: 0, guessed: 0, provinces: {} };
       }
       regions[reg].count++;
-      if (!isWorldMode && guessedIds.has(item.id)) {
+      if (isChinaPrefectureMode && guessedIds.has(item.id)) {
         regions[reg].guessed++;
       }
 
@@ -473,7 +518,30 @@ function MapFillGame() {
     });
 
     return regions;
-  }, [isWorldMode, guessedIds]);
+  }, [isWorldMode, isProvinceMode, isChinaPrefectureMode, guessedIds]);
+
+  // 按区域对中国 34 个省份进行归类分组
+  const provinceGrouped = useMemo(() => {
+    if (!isProvinceMode) return {};
+    const regions = {};
+    CHINA_REGION_CONFIG.slice(1).forEach((r) => {
+      regions[r.name] = { count: 0, guessed: 0, items: [] };
+    });
+
+    provinceGameData.items.forEach((item) => {
+      const reg = item.region || "其他";
+      if (!regions[reg]) {
+        regions[reg] = { count: 0, guessed: 0, items: [] };
+      }
+      regions[reg].count++;
+      if (isProvinceMode && guessedIds.has(item.id)) {
+        regions[reg].guessed++;
+      }
+      regions[reg].items.push(item);
+    });
+
+    return regions;
+  }, [isProvinceMode, guessedIds]);
 
   // 按大洲对世界国家进行归类分组
   const worldGrouped = useMemo(() => {
@@ -540,7 +608,22 @@ function MapFillGame() {
         }
       }
 
-      // 2. 同步世界地图排行榜
+      // 2. 同步省级地图排行榜
+      const cloudProvince = await fetchCloudMapFillLeaderboards("province");
+      if (isMounted && Array.isArray(cloudProvince)) {
+        const clean = deduplicateLeaderboard(cloudProvince);
+        setProvinceLeaderboard(clean);
+        try {
+          localStorage.setItem(
+            "province_map_fill_leaderboard",
+            JSON.stringify(clean)
+          );
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+
+      // 3. 同步世界地图排行榜
       const cloudWorld = await fetchCloudMapFillLeaderboards("world");
       if (isMounted && Array.isArray(cloudWorld)) {
         const clean = deduplicateLeaderboard(cloudWorld);
@@ -566,7 +649,7 @@ function MapFillGame() {
   useEffect(() => {
     if (!isLeaderboardOpen) return;
     let isMounted = true;
-    const mode = activeMapMode === "world" ? "world" : "china";
+    const mode = activeMapMode;
     fetchCloudMapFillLeaderboards(mode).then((cloudData) => {
       if (isMounted && Array.isArray(cloudData)) {
         const clean = deduplicateLeaderboard(cloudData);
@@ -575,6 +658,14 @@ function MapFillGame() {
           try {
             localStorage.setItem(
               "world_map_fill_leaderboard",
+              JSON.stringify(clean)
+            );
+          } catch (e) {}
+        } else if (mode === "province") {
+          setProvinceLeaderboard(clean);
+          try {
+            localStorage.setItem(
+              "province_map_fill_leaderboard",
               JSON.stringify(clean)
             );
           } catch (e) {}
@@ -600,7 +691,7 @@ function MapFillGame() {
       if (count <= 0) return;
       const minutes = Math.max(seconds / 60, 0.1);
       const apm = Math.round(count / minutes);
-      const mode = isWorldMode ? "world" : "china";
+      const mode = activeMapMode;
       const newEntry = {
         id: `mapfill-${mode}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         playerName: (playerName || "").trim() || "旅行探险家",
@@ -609,11 +700,11 @@ function MapFillGame() {
         elapsedSeconds: seconds,
         apm,
         date: new Date().toISOString(),
-        title: getRatingTitle(count, isWorldMode),
+        title: getRatingTitle(count, mode),
         mode,
       };
 
-      if (isWorldMode) {
+      if (mode === "world") {
         setWorldLeaderboard((prev) => {
           const clean = deduplicateLeaderboard([newEntry, ...prev]);
           try {
@@ -623,6 +714,19 @@ function MapFillGame() {
             );
           } catch (e) {
             console.warn("Failed to persist world leaderboard:", e);
+          }
+          return clean;
+        });
+      } else if (mode === "province") {
+        setProvinceLeaderboard((prev) => {
+          const clean = deduplicateLeaderboard([newEntry, ...prev]);
+          try {
+            localStorage.setItem(
+              "province_map_fill_leaderboard",
+              JSON.stringify(clean)
+            );
+          } catch (e) {
+            console.warn("Failed to persist province leaderboard:", e);
           }
           return clean;
         });
@@ -647,11 +751,19 @@ function MapFillGame() {
         .then((latestCloud) => {
           if (Array.isArray(latestCloud)) {
             const clean = deduplicateLeaderboard(latestCloud);
-            if (isWorldMode) {
+            if (mode === "world") {
               setWorldLeaderboard(clean);
               try {
                 localStorage.setItem(
                   "world_map_fill_leaderboard",
+                  JSON.stringify(clean)
+                );
+              } catch (e) {}
+            } else if (mode === "province") {
+              setProvinceLeaderboard(clean);
+              try {
+                localStorage.setItem(
+                  "province_map_fill_leaderboard",
                   JSON.stringify(clean)
                 );
               } catch (e) {}
@@ -670,7 +782,7 @@ function MapFillGame() {
           console.warn("Async uploadMapFillRecordToCloud sync failed:", err);
         });
     },
-    [playerName, totalCount, isWorldMode]
+    [playerName, totalCount, activeMapMode]
   );
 
   // 切换地图模式 (中国地图 / 全球地图)
@@ -695,6 +807,7 @@ function MapFillGame() {
 
   // 开始新挑战 (从主界面或重开进入答题界面，支持恢复未完成对局)
   const handleStartGame = () => {
+    const unitLabel = isWorldMode ? "国家" : (isProvinceMode ? "省份" : "行政区");
     try {
       const activeKey = `map_fill_active_session_${activeMapMode}`;
       const saved = localStorage.getItem(activeKey);
@@ -702,9 +815,7 @@ function MapFillGame() {
         const parsed = JSON.parse(saved);
         if (parsed && Array.isArray(parsed.guessedIds) && parsed.guessedIds.length > 0) {
           const shouldResume = window.confirm(
-            `检测到您有一局进行中的挑战（已点亮 ${parsed.guessedIds.length} 个${
-              isWorldMode ? "国家" : "行政区"
-            }）！\n点击【确定】继续挑战当前对局，\n点击【取消】重新开始新一局。`
+            `检测到您有一局进行中的挑战（已点亮 ${parsed.guessedIds.length} 个${unitLabel}）！\n点击【确定】继续挑战当前对局，\n点击【取消】重新开始新一局。`
           );
           if (shouldResume) {
             setGuessedIds(new Set(parsed.guessedIds));
@@ -742,10 +853,11 @@ function MapFillGame() {
 
   // 返回主界面 (退出当前挑战，保护玩家答题成果)
   const handleReturnToLobby = () => {
+    const unitLabel = isWorldMode ? "国家" : (isProvinceMode ? "省份" : "行政区");
     if (gameState === "playing") {
       if (guessedIds.size > 0) {
         const shouldSave = window.confirm(
-          `当前挑战已答对 ${guessedIds.size} 个${isWorldMode ? "国家" : "行政区"}！\n点击【确定】保存当前战绩并结算上榜，\n点击【取消】留在当前对局继续答题。`
+          `当前挑战已答对 ${guessedIds.size} 个${unitLabel}！\n点击【确定】保存当前战绩并结算上榜，\n点击【取消】留在当前对局继续答题。`
         );
         if (shouldSave) {
           recordToLeaderboard(guessedIds.size, elapsedSeconds);
@@ -778,6 +890,7 @@ function MapFillGame() {
 
   // 执行最终交卷与复盘揭晓
   const executeSurrender = () => {
+    const unitLabel = isWorldMode ? "国家" : (isProvinceMode ? "省份" : "行政区");
     setGameState("surrendered");
     setShowResultModal(true);
     recordToLeaderboard(guessedIds.size, elapsedSeconds);
@@ -785,9 +898,7 @@ function MapFillGame() {
       localStorage.removeItem(`map_fill_active_session_${activeMapMode}`);
     } catch (e) {}
     showToast(
-      isWorldMode
-        ? "已揭晓全图未填国家，可在地图中自由复盘探索！"
-        : "已揭晓全图未填行政区，可在地图中自由复盘探索！",
+      `已揭晓全图未填${unitLabel}，可在地图中自由复盘探索！`,
       "warning"
     );
   };
@@ -817,12 +928,12 @@ function MapFillGame() {
     if (matchedId) {
       if (guessedIds.has(matchedId)) {
         const item = cityById.get(matchedId);
-        showToast(`「${item ? item.name : matchedId}」之前已经填过啦！`, "warning");
+        showToast(`「${item ? (item.fullName || item.name) : matchedId}」之前已经填过啦！`, "warning");
         setInputVal("");
         return;
       }
 
-      // 命中新行政区 / 国家！
+      // 命中新行政区 / 省份 / 国家！
       const targetItem = cityById.get(matchedId);
       const nextSet = new Set(guessedIds);
       nextSet.add(matchedId);
@@ -844,6 +955,8 @@ function MapFillGame() {
       showToast(
         isWorldMode
           ? `🎯 成功点亮：${targetItem.name} (${targetItem.continent})`
+          : isProvinceMode
+          ? `🎯 成功点亮：${targetItem.fullName} (${targetItem.region} · 简称:${targetItem.abbr})`
           : `🎯 成功点亮：${targetItem.name} (${targetItem.province})`,
         "success"
       );
@@ -859,6 +972,8 @@ function MapFillGame() {
         showToast(
           isWorldMode
             ? "🎉 恭喜！你已完整点亮全球全部 197 个国家与地区！"
+            : isProvinceMode
+            ? "🎉 恭喜！你已完整点亮中国全部 34 个省级行政区！"
             : "🎉 恭喜！你已完整点亮中国全部 389 个行政区！",
           "success"
         );
@@ -988,8 +1103,8 @@ function MapFillGame() {
   const handleZoomIn = () => {
     const current = zoomRef.current;
     const newScale = Math.min(current.scale * 1.3, 12);
-    const cx = 400;
-    const cy = isWorldMode ? 273.5 : 240;
+    const cx = isWorldMode ? 400 : (isProvinceMode ? 145 : 400);
+    const cy = isWorldMode ? 273.5 : (isProvinceMode ? 179.5 : 240);
     const newX = cx - (cx - current.x) * (newScale / current.scale);
     const newY = cy - (cy - current.y) * (newScale / current.scale);
 
@@ -1006,8 +1121,8 @@ function MapFillGame() {
   const handleZoomOut = () => {
     const current = zoomRef.current;
     const newScale = Math.max(current.scale * 0.76, 0.6);
-    const cx = 400;
-    const cy = isWorldMode ? 273.5 : 240;
+    const cx = isWorldMode ? 400 : (isProvinceMode ? 145 : 400);
+    const cy = isWorldMode ? 273.5 : (isProvinceMode ? 179.5 : 240);
     const newX = cx - (cx - current.x) * (newScale / current.scale);
     const newY = cy - (cy - current.y) * (newScale / current.scale);
 
@@ -1029,11 +1144,11 @@ function MapFillGame() {
     setZoom({ scale: 1, x: 0, y: 0 });
   };
 
-  // 聚焦到指定城市 / 国家
+  // 聚焦到指定城市 / 省份 / 国家
   const handleFocusCity = (item) => {
     if (!item || !item.bbox) return;
-    const defaultCx = 400;
-    const defaultCy = isWorldMode ? 273.5 : 240;
+    const defaultCx = isWorldMode ? 400 : (isProvinceMode ? 145 : 400);
+    const defaultCy = isWorldMode ? 273.5 : (isProvinceMode ? 179.5 : 240);
 
     let targetScale = 3.5;
     if (isWorldMode) {
@@ -1044,6 +1159,13 @@ function MapFillGame() {
       else if (maxSpan < 35) targetScale = 4.2;
       else if (maxSpan > 150) targetScale = 1.6;
       else targetScale = 2.8;
+    } else if (isProvinceMode) {
+      const w = Math.max(item.bbox.maxX - item.bbox.minX, 4);
+      const h = Math.max(item.bbox.maxY - item.bbox.minY, 4);
+      const maxSpan = Math.max(w, h);
+      if (maxSpan < 30) targetScale = 4.5;
+      else if (maxSpan < 80) targetScale = 2.8;
+      else targetScale = 1.6;
     }
 
     const offsetX = defaultCx - item.bbox.cx * targetScale;
@@ -1127,7 +1249,17 @@ function MapFillGame() {
   }, [items, guessedIds, lastGuessedCity, gameState, isWorldMode]);
 
   return (
-    <section className="travel-game-section" id="travel-game-section" aria-label={isWorldMode ? "世界地图填充小游戏" : "中国地图填充小游戏"}>
+    <section
+      className="travel-game-section"
+      id="travel-game-section"
+      aria-label={
+        isWorldMode
+          ? "世界地图填充小游戏"
+          : isProvinceMode
+          ? "省级地图填充小游戏"
+          : "中国地图填充小游戏"
+      }
+    >
       {/* ================================================================
           1. 顶部全局标题栏与选项卡 (对标旅行图寻头部)
           ================================================================ */}
@@ -1136,13 +1268,15 @@ function MapFillGame() {
           <h2 className="notes-hero-title">
             <MapIcon className="notes-hero-icon" size={24} />
             <span className="game-hero-brand-text">MAP FILL</span>
-            <span className="notes-title-sub">世界 / 中国地图填充</span>
+            <span className="notes-title-sub">世界 / 中国 地图填充</span>
           </h2>
           <p className="travel-game-subtitle">
             <Sparkles size={16} className="game-sub-icon" />
             <span>
               {isWorldMode
                 ? "盲填全球 197 个主权国家与地区。输入国名点亮地球！"
+                : isProvinceMode
+                ? "盲填全国 34 个省级行政区。输入省名或简称点亮华夏全境！"
                 : "盲填全国 389 个地级行政区。输入地名点亮壮丽山河！"}
             </span>
           </p>
@@ -1175,37 +1309,43 @@ function MapFillGame() {
             type="button"
             className="game-leaderboard-btn"
             onClick={() => setIsLeaderboardOpen(true)}
-            title={isWorldMode ? "查看世界地图盲填荣耀排行榜" : "查看中国地图盲填荣耀排行榜"}
+            title={
+              isWorldMode
+                ? "查看世界地图盲填荣耀排行榜"
+                : isProvinceMode
+                ? "查看省级地图盲填荣耀排行榜"
+                : "查看中国地图盲填荣耀排行榜"
+            }
           >
             <Trophy size={15} />
             <span>排行榜 Top 10</span>
           </button>
 
-          {/* 题库分类选项卡：对应 中国地图 / 全球地图 / 省级地图 */}
+          {/* 题库分类选项卡：对应 全球 / 中国 / 省级 */}
           <div className="travel-game-category-tabs">
-            <button
-              type="button"
-              className={`game-tab-btn ${activeMapMode === "china" ? "active" : ""}`}
-              onClick={() => handleSwitchMode("china")}
-            >
-              中国地图
-            </button>
             <button
               type="button"
               className={`game-tab-btn ${activeMapMode === "world" ? "active" : ""}`}
               onClick={() => handleSwitchMode("world")}
+              title="全球地图盲填 (197个主权国家与地区)"
             >
-              全球地图
+              全球
+            </button>
+            <button
+              type="button"
+              className={`game-tab-btn ${activeMapMode === "china" ? "active" : ""}`}
+              onClick={() => handleSwitchMode("china")}
+              title="中国地图盲填 (389个地级行政区)"
+            >
+              中国
             </button>
             <button
               type="button"
               className={`game-tab-btn ${activeMapMode === "province" ? "active" : ""}`}
-              onClick={() => {
-                showToast("🗺️ 省级细化区县盲填正在全力开发中，敬请期待！", "info");
-              }}
-              title="省级地图盲填 (即将推出)"
+              onClick={() => handleSwitchMode("province")}
+              title="省级地图盲填 (34个省级行政区)"
             >
-              省级地图
+              省级
             </button>
           </div>
 
@@ -1214,10 +1354,16 @@ function MapFillGame() {
             type="button"
             className={`game-roster-btn ${isDrawerOpen ? "is-active" : ""}`}
             onClick={() => setIsDrawerOpen((prev) => !prev)}
-            title={isWorldMode ? "查看全球国家名录与大洲探索进度" : "查看全国行政区名录与分区探索进度"}
+            title={
+              isWorldMode
+                ? "查看全球国家名录与大洲探索进度"
+                : isProvinceMode
+                ? "查看全国省级政区名录与分区探索进度"
+                : "查看全国行政区名录与分区探索进度"
+            }
           >
             <ListFilter size={15} />
-            <span>{isWorldMode ? "全球国家名录" : "行政区名录"}</span>
+            <span>{isWorldMode ? "全球国家名录" : isProvinceMode ? "省级政区名录" : "行政区名录"}</span>
             <span className="btn-counter-badge">
               {guessedIds.size}/{totalCount}
             </span>
@@ -1235,12 +1381,26 @@ function MapFillGame() {
             <div className="game-welcome-content">
             <div className="game-welcome-badge">
               <Globe2 size={15} />
-              <span>{isWorldMode ? "联合国全成员国及观察员国 · 矢量盲填" : "全域矢量行政区划 · 交互盲填"}</span>
+              <span>
+                {isWorldMode
+                  ? "联合国全成员国及观察员国 · 矢量盲填"
+                  : isProvinceMode
+                  ? "全国 34 省级行政区全域 · 矢量盲填"
+                  : "全国地级行政区行政区划 · 矢量盲填"}
+              </span>
             </div>
-            <h3>{isWorldMode ? "欢迎来到世界地图盲填！" : "欢迎来到中国地图盲填！"}</h3>
+            <h3>
+              {isWorldMode
+                ? "欢迎来到世界地图盲填！"
+                : isProvinceMode
+                ? "欢迎来到省级地图盲填！"
+                : "欢迎来到中国地图盲填！"}
+            </h3>
             <p className="game-welcome-desc">
               {isWorldMode
-                ? "考验您对全球国家地理与世界版图储备的时刻到了——无需回车，直接输入国家中文、英文或标准缩写，让 197 个国家轮廓在指尖逐一点亮，亲手绘制寰宇五洲四海！"
+                ? "考验您对全球国家地理与世界版图储备的时刻到了——无需回车，直接输入国家中文或官方英文全名，让 197 个国家轮廓在指尖逐一点亮，亲手绘制寰宇五洲四海！"
+                : isProvinceMode
+                ? "考验您对中国34个省级行政区（23省、5自治区、4直辖市、2特别行政区）地理轮廓与简称储备的时刻到了——无需回车，直接输入省名或简称（如广东/粤），亲手点亮华夏全境！"
                 : "考验您对中国全域行政区划记忆与地理储备的时刻到了——无需回车，直接输入地名，让 389 个行政区轮廓在指尖逐一点亮，亲手描摹壮丽山河的辽阔版图！"}
             </p>
 
@@ -1279,10 +1439,18 @@ function MapFillGame() {
               <div className="game-rule-item">
                 <div className="rule-icon-box">1</div>
                 <div>
-                  <strong>{isWorldMode ? "免敲回车多语别名即刻点亮" : "免敲回车即时点亮"}</strong>
+                  <strong>
+                    {isWorldMode
+                      ? "免敲回车即刻点亮"
+                      : isProvinceMode
+                      ? "免敲回车简称别名即刻点亮"
+                      : "免敲回车即时点亮"}
+                  </strong>
                   <p>
                     {isWorldMode
-                      ? "支持简体/繁体中文全称与通称、英文官方名、英文通称及通用缩写 (如 美国/USA、英国/UK、阿联酋/UAE、刚果金/DRC 等)"
+                      ? "支持简体/繁体中文全称与通称、官方英文名及英文通称（如美国/United States、英国/United Kingdom 等），输入命中后即刻点亮"
+                      : isProvinceMode
+                      ? "支持省份全称、通称、行政级别（如广东省/广东）、单字简称（如粤/京/沪/川/滇），输入命中后即刻点亮"
                       : "输入地名命中后系统秒速识别点亮，自动清空输入框并保持聚焦，支持畅快连击输入"}
                   </p>
                 </div>
@@ -1294,6 +1462,8 @@ function MapFillGame() {
                   <p>
                     {isWorldMode
                       ? "鼠标悬停任意位置滑动滚轮，精准以光标为锚点平滑缩放，微距观察细小海岛微型国家"
+                      : isProvinceMode
+                      ? "鼠标悬停任意位置滑动滚轮，精准平移缩放，清晰辨识港澳台及各省轮廓"
                       : "鼠标悬停任意位置滑动滚轮，精准以光标为锚点平滑缩放，微距观察细小地级县市"}
                   </p>
                 </div>
@@ -1301,10 +1471,18 @@ function MapFillGame() {
               <div className="game-rule-item">
                 <div className="rule-icon-box">3</div>
                 <div>
-                  <strong>{isWorldMode ? "197 全球主权国家全覆盖" : "389 地级行政区全覆盖"}</strong>
+                  <strong>
+                    {isWorldMode
+                      ? "197 全球主权国家全覆盖"
+                      : isProvinceMode
+                      ? "34 省级行政区全覆盖"
+                      : "389 地级行政区全覆盖"}
+                  </strong>
                   <p>
                     {isWorldMode
                       ? "涵盖亚洲48国、欧洲44国、非洲54国、北美洲23国、南美洲12国、大洋洲16国，全矢量版图精细绘制"
+                      : isProvinceMode
+                      ? "涵盖全国23个省、5个自治区、4个直辖市及2个特别行政区，全矢量边界精细渲染"
                       : "涵盖全国 389 个地级市、地区、自治州、盟及省直辖县市等全域矢量行政轮廓"}
                   </p>
                 </div>
@@ -1340,7 +1518,16 @@ function MapFillGame() {
                 <span className="metric-value">{formatTime(elapsedSeconds)}</span>
               </div>
 
-              <div className="map-fill-metric-pill progress-pill" title={isWorldMode ? "已点亮国家数量" : "已点亮行政区数量"}>
+              <div
+                className="map-fill-metric-pill progress-pill"
+                title={
+                  isWorldMode
+                    ? "已点亮国家数量"
+                    : isProvinceMode
+                    ? "已点亮省级政区数量"
+                    : "已点亮行政区数量"
+                }
+              >
                 <Trophy size={15} className="metric-icon trophy-icon" />
                 <span className="metric-value">
                   <strong>{guessedIds.size}</strong> / {totalCount}
@@ -1351,7 +1538,9 @@ function MapFillGame() {
               <div className="map-fill-metric-pill apm-pill" title="当前输入答题手速">
                 <Zap size={15} className="metric-icon zap-icon" />
                 <span className="metric-value">{currentApm}</span>
-                <span className="metric-sub">{isWorldMode ? "国/分" : "市/分"}</span>
+                <span className="metric-sub">
+                  {isWorldMode ? "国/分" : isProvinceMode ? "省/分" : "市/分"}
+                </span>
               </div>
             </div>
 
@@ -1372,7 +1561,9 @@ function MapFillGame() {
                   disabled={gameState === "surrendered" || gameState === "completed"}
                   placeholder={
                     isWorldMode
-                      ? "输入国家名 (中/英/缩写如USA)，无需回车立即点亮..."
+                      ? "输入国家名称，无需回车立即点亮..."
+                      : isProvinceMode
+                      ? "输入省份名，无需回车立即点亮..."
                       : "输入地名，无需回车立即点亮..."
                   }
                 />
@@ -1410,7 +1601,13 @@ function MapFillGame() {
                     type="button"
                     className="map-fill-btn btn-danger-ghost"
                     onClick={handleSurrender}
-                    title={isWorldMode ? "结束挑战并揭晓全图所有未填国家" : "结束挑战并揭晓全图所有未填行政区"}
+                    title={
+                      isWorldMode
+                        ? "结束挑战并揭晓全图所有未填国家"
+                        : isProvinceMode
+                        ? "结束挑战并揭晓全图所有未填省级行政区"
+                        : "结束挑战并揭晓全图所有未填行政区"
+                    }
                   >
                     <Flag size={15} />
                     <span>交卷揭晓</span>
@@ -1508,9 +1705,13 @@ function MapFillGame() {
                   gameState === "surrendered" ||
                   gameState === "completed") && (
                   <div className="map-fill-hover-card">
-                    <div className="hover-card-title">{hoveredCity.name}</div>
+                    <div className="hover-card-title">{hoveredCity.fullName || hoveredCity.name}</div>
                     <div className="hover-card-sub">
-                      {isWorldMode ? hoveredCity.continent : `${hoveredCity.province} · ${hoveredCity.region}`}
+                      {isWorldMode
+                        ? hoveredCity.continent
+                        : isProvinceMode
+                        ? `${hoveredCity.region} · 简称:${hoveredCity.abbr} · 省会:${hoveredCity.capital}`
+                        : `${hoveredCity.province} · ${hoveredCity.region}`}
                     </div>
                     <div className="hover-card-status">
                       {guessedIds.has(hoveredCity.id) ? (
@@ -1528,7 +1729,13 @@ function MapFillGame() {
               <svg
                 ref={svgRef}
                 className="map-fill-svg-canvas"
-                viewBox={isWorldMode ? (metadata.viewBox || "0 0 800 547") : "0 -30 800 540"}
+                viewBox={
+                  isWorldMode
+                    ? (metadata.viewBox || "0 0 800 547")
+                    : isProvinceMode
+                    ? (metadata.viewBox || "-110 -68 510 495")
+                    : "0 -30 800 540"
+                }
                 strokeLinejoin="round"
                 strokeLinecap="round"
               >
@@ -1546,13 +1753,24 @@ function MapFillGame() {
                   transform={`translate(${zoom.x}, ${zoom.y}) scale(${zoom.scale})`}
                   className="map-fill-interactive-group"
                 >
-                  {/* 中国宏观边框轮廓底层 */}
-                  {!isWorldMode && metadata.chinaOutline && (
+                  {/* 中国地级行政区宏观边框轮廓底层 */}
+                  {isChinaPrefectureMode && metadata.chinaOutline && (
                     <path
                       d={metadata.chinaOutline}
                       className="map-fill-china-outline-bg"
                     />
                   )}
+
+                  {/* 省级地图填充背景线 (海洋海岸线、国界、十段线等) */}
+                  {isProvinceMode &&
+                    metadata.backgroundPaths &&
+                    metadata.backgroundPaths.map((bg, idx) => (
+                      <path
+                        key={bg.id || idx}
+                        d={bg.d}
+                        className={`map-fill-province-bg ${bg.type || ""}`}
+                      />
+                    ))}
 
                   {/* 世界地图背景非答题领土 (南极洲、西撒哈拉等) */}
                   {isWorldMode &&
@@ -1605,7 +1823,7 @@ function MapFillGame() {
                   </div>
                   <h3 className="confirm-card-title">提前交卷揭晓全图？</h3>
                   <p className="confirm-card-subtitle">
-                    当前对局已点亮 <strong>{guessedIds.size}</strong> / {totalCount} 个{isWorldMode ? "国家" : "地级行政区"}
+                    当前对局已点亮 <strong>{guessedIds.size}</strong> / {totalCount} 个{isWorldMode ? "国家" : isProvinceMode ? "省级行政区" : "地级行政区"}
                   </p>
                   <div className="confirm-progress-pill">
                     <div
@@ -1674,8 +1892,16 @@ function MapFillGame() {
           <div className="drawer-title-group">
             <ListFilter size={18} className="drawer-icon" />
             <div>
-              <h3 className="drawer-title">{isWorldMode ? "全球国家名录" : "全国行政区名录"}</h3>
-              <span className="drawer-sub">{isWorldMode ? "六大洲 · 197 国家清单" : "七大区域· 389 城市清单"}</span>
+              <h3 className="drawer-title">
+                {isWorldMode ? "全球国家名录" : isProvinceMode ? "全国省级政区名录" : "全国行政区名录"}
+              </h3>
+              <span className="drawer-sub">
+                {isWorldMode
+                  ? "六大洲 · 197 国家清单"
+                  : isProvinceMode
+                  ? "七大区域 · 34 省级政区清单"
+                  : "七大区域 · 389 城市清单"}
+              </span>
             </div>
           </div>
           <button
@@ -1691,7 +1917,14 @@ function MapFillGame() {
         {/* 区域 / 大洲过滤选项卡：网格标签，确保全部完全可见直接点击！ */}
         <div className="drawer-tabs-grid">
           {(isWorldMode ? WORLD_CONTINENT_CONFIG : CHINA_REGION_CONFIG).map((r) => {
-            const info = r.key === "all" ? null : isWorldMode ? worldGrouped[r.name] : regionGrouped[r.name];
+            const info =
+              r.key === "all"
+                ? null
+                : isWorldMode
+                ? worldGrouped[r.name]
+                : isProvinceMode
+                ? provinceGrouped[r.name]
+                : regionGrouped[r.name];
             const count = r.key === "all" ? totalCount : info?.count || 0;
             const guessed = r.key === "all" ? guessedIds.size : info?.guessed || 0;
             const pct = count ? Math.round((guessed / count) * 100) : 0;
@@ -1715,7 +1948,7 @@ function MapFillGame() {
           })}
         </div>
 
-        {/* 清单列表：按中国省份城市 或 全球大洲国家渲染 */}
+        {/* 清单列表：按中国省份城市 或 全球大洲国家 或 省级政区渲染 */}
         <div className="drawer-content-scroll">
           {isWorldMode ? (
             /* 全球地图：按大洲展示 197 个国家卡片 */
@@ -1786,6 +2019,88 @@ function MapFillGame() {
                                 </>
                               ) : isMissed ? (
                                 <span>{country.name}</span>
+                              ) : (
+                                <span className="chip-slot-num">
+                                  {(idx + 1).toString().padStart(2, "0")}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+          ) : isProvinceMode ? (
+            /* 省级地图：按七大区域展示 34 个省份卡片 */
+            Object.entries(provinceGrouped)
+              .filter(([regName]) => {
+                if (activeRegionTab === "all") return true;
+                const config = CHINA_REGION_CONFIG.find((c) => c.name === regName);
+                return config?.key === activeRegionTab;
+              })
+              .map(([regName, regData]) => {
+                const regPercent = (
+                  (regData.guessed / (regData.count || 1)) *
+                  100
+                ).toFixed(0);
+
+                return (
+                  <div key={regName} className="drawer-region-block">
+                    <div className="region-block-header">
+                      <div className="region-block-title-row">
+                        <span className="region-name">{regName}</span>
+                        <span className="region-badge-pill">
+                          {regData.guessed} / {regData.count} ({regPercent}%)
+                        </span>
+                      </div>
+                      <div className="region-sub-progress-bar">
+                        <div
+                          className="region-sub-progress-fill"
+                          style={{ width: `${regPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="province-card">
+                      <div className="city-chips-grid">
+                        {regData.items.map((prov, idx) => {
+                          const isGuessed = guessedIds.has(prov.id);
+                          const isMissed =
+                            gameState === "surrendered" && !isGuessed;
+
+                          return (
+                            <button
+                              key={prov.id}
+                              type="button"
+                              className={`city-chip ${
+                                isGuessed
+                                  ? "is-guessed"
+                                  : isMissed
+                                  ? "is-missed"
+                                  : "is-locked"
+                              }`}
+                              onClick={() => {
+                                if (gameState !== "idle") {
+                                  handleFocusCity(prov);
+                                }
+                              }}
+                              title={
+                                isGuessed
+                                  ? `已点亮 · 点击在地图上定位 ${prov.fullName} (简称:${prov.abbr} · 省会:${prov.capital})`
+                                  : isMissed
+                                  ? `未答出 · 点击在地图上定位 ${prov.fullName} (简称:${prov.abbr} · 省会:${prov.capital})`
+                                  : "尚未填入该省份"
+                              }
+                            >
+                              {isGuessed ? (
+                                <>
+                                  <Check size={12} className="chip-check-icon" />
+                                  <span>{prov.shortName}</span>
+                                </>
+                              ) : isMissed ? (
+                                <span>{prov.shortName}</span>
                               ) : (
                                 <span className="chip-slot-num">
                                   {(idx + 1).toString().padStart(2, "0")}
@@ -1934,17 +2249,21 @@ function MapFillGame() {
                 {gameState === "completed"
                   ? (isWorldMode
                     ? "🎉 完美通关！全球国家全部点亮！"
+                    : isProvinceMode
+                    ? "🎉 完美通关！全国省级行政区全部点亮！"
                     : "🎉 完美通关！中国地图全部点亮！")
                   : "🗺️ 挑战结算战报"}
               </h3>
-              <p className="modal-subtitle">{getRatingTitle(guessedIds.size, isWorldMode)}</p>
+              <p className="modal-subtitle">{getRatingTitle(guessedIds.size, activeMapMode)}</p>
             </div>
 
             {/* 核心战绩数据看板 */}
             <div className="modal-stats-grid">
               <div className="modal-stat-box">
                 <span className="stat-num">{guessedIds.size}</span>
-                <span className="stat-label">已填{isWorldMode ? "国家" : "行政区"} (共{totalCount})</span>
+                <span className="stat-label">
+                  已填{isWorldMode ? "国家" : isProvinceMode ? "省份" : "行政区"} (共{totalCount})
+                </span>
               </div>
               <div className="modal-stat-box">
                 <span className="stat-num">{progressPercent}%</span>
@@ -1956,7 +2275,9 @@ function MapFillGame() {
               </div>
               <div className="modal-stat-box">
                 <span className="stat-num">{currentApm}</span>
-                <span className="stat-label">平均手速 ({isWorldMode ? "国/分" : "市/分"})</span>
+                <span className="stat-label">
+                  平均手速 ({isWorldMode ? "国/分" : isProvinceMode ? "省/分" : "市/分"})
+                </span>
               </div>
             </div>
 
@@ -2010,11 +2331,17 @@ function MapFillGame() {
                 <Trophy className="modal-header-icon" size={24} />
                 <div>
                   <h3 className="game-modal-title">
-                    {isWorldMode ? "世界地图盲填 · 荣誉排行榜" : "中国地图盲填 · 荣誉排行榜"}
+                    {isWorldMode
+                      ? "世界地图盲填 · 荣誉排行榜"
+                      : isProvinceMode
+                      ? "省级地图盲填 · 荣誉排行榜"
+                      : "中国地图盲填 · 荣誉排行榜"}
                   </h3>
                   <p className="game-modal-subtitle">
                     {isWorldMode
                       ? "记录全球 197 主权国家与地区盲填挑战的高光战绩与手速巅峰"
+                      : isProvinceMode
+                      ? "记录全国 34 省级行政区盲填挑战的高光战绩与手速巅峰"
                       : "记录全国 389 域行政区盲填挑战的高光战绩与手速巅峰"}
                   </p>
                 </div>
@@ -2118,7 +2445,10 @@ function MapFillGame() {
                             </span>
                             <span className="meta-chip apm-chip" title="平均答题手速">
                               <Zap size={13} />
-                              <span>{entry.apm || 0} {isWorldMode ? "国/分" : "市/分"}</span>
+                              <span>
+                                {entry.apm || 0}{" "}
+                                {isWorldMode ? "国/分" : isProvinceMode ? "省/分" : "市/分"}
+                              </span>
                             </span>
                           </div>
                         </div>

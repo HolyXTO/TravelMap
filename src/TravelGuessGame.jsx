@@ -1250,21 +1250,21 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
               className={`game-tab-btn ${activeCategory === "global" ? "active" : ""}`}
               onClick={() => handleCategoryChange("global")}
             >
-              全球 <span className="game-tab-count">({categoryCounts.global.toLocaleString()})</span>
+              全球
             </button>
             <button
               type="button"
               className={`game-tab-btn ${activeCategory === "domestic" ? "active" : ""}`}
               onClick={() => handleCategoryChange("domestic")}
             >
-              国内 <span className="game-tab-count">({categoryCounts.domestic.toLocaleString()})</span>
+              国内
             </button>
             <button
               type="button"
               className={`game-tab-btn ${activeCategory === "foreign" ? "active" : ""}`}
               onClick={() => handleCategoryChange("foreign")}
             >
-              国外 <span className="game-tab-count">({categoryCounts.foreign.toLocaleString()})</span>
+              国外
             </button>
           </div>
         </div>
@@ -1282,7 +1282,7 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
               </div>
               <h3>欢迎来到旅行图寻世界！</h3>
               <p className="game-welcome-desc">
-                精选全画幅真实旅程高解析图库共 {categoryCounts.global.toLocaleString()} 处风景（国内 {categoryCounts.domestic.toLocaleString()} 处、国外 {categoryCounts.foreign.toLocaleString()} 处）。仔细观察照片中的建筑风格、光影植物与招牌字迹，在地图上插下您的图钉，挑战 50,000 分大满贯！
+                我们从真实旅程中精选了千余处高解析全画幅风景。考验您观察力与地理直觉的时刻到了——仔细观察照片中的建筑风格、光影植物与招牌字迹，在地图上插下您的图钉，挑战 50,000 分大满贯！
               </p>
 
               {/* 玩家昵称输入设置区 */}

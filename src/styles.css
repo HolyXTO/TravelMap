@@ -3732,6 +3732,36 @@ h2 {
   border-color: #9bb7aa;
 }
 
+/* 底部隐藏按钮：图寻题库详细数据全景分布 (在回收站左边, right: 150px) */
+.hidden-question-bank-trigger {
+  position: fixed;
+  right: 150px;
+  bottom: 12px;
+  z-index: 1600;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #cbd5e133;
+  border-radius: 999px;
+  background: #ffffffcc;
+  color: #123c30;
+  opacity: 0.035;
+  box-shadow: 0 16px 38px #0f172a1f;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease;
+  cursor: pointer;
+}
+
+.hidden-question-bank-trigger:hover,
+.hidden-question-bank-trigger:focus-visible {
+  opacity: 0.72;
+  transform: translateY(-2px);
+  border-color: #9bb7aa;
+}
+
 /* 默认显示行数弹窗 */
 .notes-rows-popover {
   position: fixed;
@@ -3943,6 +3973,511 @@ h2 {
   color: #94a3b8;
   text-align: center;
   gap: 10px;
+}
+
+/* =========================================================================
+   实景图寻题库详细数据全景分布弹窗 (Question Bank Statistics Popover)
+   ========================================================================= */
+.question-bank-stats-popover {
+  position: fixed;
+  right: 18px;
+  bottom: 58px;
+  z-index: 1590;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, calc(100vw - 28px));
+  max-height: min(700px, calc(100vh - 80px));
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  padding: 16px 18px 12px 18px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18), 0 4px 16px rgba(15, 23, 42, 0.06);
+  animation: dialog-fade-in 0.22s ease-out;
+}
+
+.qb-popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.qb-header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.qb-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #2563eb;
+  letter-spacing: 0.05em;
+  font-family: var(--prophet-code);
+  text-transform: uppercase;
+}
+
+.qb-header-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 850;
+  color: #0f172a;
+  font-family: var(--prophet-serif);
+}
+
+.qb-close-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.qb-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+/* 4个核心指标网格 */
+.qb-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.qb-metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 11px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.15s ease;
+}
+
+.qb-metric-card:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.qb-metric-card .qb-metric-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  margin-bottom: 2px;
+}
+
+.qb-metric-card.total .qb-metric-icon {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.qb-metric-card.domestic .qb-metric-icon {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.qb-metric-card.foreign .qb-metric-icon {
+  background: #eef2ff;
+  color: #6366f1;
+}
+
+.qb-metric-card.footprint .qb-metric-icon {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.qb-metric-data {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.qb-metric-value {
+  font-size: 1.05rem;
+  font-weight: 850;
+  color: #0f172a;
+  font-family: var(--prophet-code);
+}
+
+.qb-metric-card.footprint .qb-metric-value {
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.qb-metric-label {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 工具条：搜索与分类过滤 */
+.qb-controls-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qb-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.qb-search-icon {
+  position: absolute;
+  left: 10px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.qb-search-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 32px 0 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.85rem;
+  color: #0f172a;
+  transition: all 0.15s ease;
+}
+
+.qb-search-input:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.qb-search-clear {
+  position: absolute;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: #cbd5e1;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease;
+}
+
+.qb-search-clear:hover {
+  background: #94a3b8;
+}
+
+.qb-tabs-and-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.qb-category-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.qb-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.qb-tab-btn:hover {
+  color: #0f172a;
+}
+
+.qb-tab-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.qb-expand-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.qb-expand-btn {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qb-expand-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+/* 国家列表可滚动区 */
+.qb-accordion-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+  min-height: 0;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.qb-accordion-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.qb-accordion-scroll::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.8);
+  border-radius: 4px;
+}
+
+.qb-country-card {
+  flex-shrink: 0;
+  min-height: fit-content;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.qb-country-card:hover {
+  border-color: #cbd5e1;
+}
+
+.qb-country-card.expanded {
+  border-color: #93c5fd;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
+}
+
+.qb-country-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  cursor: pointer;
+  user-select: none;
+  background: #ffffff;
+  transition: background 0.15s ease;
+}
+
+.qb-country-header:hover {
+  background: #f8fafc;
+}
+
+.qb-country-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qb-chevron-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: transform 0.15s ease;
+}
+
+.qb-country-name {
+  font-size: 0.92rem;
+  font-weight: 750;
+  color: #0f172a;
+  font-family: var(--prophet-serif);
+}
+
+.qb-region-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.qb-region-tag.domestic {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.qb-region-tag.foreign {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+.qb-cities-count-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.qb-country-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qb-country-count-badge {
+  font-size: 0.82rem;
+  color: #0f172a;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: var(--prophet-code);
+}
+
+.qb-country-count-badge strong {
+  font-weight: 800;
+  color: #2563eb;
+}
+
+.qb-country-percent {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-family: var(--prophet-code);
+  min-width: 38px;
+  text-align: right;
+}
+
+/* 城市子网格 */
+.qb-cities-container {
+  flex-shrink: 0;
+  padding: 8px 12px 10px 12px;
+  background: #f8fafc;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.qb-cities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 6px;
+}
+
+.qb-city-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  transition: all 0.12s ease;
+}
+
+.qb-city-chip:hover {
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.qb-city-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.qb-city-pin {
+  color: #0891b2;
+  flex-shrink: 0;
+}
+
+.qb-city-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qb-city-count-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--prophet-code);
+  flex-shrink: 0;
+}
+
+.qb-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0;
+  color: #94a3b8;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.qb-empty-icon {
+  color: #cbd5e1;
+}
+
+.qb-popover-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.74rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.qb-footer-icon {
+  color: #d97706;
+  flex-shrink: 0;
 }
 
 .journey-visual-gate {
@@ -11481,38 +12016,38 @@ h2 {
   width: 550px;
 }
 
-/* 边缘指示把手 (未展开状态：无文字、纯极简高质感微型手柄、大幅增高) */
+/* 边缘指示把手 (未展开状态：无文字、纯极简高质感微型手柄、大幅增高、玻璃质感) */
 .left-sidebar-peek-tab {
   position: absolute;
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 14px;
-  height: 220px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(203, 213, 225, 0.9);
+  width: 22px;
+  height: 230px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
   border-left: none;
-  border-radius: 0 14px 14px 0;
+  border-radius: 0 16px 16px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
   cursor: pointer;
-  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.08), 1px 0 4px rgba(0, 0, 0, 0.04);
-  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease, opacity 0.25s ease;
+  box-shadow: 4px 0 24px rgba(37, 99, 235, 0.16), inset 1px 1px 2px rgba(255, 255, 255, 1);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
   z-index: 9981;
 }
 
 .left-sidebar-wrapper:hover .left-sidebar-peek-tab,
 .left-sidebar-peek-tab:hover {
-  width: 18px;
-  background: #ffffff;
-  border-color: #93c5fd;
-  box-shadow: 4px 0 20px rgba(37, 99, 235, 0.16);
+  width: 26px;
+  background: rgba(255, 255, 255, 0.85);
+  border-color: #60a5fa;
+  box-shadow: 6px 0 28px rgba(37, 99, 235, 0.25), inset 1px 1px 2px #ffffff;
 }
 
 /* 展开时平滑淡出，不使用 translate(-100%)，避免鼠标在边缘时触发反复闪烁死循环 */
@@ -11546,22 +12081,22 @@ h2 {
   transform: translateX(1px);
 }
 
-/* 滑出抽屉主体 (收窄宽度，二级功能直接在下方排列) */
+/* 滑出抽屉主体 (强通透毛玻璃拟态质感，高反差半透晶体效果) */
 .left-sidebar-drawer {
   position: absolute;
   left: 0;
   top: 50%;
   transform: translate(-105%, -50%);
-  width: 216px;
+  width: 228px;
   min-height: 480px;
   max-height: 90vh;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(36px) saturate(220%);
+  -webkit-backdrop-filter: blur(36px) saturate(220%);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
   border-left: none;
-  border-radius: 0 20px 20px 0;
-  box-shadow: 0 16px 40px -10px rgba(15, 23, 42, 0.14), 4px 0 20px rgba(15, 23, 42, 0.05);
+  border-radius: 0 24px 24px 0;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16), 6px 0 32px rgba(37, 99, 235, 0.1), inset 1px 1px 0 rgba(255, 255, 255, 1), inset -1px -1px 0 rgba(255, 255, 255, 0.4);
   display: flex;
   flex-direction: column;
   padding: 16px 12px;
@@ -11616,8 +12151,10 @@ h2 {
   gap: 3px;
   padding: 3px 6px;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: rgba(248, 250, 252, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: #64748b;
   font-size: 11px;
   font-weight: 700;
@@ -11627,13 +12164,13 @@ h2 {
 }
 
 .sidebar-pin-btn:hover {
-  background: #eff6ff;
+  background: rgba(239, 246, 255, 0.9);
   color: #2563eb;
-  border-color: #bfdbfe;
+  border-color: #93c5fd;
 }
 
 .sidebar-pin-btn.is-pinned {
-  background: #eff6ff;
+  background: rgba(239, 246, 255, 0.9);
   color: #2563eb;
   border-color: #93c5fd;
   box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
@@ -11701,22 +12238,27 @@ h2 {
   flex-direction: column;
 }
 
-/* 一级功能行 (字号加大，高度更高更舒适) */
+/* 一级功能行 (字号加大，高度更高更舒适，高质感半透明玻璃药丸按钮) */
 .nav-primary-row {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 9px 10px;
-  border-radius: 11px;
+  padding: 8px 10px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.08s ease, border-color 0.08s ease, transform 0.08s ease, box-shadow 0.08s ease;
   color: #1e293b;
   user-select: none;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
 }
 
 .nav-primary-row:hover {
-  background: #f1f5f9;
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #93c5fd;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.14);
+  transform: translateX(3px);
 }
 
 .nav-primary-icon-box {
@@ -11727,7 +12269,7 @@ h2 {
   height: 32px;
   border-radius: 9px;
   flex-shrink: 0;
-  transition: transform 0.18s ease;
+  transition: transform 0.08s ease;
 }
 
 .nav-primary-row:hover .nav-primary-icon-box {
@@ -11777,27 +12319,30 @@ h2 {
   gap: 7px;
   width: 100%;
   padding: 6px 8px;
-  border-radius: 7px;
-  border: none;
-  background: transparent;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.45);
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: background-color 0.08s ease, border-color 0.08s ease, color 0.08s ease, transform 0.08s ease;
   color: #475569;
   font-family: inherit;
   user-select: none;
 }
 
 .nav-secondary-btn:hover {
-  background: #eff6ff;
+  background: rgba(239, 246, 255, 0.95);
+  border-color: rgba(147, 197, 253, 0.7);
   color: #2563eb;
   transform: translateX(2px);
 }
 
 .nav-secondary-btn.is-active {
-  background: #dbeafe;
+  background: rgba(219, 234, 254, 0.9);
+  border-color: #93c5fd;
   color: #1d4ed8;
   font-weight: 700;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
 }
 
 .nav-secondary-bullet {
@@ -11806,7 +12351,7 @@ h2 {
   border-radius: 50%;
   background: #94a3b8;
   flex-shrink: 0;
-  transition: all 0.15s ease;
+  transition: all 0.08s ease;
 }
 
 .nav-secondary-btn:hover .nav-secondary-bullet {
@@ -11821,7 +12366,7 @@ h2 {
 .nav-secondary-icon {
   color: #64748b;
   flex-shrink: 0;
-  transition: color 0.15s ease;
+  transition: color 0.08s ease;
 }
 
 .nav-secondary-btn:hover .nav-secondary-icon {
@@ -12313,6 +12858,25 @@ h2 {
   stroke: #cbd5e1;
   stroke-width: 0.6px;
   pointer-events: none;
+}
+
+/* 省级地图填充背景及界线 */
+.map-fill-province-bg {
+  fill: none;
+  pointer-events: none;
+}
+.map-fill-province-bg.ocean {
+  stroke: rgba(56, 189, 248, 0.45);
+  stroke-width: 1.2px;
+}
+.map-fill-province-bg.border {
+  stroke: #334155;
+  stroke-width: 1.4px;
+}
+.map-fill-province-bg.boundary {
+  stroke: rgba(148, 163, 184, 0.4);
+  stroke-width: 0.7px;
+  stroke-dasharray: 2 2;
 }
 
 /* 行政区/国家多边形样式体系：高对比度、清晰、饱满 */

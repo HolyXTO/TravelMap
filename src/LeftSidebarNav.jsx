@@ -190,22 +190,20 @@ export default function LeftSidebarNav({
       action: () => scrollToPageSection("travel-game-section"),
       submenus: [
         {
-          id: "game-fill",
-          title: "地图盲填",
-          icon: MapIcon,
-          isActive: activeGameTab === "fill",
+          id: "game-guess",
+          title: "实景图寻",
+          icon: Compass,
           action: () => {
-            if (setActiveGameTab) setActiveGameTab("fill");
+            if (setActiveGameTab) setActiveGameTab("guess");
             scrollToPageSection("travel-game-section");
           },
         },
         {
-          id: "game-guess",
-          title: "实景图寻",
-          icon: Compass,
-          isActive: activeGameTab === "guess",
+          id: "game-fill",
+          title: "地图盲填",
+          icon: MapIcon,
           action: () => {
-            if (setActiveGameTab) setActiveGameTab("guess");
+            if (setActiveGameTab) setActiveGameTab("fill");
             scrollToPageSection("travel-game-section");
           },
         },
