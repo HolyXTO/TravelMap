@@ -207,10 +207,10 @@ function fisherYatesShuffle(arr) {
 }
 
 // Session-level unplayed deck management for strictly equal photo probability and zero repetition
-const DECK_STORAGE_VERSION = "v3_";
+const DECK_STORAGE_VERSION = "v4_";
 const DECK_STORAGE_KEY_PREFIX = `travel_guess_deck_${DECK_STORAGE_VERSION}`;
 
-// Purge any stale deck caches from older versions (v1, v2, etc.)
+// Purge any stale deck caches from older versions (v1, v2, v3, etc.)
 function cleanupStaleDecks() {
   try {
     const keysToRemove = [];
@@ -246,21 +246,9 @@ function getOrInitDeck(category, allQuestions) {
     if (storedJson) {
       const storedDeck = JSON.parse(storedJson);
       if (Array.isArray(storedDeck)) {
-        // Filter out any stale/deleted IDs
+        // Keep valid unplayed IDs
         const validDeck = storedDeck.filter((id) => poolIdSet.has(id));
-        const validSet = new Set(validDeck);
-
-        // Check for newly added questions in the pool that aren't yet in this deck
-        const missingIds = poolIds.filter((id) => !validSet.has(id));
-
-        if (missingIds.length > 0) {
-          // Prepend newly added questions (shuffled) directly to the front so player gets them immediately
-          const mergedDeck = [...fisherYatesShuffle(missingIds), ...validDeck];
-          sessionStorage.setItem(storageKey, JSON.stringify(mergedDeck));
-          return mergedDeck;
-        }
-
-        if (validDeck.length > 0) {
+        if (validDeck.length >= 10) {
           return validDeck;
         }
       }
@@ -327,9 +315,8 @@ function generateRoundQuestions(category, allQuestions) {
     }
   }
 
-  // Prepend skipped cards back to the FRONT of deck so they are evaluated immediately in the next round
-  // when city quotas are reset, preventing city photo starvation
-  deck = [...skippedForThisRound, ...deck];
+  // Append skipped cards to the back of the deck so they don't bunch up in the next round
+  deck = [...deck, ...skippedForThisRound];
 
   // Update sessionStorage with remaining deck
   try {
