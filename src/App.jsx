@@ -11570,7 +11570,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           setIsRecycleBinOpen(false);
           setIsRowsSettingsOpen(false);
         }}
-        title="实景图寻题库全景分布 (3,538 题)"
+        title="实景图寻题库全景分布 (3,834 题)"
         type="button"
       >
         <Database size={17} />
