@@ -207,7 +207,7 @@ function fisherYatesShuffle(arr) {
 }
 
 // Session-level unplayed deck management for strictly equal photo probability and zero repetition
-const DECK_STORAGE_VERSION = "v5_";
+const DECK_STORAGE_VERSION = "v6_";
 const DECK_STORAGE_KEY_PREFIX = `travel_guess_deck_${DECK_STORAGE_VERSION}`;
 
 // Purge any stale deck caches from older versions (v1, v2, v3, etc.)
