@@ -603,7 +603,7 @@ function createTargetPinIcon(cityName) {
 }
 
 // =========================================================================
-// Leaderboard & Player Storage Management (Top 10 Rankings)
+// Leaderboard & Player Storage Management (Rankings)
 // =========================================================================
 const LEADERBOARDS_STORAGE_KEY = "travel_guess_leaderboards_v2";
 const PLAYER_NAME_STORAGE_KEY = "travel_guess_player_name_v2";
@@ -1253,10 +1253,10 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
               setSelectedMatchDetail(null);
               setIsLeaderboardOpen(true);
             }}
-            title="查看全球/国内/国外 Top 10 荣耀榜"
+            title="查看全球/国内/国外荣耀排行榜"
           >
             <Trophy size={15} />
-            <span>排行榜 Top 10</span>
+            <span>排行榜</span>
           </button>
 
           {/* 题库分类选项卡 (全球 / 国内 / 国外) */}
@@ -1331,7 +1331,7 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                   title="查看历史排行榜"
                 >
                   <Trophy size={16} />
-                  <span>查看排行榜 Top 10</span>
+                  <span>查看排行榜</span>
                 </button>
               </div>
 
@@ -1775,7 +1775,7 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
         )}
       </div>
 
-      {/* ==================== 4. 荣耀排行榜弹窗 (Top 10) ==================== */}
+      {/* ==================== 4. 荣耀排行榜弹窗 ==================== */}
       {isLeaderboardOpen && (
         <div
           className="game-modal-overlay"
@@ -1795,9 +1795,9 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                   <Trophy size={22} />
                 </div>
                 <div>
-                  <h3 className="modal-headline">荣耀排行榜 · 殿堂 Top 10</h3>
+                  <h3 className="modal-headline">荣耀排行榜</h3>
                   <p className="modal-subtext">
-                    记录前 10 名最佳战绩 · 支持点击任意纪录查看该局对局实景复盘
+                    全网玩家历史战绩总榜 · 支持点击任意纪录查看该局对局实景复盘
                   </p>
                 </div>
               </div>

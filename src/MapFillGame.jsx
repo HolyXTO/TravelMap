@@ -1341,7 +1341,7 @@ function MapFillGame() {
             }
           >
             <Trophy size={15} />
-            <span>排行榜 Top 10</span>
+            <span>排行榜</span>
           </button>
 
           {/* 题库分类选项卡：对应 全球 / 中国 / 省级 */}
@@ -1453,7 +1453,7 @@ function MapFillGame() {
                 title="查看历史排行榜"
               >
                 <Trophy size={16} />
-                <span>查看排行榜 Top 10</span>
+                <span>查看排行榜</span>
               </button>
             </div>
 
@@ -2372,7 +2372,7 @@ function MapFillGame() {
       )}
 
       {/* ================================================================
-          6. 荣誉排行榜弹窗 (Top 10)
+          6. 荣誉排行榜弹窗
           ================================================================ */}
       {isLeaderboardOpen && (
         <div className="game-modal-overlay" onClick={() => setIsLeaderboardOpen(false)}>
