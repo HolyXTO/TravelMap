@@ -1298,7 +1298,7 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
               </div>
               <h3>欢迎来到旅行图寻世界！</h3>
               <p className="game-welcome-desc">
-                我们从真实旅程中精选了千余处高解析全画幅风景。考验您观察力与地理直觉的时刻到了——仔细观察照片中的建筑风格、光影植物与招牌字迹，在地图上插下您的图钉，挑战 50,000 分大满贯！
+                从真实旅程中精选千余张实景照片。考验观察力与地理直觉的时刻到了——仔细观察照片中的细节并猜测位置，在地图上插下您的图钉，挑战 50,000 分大满贯！
               </p>
 
               {/* 玩家昵称输入设置区 */}
@@ -1339,15 +1339,15 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                 <div className="game-rule-item">
                   <div className="rule-icon-box">1</div>
                   <div>
-                    <strong>滚轮自由微距观察</strong>
-                    <p>鼠标放在照片上滑动滚轮放大细节，超大倍率无缝渲染 4K 高解析度</p>
+                    <strong>自由观察实景图片</strong>
+                    <p>鼠标放在照片上滑动滚轮放大细节，判断照片所在拍摄位置。</p>
                   </div>
                 </div>
                 <div className="game-rule-item">
                   <div className="rule-icon-box">2</div>
                   <div>
                     <strong>地图任意位置插旗</strong>
-                    <p>在右侧世界地图自由缩放拖拽，点击插下精准图钉，支持拖动微调位置</p>
+                    <p>在右侧地图上自由缩放拖拽，点击插下猜测位置的图钉，支持拖动微调位置。</p>
                   </div>
                 </div>
                 <div className="game-rule-item">

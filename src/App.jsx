@@ -2681,6 +2681,25 @@ function App() {
   const [regionFilter, setRegionFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [query, setQuery] = useState("");
+
+  // 回到顶部按钮状态与平滑滚动逻辑
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  }, []);
   const [activeMapThemeId, setActiveMapThemeId] = useState(() => {
     const saved = localStorage.getItem("travel_map_theme_id");
     if (!saved || saved === "vintage" || saved === "copper" || saved === "ink" || saved === "coral") {
@@ -4532,6 +4551,17 @@ function App() {
         profiles={appProfiles}
         session={session}
       />
+
+      {/* 网页右下角精致玻璃质感回到顶部按钮 (位于四个隐藏按钮上方) */}
+      <button
+        aria-label="回到顶部"
+        className={`back-to-top-btn ${showBackToTop ? "visible" : ""}`}
+        onClick={scrollToTop}
+        title="回到顶部"
+        type="button"
+      >
+        <ChevronUp size={20} strokeWidth={2.4} />
+      </button>
     </main>
   );
 }
@@ -11540,7 +11570,7 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
           setIsRecycleBinOpen(false);
           setIsRowsSettingsOpen(false);
         }}
-        title="实景图寻题库全景分布 (1,346 题)"
+        title="实景图寻题库全景分布 (2,751 题)"
         type="button"
       >
         <Database size={17} />
