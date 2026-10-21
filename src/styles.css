@@ -11539,6 +11539,148 @@ h2 {
   transform: translateY(-1px);
 }
 
+.finished-top10-banner.rank-level-general {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border-color: #93c5fd;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.12);
+}
+
+.finished-top10-banner.rank-level-general .top10-banner-info h4 {
+  color: #1e40af;
+}
+
+.finished-top10-banner.rank-level-general .top10-banner-info p {
+  color: #3b82f6;
+}
+
+.top10-trophy-badge.rank-badge-general {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.finished-top10-banner.rank-level-general .top10-view-btn {
+  background: #2563eb;
+}
+
+.finished-top10-banner.rank-level-general .top10-view-btn:hover {
+  background: #1d4ed8;
+}
+
+/* 本次成绩高亮标识 */
+.leaderboard-row-card.current-record-glow {
+  border-color: #3b82f6 !important;
+  background: #f0f7ff !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25), 0 4px 16px rgba(59, 130, 246, 0.15) !important;
+}
+
+.my-record-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  background: #2563eb;
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+/* 地图填充战报弹窗 - 全网排位展卡 */
+.modal-rank-banner {
+  background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+  border: 1.5px solid #bfdbfe;
+  border-radius: 14px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+}
+
+.modal-rank-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 900;
+  flex-shrink: 0;
+  border: 1px solid #bfdbfe;
+}
+
+.modal-rank-badge.rank-badge-1 {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-color: #fcd34d;
+}
+
+.modal-rank-badge.rank-badge-2 {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  border-color: #cbd5e1;
+}
+
+.modal-rank-badge.rank-badge-3 {
+  background: linear-gradient(135deg, #ffedd5, #fed7aa);
+  border-color: #fdba74;
+}
+
+.modal-rank-content {
+  flex: 1;
+  text-align: left;
+  min-width: 0;
+}
+
+.modal-rank-title {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #1e3a8a;
+  margin-bottom: 2px;
+}
+
+.modal-rank-desc {
+  font-size: 0.86rem;
+  color: #475569;
+}
+
+.modal-rank-desc strong {
+  color: #2563eb;
+  font-weight: 900;
+  font-size: 0.96rem;
+}
+
+.modal-rank-total {
+  margin-left: 6px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.modal-rank-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+.modal-rank-view-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
 .game-secondary-btn {
   display: inline-flex;
   align-items: center;

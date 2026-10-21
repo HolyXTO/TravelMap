@@ -193,7 +193,7 @@ function deduplicateLeaderboard(list = []) {
     return (a.elapsedSeconds || 0) - (b.elapsedSeconds || 0);
   });
 
-  return result.slice(0, 15);
+  return result;
 }
 
 // 从 Supabase 云端拉取地图填充排行榜（各设备统一从云端获取完全一致的数据）
@@ -213,7 +213,7 @@ async function fetchCloudMapFillLeaderboards(mode = "china") {
       .order("score", { ascending: false })
       .order("elapsed_seconds", { ascending: true })
       .order("date", { ascending: false })
-      .limit(30);
+      .limit(2000);
 
     if (!dErr && Array.isArray(dedicated) && dedicated.length > 0) {
       const formatted = dedicated
@@ -245,7 +245,7 @@ async function fetchCloudMapFillLeaderboards(mode = "china") {
       .order("score", { ascending: false })
       .order("best_dist", { ascending: true })
       .order("date", { ascending: false })
-      .limit(100);
+      .limit(2000);
 
     if (error || !Array.isArray(data)) return null;
 
@@ -448,6 +448,7 @@ function MapFillGame() {
   const [hoveredCity, setHoveredCity] = useState(null);
   const [showResultModal, setShowResultModal] = useState(false);
   const [surrenderModalOpen, setSurrenderModalOpen] = useState(false);
+  const [latestRecordInfo, setLatestRecordInfo] = useState(null);
 
   // SVG 地图平移与缩放 (Pan & Zoom)
   const [zoom, setZoom] = useState({ scale: 1, x: 0, y: 0 });
@@ -704,6 +705,18 @@ function MapFillGame() {
         mode,
       };
 
+      // 即时计算本地排位以供战报弹窗展示
+      const currentBoard = mode === "world" ? worldLeaderboard : mode === "province" ? provinceLeaderboard : chinaLeaderboard;
+      const initialClean = deduplicateLeaderboard([newEntry, ...currentBoard]);
+      const initialRank = initialClean.findIndex((r) => r.id === newEntry.id) + 1;
+      setLatestRecordInfo({
+        id: newEntry.id,
+        rank: initialRank > 0 ? initialRank : 1,
+        total: initialClean.length,
+        score: count,
+        mode,
+      });
+
       if (mode === "world") {
         setWorldLeaderboard((prev) => {
           const clean = deduplicateLeaderboard([newEntry, ...prev]);
@@ -751,6 +764,16 @@ function MapFillGame() {
         .then((latestCloud) => {
           if (Array.isArray(latestCloud)) {
             const clean = deduplicateLeaderboard(latestCloud);
+            const cloudRank = clean.findIndex((r) => r.id === newEntry.id) + 1;
+            if (cloudRank > 0) {
+              setLatestRecordInfo({
+                id: newEntry.id,
+                rank: cloudRank,
+                total: clean.length,
+                score: count,
+                mode,
+              });
+            }
             if (mode === "world") {
               setWorldLeaderboard(clean);
               try {
@@ -2257,6 +2280,44 @@ function MapFillGame() {
               <p className="modal-subtitle">{getRatingTitle(guessedIds.size, activeMapMode)}</p>
             </div>
 
+            {/* 全网排名成就展卡 */}
+            {latestRecordInfo && latestRecordInfo.rank > 0 && (
+              <div className="modal-rank-banner">
+                <div className={`modal-rank-badge rank-badge-${latestRecordInfo.rank <= 3 ? latestRecordInfo.rank : latestRecordInfo.rank <= 10 ? "top10" : "general"}`}>
+                  {latestRecordInfo.rank === 1 ? (
+                    <span className="medal-icon gold">🥇</span>
+                  ) : latestRecordInfo.rank === 2 ? (
+                    <span className="medal-icon silver">🥈</span>
+                  ) : latestRecordInfo.rank === 3 ? (
+                    <span className="medal-icon bronze">🥉</span>
+                  ) : (
+                    <span className="rank-num">#{latestRecordInfo.rank}</span>
+                  )}
+                </div>
+                <div className="modal-rank-content">
+                  <div className="modal-rank-title">
+                    {latestRecordInfo.rank <= 3
+                      ? "🎉 登顶三甲荣誉！"
+                      : latestRecordInfo.rank <= 10
+                      ? "⭐ 跻身十强之列！"
+                      : "🏆 成功录入全网榜单！"}
+                  </div>
+                  <div className="modal-rank-desc">
+                    当前全网排在 <strong>第 {latestRecordInfo.rank} 名</strong>
+                    <span className="modal-rank-total">（全网共收录 {latestRecordInfo.total} 场挑战记录）</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="modal-rank-view-btn"
+                  onClick={() => setIsLeaderboardOpen(true)}
+                >
+                  <Trophy size={14} />
+                  <span>查看排行榜</span>
+                </button>
+              </div>
+            )}
+
             {/* 核心战绩数据看板 */}
             <div className="modal-stats-grid">
               <div className="modal-stat-box">
@@ -2363,7 +2424,7 @@ function MapFillGame() {
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                     <span className="leaderboard-count-tag">
                       {leaderboard.length > 0
-                        ? `收录前 ${leaderboard.length} 位高光记录`
+                        ? `已收录全部 ${leaderboard.length} 位挑战者记录`
                         : "云端排行榜"}
                     </span>
                     <span
@@ -2401,6 +2462,7 @@ function MapFillGame() {
                   <div className="leaderboard-rows-container">
                   {leaderboard.map((entry, index) => {
                     const rank = index + 1;
+                    const isMyRecord = entry.id === latestRecordInfo?.id;
                     const entryPct = entry.total
                       ? Math.round((entry.score / entry.total) * 100)
                       : 0;
@@ -2408,7 +2470,7 @@ function MapFillGame() {
                     return (
                       <div
                         key={entry.id || index}
-                        className={`leaderboard-row-card rank-${rank}`}
+                        className={`leaderboard-row-card rank-${rank} ${isMyRecord ? "current-record-glow" : ""}`}
                       >
                         <div className={`leaderboard-rank-badge rank-badge-${rank}`}>
                           {rank === 1 ? (
@@ -2430,6 +2492,9 @@ function MapFillGame() {
                             <strong className="player-display-name">
                               {entry.playerName}
                             </strong>
+                            {isMyRecord && (
+                              <span className="my-record-pill">本次挑战</span>
+                            )}
                             <span className="player-title-tag">
                               {entry.title || (isWorldMode ? "环球探险家" : "华夏探险家")}
                             </span>

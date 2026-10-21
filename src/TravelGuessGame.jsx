@@ -630,7 +630,7 @@ function mergeCategoryRecords(listA, listB) {
     if (x.avgDist !== y.avgDist) return x.avgDist - y.avgDist;
     return new Date(y.date) - new Date(x.date);
   });
-  return merged.slice(0, 10);
+  return merged;
 }
 
 function mergeAllBoards(b1, b2) {
@@ -650,7 +650,7 @@ async function fetchCloudLeaderboards() {
       .order("score", { ascending: false })
       .order("avg_dist", { ascending: true })
       .order("date", { ascending: false })
-      .limit(60);
+      .limit(2000);
 
     if (error || !Array.isArray(data)) {
       return null;
@@ -661,18 +661,16 @@ async function fetchCloudLeaderboards() {
       if (!row.id || row.id.startsWith("test-") || row.id.startsWith("mapfill-") || (row.player_name && row.player_name.startsWith("test-"))) continue;
       const cat = row.category || "global";
       if (!grouped[cat]) grouped[cat] = [];
-      if (grouped[cat].length < 10) {
-        grouped[cat].push({
-          id: row.id,
-          playerName: row.player_name,
-          score: row.score,
-          category: cat,
-          date: row.date,
-          bestDist: row.best_dist,
-          avgDist: row.avg_dist,
-          history: Array.isArray(row.history) ? row.history : [],
-        });
-      }
+      grouped[cat].push({
+        id: row.id,
+        playerName: row.player_name,
+        score: row.score,
+        category: cat,
+        date: row.date,
+        bestDist: row.best_dist,
+        avgDist: row.avg_dist,
+        history: Array.isArray(row.history) ? row.history : [],
+      });
     }
     return grouped;
   } catch (e) {
@@ -741,7 +739,8 @@ function checkAndInsertLeaderboard(category, newRecord) {
   const allBoards = loadStoredLeaderboards();
   const list = allBoards[category] || [];
 
-  const combined = [...list, newRecord];
+  const filtered = list.filter((r) => r.id !== newRecord.id);
+  const combined = [...filtered, newRecord];
 
   combined.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
@@ -750,14 +749,13 @@ function checkAndInsertLeaderboard(category, newRecord) {
   });
 
   const rankIndex = combined.findIndex((r) => r.id === newRecord.id);
+  const rank = rankIndex >= 0 ? rankIndex + 1 : 1;
+  const totalCount = combined.length;
 
-  if (rankIndex >= 0 && rankIndex < 10) {
-    allBoards[category] = combined.slice(0, 10);
-    saveStoredLeaderboards(allBoards);
-    return { qualified: true, rank: rankIndex + 1, updatedBoards: allBoards };
-  }
+  allBoards[category] = combined;
+  saveStoredLeaderboards(allBoards);
 
-  return { qualified: false, rank: null, updatedBoards: allBoards };
+  return { qualified: true, rank, totalCount, updatedBoards: allBoards };
 }
 
 // =========================================================================
@@ -1137,16 +1135,32 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
       };
 
       const res = checkAndInsertLeaderboard(activeCategory, record);
-      if (res.qualified) {
-        setNewRankAchieved(res.rank);
-        setLeaderboards(res.updatedBoards);
-      } else {
-        setNewRankAchieved(null);
-      }
+      setNewRankAchieved({
+        rank: res.rank,
+        total: res.totalCount,
+        recordId: record.id,
+      });
+      setLeaderboards(res.updatedBoards);
 
       // Asynchronously upload record to Supabase cloud and re-sync
-      uploadRecordToCloud(record).then(() => {
-        syncWithCloud();
+      uploadRecordToCloud(record).then(async () => {
+        const cloud = await fetchCloudLeaderboards();
+        if (cloud) {
+          setLeaderboards((prev) => {
+            const merged = mergeAllBoards(prev, cloud);
+            saveStoredLeaderboards(merged);
+            const cloudList = merged[activeCategory] || [];
+            const cloudRank = cloudList.findIndex((r) => r.id === record.id) + 1;
+            if (cloudRank > 0) {
+              setNewRankAchieved({
+                rank: cloudRank,
+                total: cloudList.length,
+                recordId: record.id,
+              });
+            }
+            return merged;
+          });
+        }
       });
 
       setGameState("finished");
@@ -1613,21 +1627,35 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                 </div>
               </div>
 
-              {/* 荣登排行榜前10庆祝横幅 */}
+              {/* 全量排行榜排名成就横幅 */}
               {newRankAchieved && (
-                <div className="finished-top10-banner">
-                  <div className="top10-trophy-badge">
-                    <Trophy size={20} />
-                    <span>TOP {newRankAchieved}</span>
+                <div className={`finished-top10-banner rank-level-${newRankAchieved.rank <= 3 ? "podium" : newRankAchieved.rank <= 10 ? "top10" : "general"}`}>
+                  <div className={`top10-trophy-badge rank-badge-${newRankAchieved.rank <= 3 ? newRankAchieved.rank : newRankAchieved.rank <= 10 ? "top10" : "general"}`}>
+                    {newRankAchieved.rank === 1 ? (
+                      <span className="medal-icon gold">🥇</span>
+                    ) : newRankAchieved.rank === 2 ? (
+                      <span className="medal-icon silver">🥈</span>
+                    ) : newRankAchieved.rank === 3 ? (
+                      <span className="medal-icon bronze">🥉</span>
+                    ) : newRankAchieved.rank <= 10 ? (
+                      <Trophy size={18} />
+                    ) : (
+                      <Award size={18} />
+                    )}
+                    <span>#{newRankAchieved.rank}</span>
                   </div>
                   <div className="top10-banner-info">
                     <h4>
-                      🎉 恭喜「<strong>{playerName}</strong>」！以{" "}
-                      <strong>{score.toLocaleString()}</strong> 分荣登【
-                      {CATEGORY_LABELS[activeCategory]}】<span className="no-break-rank-phrase">第 {newRankAchieved} 名！</span>
+                      {newRankAchieved.rank <= 3 ? "🎉 登顶三甲高光！" : newRankAchieved.rank <= 10 ? "🎉 跻身十强之列！" : "🎉 战绩收录成功！"}
+                      恭喜「<strong>{playerName}</strong>」！以{" "}
+                      <strong>{score.toLocaleString()}</strong> 分位列【
+                      {CATEGORY_LABELS[activeCategory]}】<span className="no-break-rank-phrase">第 {newRankAchieved.rank} 名</span>
+                      <small style={{ marginLeft: "8px", fontWeight: "normal", color: "#64748b" }}>
+                        (全网共 {newRankAchieved.total} 场记录)
+                      </small>
                     </h4>
                     <p>
-                      已自动收录入本地荣耀排行榜，支持随时点击复盘查看对局 10 题真实轨迹
+                      战绩已实时同步保存至云端，从任何设备均可查阅完整排行榜，支持随时点击对局复盘查看 10 题真实轨迹
                     </p>
                   </div>
                   <button
@@ -1639,7 +1667,7 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                       setIsLeaderboardOpen(true);
                     }}
                   >
-                    查看榜单
+                    查看完整榜单
                   </button>
                 </div>
               )}
@@ -1663,7 +1691,7 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                   }}
                 >
                   <Trophy size={16} />
-                  查看排行榜 Top 10
+                  查看排行榜 (共 {(leaderboards[activeCategory] || []).length} 场)
                 </button>
               </div>
             </div>
@@ -1803,26 +1831,27 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                         value={selectedLeaderboardCat}
                         onChange={(e) => setSelectedLeaderboardCat(e.target.value)}
                       >
-                        <option value="global">🌍 全球排行榜 (Global Top 10)</option>
-                        <option value="domestic">🇨🇳 国内排行榜 (Domestic Top 10)</option>
-                        <option value="foreign">✈️ 国外排行榜 (Foreign Top 10)</option>
+                        <option value="global">🌍 全球排行榜 (Global Rankings)</option>
+                        <option value="domestic">🇨🇳 国内排行榜 (Domestic Rankings)</option>
+                        <option value="foreign">✈️ 国外排行榜 (Foreign Rankings)</option>
                       </select>
                       <ChevronDown size={14} className="select-arrow" />
                     </div>
                     <span className="leaderboard-count-tag">
-                      已收录 {(leaderboards[selectedLeaderboardCat] || []).length} / 10 位高光纪录
+                      已收录全部 {(leaderboards[selectedLeaderboardCat] || []).length} 场对局纪录
                     </span>
                   </div>
 
-                  {/* Top 10 列表 */}
+                  {/* 全量对局记录列表 */}
                   <div className="leaderboard-rows-container">
                     {(leaderboards[selectedLeaderboardCat] || []).length > 0 ? (
                       (leaderboards[selectedLeaderboardCat] || []).map((entry, index) => {
                         const rank = index + 1;
+                        const isMyRecord = entry.id === newRankAchieved?.recordId;
                         return (
                           <div
                             key={entry.id || index}
-                            className={`leaderboard-row-card rank-${rank}`}
+                            className={`leaderboard-row-card rank-${rank} ${isMyRecord ? "current-record-glow" : ""}`}
                             onClick={() => setSelectedMatchDetail(entry)}
                             title="点击查看此局 10 题对局实景复盘"
                           >
@@ -1846,6 +1875,9 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                                 <strong className="player-display-name">
                                   {entry.playerName}
                                 </strong>
+                                {isMyRecord && (
+                                  <span className="my-record-pill">本次对局</span>
+                                )}
                               </div>
                               <div className="player-sub-meta-chips">
                                 <span className="meta-chip time-chip" title="对局时间（北京时间 UTC+8）">
@@ -1881,8 +1913,8 @@ export default function TravelGuessGame({ mapPlaces, placeLookup, searchPlaces }
                     ) : (
                       <div className="leaderboard-empty-box">
                         <Trophy size={48} className="empty-trophy" />
-                        <h4>该榜单暂无前 10 名记录</h4>
-                        <p>完成一轮 10 题探索，您的绝佳战绩将自动登顶榜首！</p>
+                        <h4>该榜单暂无对局记录</h4>
+                        <p>完成一轮 10 题探索，您的绝佳战绩将自动收录入榜！</p>
                       </div>
                     )}
                   </div>
