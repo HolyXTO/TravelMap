@@ -608,6 +608,12 @@ function createTargetPinIcon(cityName) {
 const LEADERBOARDS_STORAGE_KEY = "travel_guess_leaderboards_v2";
 const PLAYER_NAME_STORAGE_KEY = "travel_guess_player_name_v2";
 
+const IGNORED_LEADERBOARD_RECORD_IDS = new Set([
+  "rec-1792565086300-nngfx",
+  "rec-1792565696239-u7bga",
+  "rec-1792566161133-hbz4k"
+]);
+
 const CATEGORY_LABELS = {
   global: "全球排行榜",
   domestic: "国内排行榜",
@@ -620,7 +626,14 @@ function mergeCategoryRecords(listA, listB) {
   const seen = new Set();
   const merged = [];
   for (const item of [...a, ...b]) {
-    if (item && item.id && !seen.has(item.id)) {
+    if (
+      item &&
+      item.id &&
+      !seen.has(item.id) &&
+      !IGNORED_LEADERBOARD_RECORD_IDS.has(item.id) &&
+      !item.id.startsWith("test-") &&
+      (!item.playerName || !item.playerName.startsWith("test-"))
+    ) {
       seen.add(item.id);
       merged.push(item);
     }
@@ -658,7 +671,15 @@ async function fetchCloudLeaderboards() {
 
     const grouped = { global: [], domestic: [], foreign: [] };
     for (const row of data) {
-      if (!row.id || row.id.startsWith("test-") || row.id.startsWith("mapfill-") || (row.player_name && row.player_name.startsWith("test-"))) continue;
+      if (
+        !row.id ||
+        row.id.startsWith("test-") ||
+        row.id.startsWith("mapfill-") ||
+        (row.player_name && row.player_name.startsWith("test-")) ||
+        IGNORED_LEADERBOARD_RECORD_IDS.has(row.id)
+      ) {
+        continue;
+      }
       const cat = row.category || "global";
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push({
@@ -679,7 +700,8 @@ async function fetchCloudLeaderboards() {
 }
 
 async function uploadRecordToCloud(record) {
-  if (!supabase || !record) return;
+  if (!supabase || !record || IGNORED_LEADERBOARD_RECORD_IDS.has(record.id)) return;
+  if (record.id?.startsWith("test-") || record.playerName?.startsWith("test-")) return;
   try {
     const payload = {
       id: record.id,
@@ -722,7 +744,11 @@ function loadStoredLeaderboards() {
     const raw = localStorage.getItem(LEADERBOARDS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return mergeAllBoards(parsed, fallback);
+      const cleaned = mergeAllBoards(parsed, fallback);
+      try {
+        localStorage.setItem(LEADERBOARDS_STORAGE_KEY, JSON.stringify(cleaned));
+      } catch (err) {}
+      return cleaned;
     }
   } catch (e) {}
 

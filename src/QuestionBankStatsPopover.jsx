@@ -160,7 +160,7 @@ export default function QuestionBankStatsPopover({ isOpen, onClose }) {
         <div className="qb-header-titles">
           <div className="qb-header-badge">
             <Database size={13} />
-            <span>GEO GUESS DATASET · 全景分布</span>
+            <span><span className="game-hero-brand-text" style={{ letterSpacing: "0.08em" }}>GEO GUESS</span> DATASET · 全景分布</span>
           </div>
           <h3 className="qb-header-title">实景图寻题库详细数据</h3>
         </div>
