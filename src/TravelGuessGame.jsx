@@ -207,10 +207,10 @@ function fisherYatesShuffle(arr) {
 }
 
 // Session-level unplayed deck management for strictly equal photo probability and zero repetition
-const DECK_STORAGE_VERSION = "v10_";
+const DECK_STORAGE_VERSION = "v11_";
 const DECK_STORAGE_KEY_PREFIX = `travel_guess_deck_${DECK_STORAGE_VERSION}`;
 
-// Purge any stale deck caches from older versions (v1, v2, ..., v9, etc.)
+// Purge any stale deck caches from older versions (v1, v2, ..., v10, etc.)
 function cleanupStaleDecks() {
   try {
     const keysToRemove = [];
