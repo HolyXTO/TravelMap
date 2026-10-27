@@ -18,6 +18,7 @@ import {
   UserCheck,
   ZoomIn,
   ZoomOut,
+  Crosshair,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -508,8 +509,59 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const urgentTimerRef = useRef(null);
   const autoAdvanceTimerRef = useRef(null);
 
-  // 关键：存放当前回合双方的提交数据 { [playerId]: { playerId, roundIndex, lat, lng, dist, score } }
+  // 状态同步 Refs (彻底杜绝 WebSocket 广播闭包中取到旧 state 的 Bug)
+  const matchQuestionsRef = useRef([]);
+  const currentRoundIndexRef = useRef(0);
+  const gameStateRef = useRef("LOBBY");
+  const myLockedRef = useRef(false);
+  const myPinRef = useRef(null);
   const roundSubmissionsRef = useRef({});
+
+  // 广播事件委托代理 Ref
+  const handlersRef = useRef({});
+
+  // 实时同步状态至 Refs
+  useEffect(() => {
+    matchQuestionsRef.current = matchQuestions;
+  }, [matchQuestions]);
+
+  useEffect(() => {
+    currentRoundIndexRef.current = currentRoundIndex;
+  }, [currentRoundIndex]);
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  useEffect(() => {
+    myLockedRef.current = myLocked;
+  }, [myLocked]);
+
+  useEffect(() => {
+    myPinRef.current = myPin;
+  }, [myPin]);
+
+  const updateMatchQuestions = (qs) => {
+    matchQuestionsRef.current = qs;
+    setMatchQuestions(qs);
+  };
+
+  const updateRoundIndex = (idx) => {
+    currentRoundIndexRef.current = idx;
+    setCurrentRoundIndex(idx);
+  };
+
+  const updateGameState = (st) => {
+    gameStateRef.current = st;
+    setGameState(st);
+  };
+
+  // 地图视角复位 (欧洲居中)
+  const handleResetMapView = () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+    }
+  };
 
   // 卸载清理通道与定时器
   useEffect(() => {
@@ -591,11 +643,13 @@ export default function TravelBattleGame({ onBackToExplore }) {
       const markerGroup = L.featureGroup().addTo(map);
       markerGroupRef.current = markerGroup;
 
-      // 玩家点击地图放置图钉
+      // 玩家点击地图放置图钉 (引用 Ref 彻底防止旧闭包)
       map.on("click", (e) => {
-        if (myLocked) return; // 锁定后不可再修改
+        if (myLockedRef.current || gameStateRef.current !== "PLAYING") return; // 锁定后或非答题中不可修改
         const { lat, lng } = e.latlng;
-        setMyPin({ lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 });
+        const newPin = { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
+        myPinRef.current = newPin;
+        setMyPin(newPin);
       });
 
       mapInstanceRef.current = map;
@@ -607,7 +661,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
         mapInstanceRef.current.invalidateSize();
       }
     }, 150);
-  }, [gameState, myLocked]);
+  }, [gameState]);
 
   // ==========================================================================
   // 地图标记渲染 (选点标记 与 回合揭晓同屏对比)
@@ -698,54 +752,54 @@ export default function TravelBattleGame({ onBackToExplore }) {
   }, [gameState, myPin, myLocked, roundResult, opponent]);
 
   // ==========================================================================
-  // 回合完成判定与成绩揭晓 (彻底修复双方交卷后无法结算的 Bug)
+  // 回合完成判定与成绩揭晓 (彻底杜绝双方交卷后无法结算或取到旧闭包的 Bug)
   // ==========================================================================
-  const triggerRoundReveal = useCallback(
-    (mySub, oppSub, roundIdx) => {
-      const curQ = matchQuestions[roundIdx];
-      if (!curQ) return;
+  const triggerRoundReveal = useCallback((mySub, oppSub, roundIdx) => {
+    // 停止 15s 紧急倒计时
+    if (urgentTimerRef.current) clearTimeout(urgentTimerRef.current);
+    setUrgentSeconds(null);
+    setUrgentTriggeredBy(null);
 
-      // 停止 15s 紧急倒计时
-      if (urgentTimerRef.current) clearTimeout(urgentTimerRef.current);
-      setUrgentSeconds(null);
-      setUrgentTriggeredBy(null);
+    const questions = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : TANG_QUESTIONS;
+    const curQ = questions[roundIdx] ?? questions[currentRoundIndexRef.current];
+    if (!curQ) {
+      console.warn("Could not find question for round", roundIdx);
+      return;
+    }
 
-      const targetLat = curQ.exactLat ?? curQ.center[1];
-      const targetLng = curQ.exactLng ?? curQ.center[0];
+    const targetLat = curQ.exactLat ?? curQ.center[1];
+    const targetLng = curQ.exactLng ?? curQ.center[0];
 
-      const res = {
-        roundIndex: roundIdx,
-        targetLat,
-        targetLng,
-        targetCity: curQ.cityName,
-        targetCountry: curQ.countryName,
-        myGuess: {
-          lat: mySub.lat,
-          lng: mySub.lng,
-          dist: mySub.dist,
-          score: mySub.score,
-        },
-        oppGuess: {
-          lat: oppSub.lat,
-          lng: oppSub.lng,
-          dist: oppSub.dist,
-          score: oppSub.score,
-        },
-      };
+    const res = {
+      roundIndex: roundIdx,
+      targetLat,
+      targetLng,
+      targetCity: curQ.cityName,
+      targetCountry: curQ.countryName,
+      myGuess: {
+        lat: mySub.lat,
+        lng: mySub.lng,
+        dist: mySub.dist,
+        score: mySub.score,
+      },
+      oppGuess: {
+        lat: oppSub.lat,
+        lng: oppSub.lng,
+        dist: oppSub.dist,
+        score: oppSub.score,
+      },
+    };
 
-      setRoundResult(res);
-      setMyTotalScore((prev) => prev + mySub.score);
-      setOpponentTotalScore((prev) => prev + oppSub.score);
-      setMatchHistory((prev) => [...prev, res]);
-      setGameState("ROUND_REVEAL");
-      sfx.playReveal();
+    setRoundResult(res);
+    setMyTotalScore((prev) => prev + (mySub.score || 0));
+    setOpponentTotalScore((prev) => prev + (oppSub.score || 0));
+    setMatchHistory((prev) => [...prev, res]);
+    updateGameState("ROUND_REVEAL");
+    sfx.playReveal();
 
-      // 重置本回合缓存并启动 5 秒自动跳转
-      roundSubmissionsRef.current = {};
-      setAutoAdvanceSec(5);
-    },
-    [matchQuestions]
-  );
+    // 启动 5 秒自动跳转下一题倒计时
+    setAutoAdvanceSec(5);
+  }, []);
 
   const checkRoundCompletion = useCallback(
     (submissions, roundIdx) => {
@@ -781,8 +835,9 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
   // 15s 超时强制提交
   const handleForceSubmitOnTimeout = useCallback(() => {
-    if (myLocked) return;
-    const curQ = matchQuestions[currentRoundIndex];
+    if (myLockedRef.current) return;
+    const questions = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : TANG_QUESTIONS;
+    const curQ = questions[currentRoundIndexRef.current];
     if (!curQ) return;
 
     const targetLat = curQ.exactLat ?? curQ.center[1];
@@ -792,18 +847,19 @@ export default function TravelBattleGame({ onBackToExplore }) {
     let score = 0;
     let guessCoords = null;
 
-    if (myPin) {
-      dist = calculateDistanceKm(myPin.lat, myPin.lng, targetLat, targetLng);
+    if (myPinRef.current) {
+      dist = calculateDistanceKm(myPinRef.current.lat, myPinRef.current.lng, targetLat, targetLng);
       score = calculateBattleScore(dist);
-      guessCoords = myPin;
+      guessCoords = myPinRef.current;
     }
 
     setMyLocked(true);
+    myLockedRef.current = true;
     sfx.playLock();
 
     const mySubmission = {
       playerId,
-      roundIndex: currentRoundIndex,
+      roundIndex: currentRoundIndexRef.current,
       lat: guessCoords ? guessCoords.lat : null,
       lng: guessCoords ? guessCoords.lng : null,
       dist,
@@ -817,7 +873,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       channelRef.current.send({
         type: "broadcast",
         event: "player_locked",
-        payload: { playerId, roundIndex: currentRoundIndex },
+        payload: { playerId, roundIndex: currentRoundIndexRef.current },
       });
       channelRef.current.send({
         type: "broadcast",
@@ -826,28 +882,30 @@ export default function TravelBattleGame({ onBackToExplore }) {
       });
     }
 
-    checkRoundCompletion(roundSubmissionsRef.current, currentRoundIndex);
-  }, [myLocked, matchQuestions, currentRoundIndex, myPin, playerId, checkRoundCompletion]);
+    checkRoundCompletion(roundSubmissionsRef.current, currentRoundIndexRef.current);
+  }, [playerId, checkRoundCompletion]);
 
   // 玩家主动点击“确认提交锁定”
   const handleLockInGuess = () => {
-    if (myLocked || !myPin) return;
-    const curQ = matchQuestions[currentRoundIndex];
+    if (myLockedRef.current || !myPinRef.current) return;
+    const questions = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : TANG_QUESTIONS;
+    const curQ = questions[currentRoundIndexRef.current];
     if (!curQ) return;
 
     setMyLocked(true);
+    myLockedRef.current = true;
     sfx.playLock();
 
     const targetLat = curQ.exactLat ?? curQ.center[1];
     const targetLng = curQ.exactLng ?? curQ.center[0];
-    const dist = calculateDistanceKm(myPin.lat, myPin.lng, targetLat, targetLng);
+    const dist = calculateDistanceKm(myPinRef.current.lat, myPinRef.current.lng, targetLat, targetLng);
     const score = calculateBattleScore(dist);
 
     const mySubmission = {
       playerId,
-      roundIndex: currentRoundIndex,
-      lat: myPin.lat,
-      lng: myPin.lng,
+      roundIndex: currentRoundIndexRef.current,
+      lat: myPinRef.current.lat,
+      lng: myPinRef.current.lng,
       dist,
       score,
     };
@@ -860,7 +918,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       channelRef.current.send({
         type: "broadcast",
         event: "player_locked",
-        payload: { playerId, roundIndex: currentRoundIndex },
+        payload: { playerId, roundIndex: currentRoundIndexRef.current },
       });
 
       // 广播通知：B. 发送自己的成绩数据
@@ -872,7 +930,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
     }
 
     // 检查对手是否在之前就已经交卷了
-    checkRoundCompletion(roundSubmissionsRef.current, currentRoundIndex);
+    checkRoundCompletion(roundSubmissionsRef.current, currentRoundIndexRef.current);
   };
 
   // 自动倒计时进入下一题
@@ -890,40 +948,129 @@ export default function TravelBattleGame({ onBackToExplore }) {
     };
   }, [gameState, autoAdvanceSec]);
 
-  // 本地执行切题
-  const advanceToNextRoundLocally = useCallback(() => {
+  // 本地切题/终局控制 (彻底杜绝第一局结束误判 GAME_OVER 的 Bug)
+  const advanceToRound = useCallback((targetRoundIdx) => {
     if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
     setAutoAdvanceSec(null);
 
-    setCurrentRoundIndex((prev) => {
-      if (prev + 1 < matchQuestions.length) {
-        setMyPin(null);
-        setMyLocked(false);
-        setOpponentLocked(false);
-        setUrgentSeconds(null);
-        setUrgentTriggeredBy(null);
-        setRoundResult(null);
-        roundSubmissionsRef.current = {};
-        setGameState("PLAYING");
-        return prev + 1;
-      } else {
-        setGameState("GAME_OVER");
-        sfx.playVictory();
-        return prev;
-      }
-    });
-  }, [matchQuestions.length]);
+    const totalRounds = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current.length : 10;
+    const nextIdx = targetRoundIdx !== undefined ? targetRoundIdx : currentRoundIndexRef.current + 1;
+
+    if (nextIdx >= totalRounds) {
+      // 10 题全部完成，进入终局大结算
+      updateGameState("GAME_OVER");
+      sfx.playVictory();
+      return;
+    }
+
+    // 防抖与去重：如果当前已经处于该目标回合且正在答题，避免由于双方重复广播导致重复跳题
+    if (currentRoundIndexRef.current === nextIdx && gameStateRef.current === "PLAYING") {
+      return;
+    }
+
+    updateRoundIndex(nextIdx);
+    setMyPin(null);
+    myPinRef.current = null;
+    setMyLocked(false);
+    myLockedRef.current = false;
+    setOpponentLocked(false);
+    setUrgentSeconds(null);
+    setUrgentTriggeredBy(null);
+    setRoundResult(null);
+    roundSubmissionsRef.current = {};
+    updateGameState("PLAYING");
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+    }
+  }, []);
 
   // 玩家手动或自动点击“进入下一题”
   const handleNextRound = () => {
+    const nextIdx = currentRoundIndexRef.current + 1;
     if (channelRef.current) {
       channelRef.current.send({
         type: "broadcast",
         event: "sync_next_round",
-        payload: { nextRoundIndex: currentRoundIndex + 1 },
+        payload: { nextRoundIndex: nextIdx },
       });
     }
-    advanceToNextRoundLocally();
+    advanceToRound(nextIdx);
+  };
+
+  // 保持事件代理 Ref 在每次渲染时同步为最新引用 (彻底杜绝 Supabase 频道长期运行的闭包失效)
+  handlersRef.current = {
+    onPlayerLocked: (payload) => {
+      if (payload.playerId !== playerId) {
+        setOpponentLocked(true);
+        if (!myLockedRef.current) {
+          setUrgentSeconds(15);
+          setUrgentTriggeredBy("opponent");
+          sfx.playUrgentTick();
+        }
+      }
+    },
+    onRoundSubmit: (payload) => {
+      if (payload.playerId !== playerId) {
+        setOpponentLocked(true);
+        roundSubmissionsRef.current[payload.playerId] = payload;
+        checkRoundCompletion(
+          roundSubmissionsRef.current,
+          payload.roundIndex ?? currentRoundIndexRef.current
+        );
+      }
+    },
+    onSyncNextRound: (payload) => {
+      const targetIdx =
+        typeof payload?.nextRoundIndex === "number"
+          ? payload.nextRoundIndex
+          : currentRoundIndexRef.current + 1;
+      advanceToRound(targetIdx);
+    },
+    onStartGame: (payload) => {
+      const qs = payload.questionIds
+        .map((id) => TANG_QUESTIONS.find((q) => q.id === id))
+        .filter(Boolean);
+      updateMatchQuestions(qs);
+      updateRoundIndex(0);
+      setMyTotalScore(0);
+      setOpponentTotalScore(0);
+      setMatchHistory([]);
+      setMyPin(null);
+      myPinRef.current = null;
+      setMyLocked(false);
+      myLockedRef.current = false;
+      setOpponentLocked(false);
+      setRoundResult(null);
+      roundSubmissionsRef.current = {};
+      updateGameState("PLAYING");
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+      }
+      sfx.playMatchFound();
+    },
+    onRematchStart: (payload) => {
+      const qs = payload.questionIds
+        .map((id) => TANG_QUESTIONS.find((q) => q.id === id))
+        .filter(Boolean);
+      updateMatchQuestions(qs);
+      updateRoundIndex(0);
+      setMyTotalScore(0);
+      setOpponentTotalScore(0);
+      setMatchHistory([]);
+      setMyPin(null);
+      myPinRef.current = null;
+      setMyLocked(false);
+      myLockedRef.current = false;
+      setOpponentLocked(false);
+      setRoundResult(null);
+      roundSubmissionsRef.current = {};
+      updateGameState("PLAYING");
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+      }
+      sfx.playMatchFound();
+    },
   };
 
   // ==========================================================================
@@ -939,15 +1086,19 @@ export default function TravelBattleGame({ onBackToExplore }) {
       setRoomId(targetRoomId);
       setIsHost(amIHost);
       setOpponent(oppObj);
-      setMatchQuestions(questionsArr);
-      setCurrentRoundIndex(0);
+      updateMatchQuestions(questionsArr);
+      updateRoundIndex(0);
       setMyTotalScore(0);
       setOpponentTotalScore(0);
       setMatchHistory([]);
       setMyPin(null);
+      myPinRef.current = null;
       setMyLocked(false);
+      myLockedRef.current = false;
       setOpponentLocked(false);
       setUrgentSeconds(null);
+      setUrgentTriggeredBy(null);
+      setRoundResult(null);
       roundSubmissionsRef.current = {};
 
       const channel = supabase.channel(`travel_battle_room_${targetRoomId}`, {
@@ -957,55 +1108,22 @@ export default function TravelBattleGame({ onBackToExplore }) {
         },
       });
 
-      // 注册所有广播监听 (必须在 subscribe 之前)
+      // 注册所有广播监听 (代理到 handlersRef，保证永远执行最新逻辑)
       channel
         .on("broadcast", { event: "player_locked" }, ({ payload }) => {
-          if (payload.playerId !== playerId) {
-            setOpponentLocked(true);
-            setMyLocked((alreadyLocked) => {
-              if (!alreadyLocked) {
-                setUrgentSeconds(15);
-                setUrgentTriggeredBy("opponent");
-                sfx.playUrgentTick();
-              }
-              return alreadyLocked;
-            });
-          }
+          handlersRef.current.onPlayerLocked?.(payload);
         })
         .on("broadcast", { event: "round_submit" }, ({ payload }) => {
-          if (payload.playerId !== playerId) {
-            setOpponentLocked(true);
-            roundSubmissionsRef.current[payload.playerId] = payload;
-            checkRoundCompletion(roundSubmissionsRef.current, payload.roundIndex);
-          }
+          handlersRef.current.onRoundSubmit?.(payload);
         })
-        .on("broadcast", { event: "sync_next_round" }, () => {
-          advanceToNextRoundLocally();
+        .on("broadcast", { event: "sync_next_round" }, ({ payload }) => {
+          handlersRef.current.onSyncNextRound?.(payload);
         })
         .on("broadcast", { event: "start_game" }, ({ payload }) => {
-          const qs = payload.questionIds
-            .map((id) => TANG_QUESTIONS.find((q) => q.id === id))
-            .filter(Boolean);
-          setMatchQuestions(qs);
-          setGameState("PLAYING");
-          sfx.playMatchFound();
+          handlersRef.current.onStartGame?.(payload);
         })
         .on("broadcast", { event: "rematch_start" }, ({ payload }) => {
-          const qs = payload.questionIds
-            .map((id) => TANG_QUESTIONS.find((q) => q.id === id))
-            .filter(Boolean);
-          setMatchQuestions(qs);
-          setCurrentRoundIndex(0);
-          setMyTotalScore(0);
-          setOpponentTotalScore(0);
-          setMatchHistory([]);
-          setMyPin(null);
-          setMyLocked(false);
-          setOpponentLocked(false);
-          setRoundResult(null);
-          roundSubmissionsRef.current = {};
-          setGameState("PLAYING");
-          sfx.playMatchFound();
+          handlersRef.current.onRematchStart?.(payload);
         })
         // 注册在场状态监听 (好友加入 / 房主发现好友 / 对手断线)
         .on("presence", { event: "sync" }, () => {
@@ -1044,14 +1162,14 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
       channelRef.current = channel;
     },
-    [playerId, playerName, checkRoundCompletion, advanceToNextRoundLocally]
+    [playerId, playerName]
   );
 
   // ==========================================================================
   // 快速随机匹配机制 (Matchmaking Lobby)
   // ==========================================================================
   const startQuickMatch = () => {
-    setGameState("MATCHING");
+    updateGameState("MATCHING");
 
     if (lobbyChannelRef.current) {
       supabase.removeChannel(lobbyChannelRef.current);
@@ -1098,7 +1216,10 @@ export default function TravelBattleGame({ onBackToExplore }) {
             supabase.removeChannel(lobby);
             lobbyChannelRef.current = null;
             setupRoomChannel(newRoomId, true, chosen10, { id: p2.playerId, name: p2.playerName });
-            setGameState("PLAYING");
+            updateGameState("PLAYING");
+            if (mapInstanceRef.current) {
+              mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+            }
             sfx.playMatchFound();
           }
         }
@@ -1114,7 +1235,10 @@ export default function TravelBattleGame({ onBackToExplore }) {
             id: payload.hostId,
             name: payload.hostName,
           });
-          setGameState("PLAYING");
+          updateGameState("PLAYING");
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+          }
           sfx.playMatchFound();
         }
       })
@@ -1132,7 +1256,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       supabase.removeChannel(lobbyChannelRef.current);
       lobbyChannelRef.current = null;
     }
-    setGameState("LOBBY");
+    updateGameState("LOBBY");
   };
 
   // ==========================================================================
@@ -1141,8 +1265,9 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const createFriendRoom = () => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const chosen10 = pick10TangQuestions();
+    matchQuestionsRef.current = chosen10;
     setupRoomChannel(code, true, chosen10, null);
-    setGameState("ROOM_WAITING");
+    updateGameState("ROOM_WAITING");
   };
 
   const joinFriendRoom = () => {
@@ -1152,7 +1277,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       return;
     }
     setupRoomChannel(code, false, [], null);
-    setGameState("ROOM_WAITING");
+    updateGameState("ROOM_WAITING");
   };
 
   const startFriendMatchAsHost = () => {
@@ -1161,13 +1286,27 @@ export default function TravelBattleGame({ onBackToExplore }) {
       return;
     }
     if (channelRef.current) {
-      const qIds = matchQuestions.map((q) => q.id);
+      const qIds = matchQuestionsRef.current.map((q) => q.id);
       channelRef.current.send({
         type: "broadcast",
         event: "start_game",
         payload: { questionIds: qIds },
       });
-      setGameState("PLAYING");
+      updateRoundIndex(0);
+      setMyTotalScore(0);
+      setOpponentTotalScore(0);
+      setMatchHistory([]);
+      setMyPin(null);
+      myPinRef.current = null;
+      setMyLocked(false);
+      myLockedRef.current = false;
+      setOpponentLocked(false);
+      setRoundResult(null);
+      roundSubmissionsRef.current = {};
+      updateGameState("PLAYING");
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+      }
       sfx.playMatchFound();
     }
   };
@@ -1190,17 +1329,22 @@ export default function TravelBattleGame({ onBackToExplore }) {
         event: "rematch_start",
         payload: { questionIds },
       });
-      setMatchQuestions(new10);
-      setCurrentRoundIndex(0);
+      updateMatchQuestions(new10);
+      updateRoundIndex(0);
       setMyTotalScore(0);
       setOpponentTotalScore(0);
       setMatchHistory([]);
       setMyPin(null);
+      myPinRef.current = null;
       setMyLocked(false);
+      myLockedRef.current = false;
       setOpponentLocked(false);
       setRoundResult(null);
       roundSubmissionsRef.current = {};
-      setGameState("PLAYING");
+      updateGameState("PLAYING");
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+      }
       sfx.playMatchFound();
     }
   };
@@ -1214,12 +1358,25 @@ export default function TravelBattleGame({ onBackToExplore }) {
       supabase.removeChannel(lobbyChannelRef.current);
       lobbyChannelRef.current = null;
     }
-    setGameState("LOBBY");
+    updateGameState("LOBBY");
     setRoomId("");
     setOpponent(null);
+    updateMatchQuestions([]);
+    updateRoundIndex(0);
+    setMyTotalScore(0);
+    setOpponentTotalScore(0);
+    setMatchHistory([]);
+    setMyPin(null);
+    myPinRef.current = null;
+    setMyLocked(false);
+    myLockedRef.current = false;
+    setOpponentLocked(false);
+    setRoundResult(null);
+    roundSubmissionsRef.current = {};
   };
 
-  const currentQ = matchQuestions[currentRoundIndex] || null;
+  const questionsList = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : matchQuestions;
+  const currentQ = questionsList[currentRoundIndex] || null;
 
   return (
     <div className="battle-master-wrapper">
@@ -1522,7 +1679,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
             {/* 回合数 */}
             <div className="battle-round-badge">
               <Sparkles size={16} color="#f97316" />
-              第 {currentRoundIndex + 1} / {matchQuestions.length} 题
+              第 {currentRoundIndex + 1} / {matchQuestionsRef.current.length || matchQuestions.length || 10} 题
             </div>
           </div>
 
@@ -1560,7 +1717,33 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
             {/* 交互地图选点区 */}
             <div className="battle-map-container">
-              <div ref={mapContainerRef} className="battle-leaflet-map" />
+              <div
+                ref={mapContainerRef}
+                className={`battle-leaflet-map ${gameState === "PLAYING" && !myLocked ? "crosshair-cursor" : ""}`}
+              />
+
+              {/* 实景图寻同款：顶部浮动准星指示徽标 */}
+              {gameState === "PLAYING" && !myLocked && (
+                <div className="battle-map-pin-hint-badge">
+                  <Crosshair size={13} />
+                  <span>{myPin ? "点击地图可更换标注位置" : "点击地图任意位置标出预测地点"}</span>
+                </div>
+              )}
+
+              {/* 地图右上角快捷控制按钮区：复位欧洲视角 */}
+              {gameState === "PLAYING" && (
+                <div className="battle-map-overlay-controls">
+                  <button
+                    type="button"
+                    className="battle-map-overlay-btn"
+                    onClick={handleResetMapView}
+                    title="复位地图视角"
+                  >
+                    <RotateCcw size={14} />
+                    <span>复位视角</span>
+                  </button>
+                </div>
+              )}
 
               {/* 选点提示与确认提交按钮 */}
               {gameState === "PLAYING" && (
@@ -1628,7 +1811,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
               <button type="button" className="battle-next-btn" onClick={handleNextRound}>
                 <span>
-                  {currentRoundIndex + 1 < matchQuestions.length
+                  {currentRoundIndex + 1 < (matchQuestionsRef.current.length || matchQuestions.length || 10)
                     ? `进入第 ${currentRoundIndex + 2} 题`
                     : "查看最终赛果"}
                   {autoAdvanceSec !== null && ` (${autoAdvanceSec}s)`}
