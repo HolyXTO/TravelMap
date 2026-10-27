@@ -14,6 +14,7 @@ import {
   Flag,
   Pin,
   PinOff,
+  Swords,
 } from "lucide-react";
 
 export default function LeftSidebarNav({
@@ -204,6 +205,15 @@ export default function LeftSidebarNav({
           icon: MapIcon,
           action: () => {
             if (setActiveGameTab) setActiveGameTab("fill");
+            scrollToPageSection("travel-game-section");
+          },
+        },
+        {
+          id: "game-battle",
+          title: "实时对战",
+          icon: Swords,
+          action: () => {
+            if (setActiveGameTab) setActiveGameTab("battle");
             scrollToPageSection("travel-game-section");
           },
         },

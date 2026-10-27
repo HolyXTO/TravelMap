@@ -39,6 +39,7 @@ import {
   GripVertical,
   ArrowRightLeft,
   CheckCircle2,
+  Swords,
 } from "lucide-react";
 import {
   initialVisits,
@@ -54,6 +55,7 @@ import { supabase } from "./lib/supabase";
 import { defaultTravelNotes } from "./data/defaultNotes";
 import TravelGuessGame from "./TravelGuessGame";
 import MapFillGame from "./MapFillGame";
+import TravelBattleGame from "./TravelBattleGame";
 import LeftSidebarNav from "./LeftSidebarNav";
 import QuestionBankStatsPopover from "./QuestionBankStatsPopover";
 
@@ -4502,11 +4504,23 @@ function App() {
               <MapIcon size={16} />
               <span>地图盲填</span>
             </button>
+            <button
+              type="button"
+              className={`game-nav-tab-btn ${activeGameTab === "battle" ? "is-active" : ""}`}
+              onClick={() => setActiveGameTab("battle")}
+            >
+              <Swords size={16} />
+              <span>实时对战</span>
+            </button>
           </div>
         </div>
 
         {activeGameTab === "fill" ? (
           <MapFillGame />
+        ) : activeGameTab === "battle" ? (
+          <TravelBattleGame
+            onBackToExplore={() => setActiveGameTab("guess")}
+          />
         ) : (
           <TravelGuessGame
             mapPlaces={mapPlaces}
