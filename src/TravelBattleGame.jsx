@@ -199,6 +199,16 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const urgentTimerRef = useRef(null);
   const autoAdvanceTimerRef = useRef(null);
 
+  // 卸载清理通道与定时器
+  useEffect(() => {
+    return () => {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (lobbyChannelRef.current) supabase.removeChannel(lobbyChannelRef.current);
+      if (urgentTimerRef.current) clearTimeout(urgentTimerRef.current);
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+    };
+  }, []);
+
   // 同步静音设置
   useEffect(() => {
     sfx.isMuted = isMuted;
@@ -589,7 +599,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const setupRoomChannel = useCallback(
     (targetRoomId, amIHost, questionsArr, oppObj) => {
       if (channelRef.current) {
-        channelRef.current.unsubscribe();
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
 
       setRoomId(targetRoomId);
@@ -664,13 +675,34 @@ export default function TravelBattleGame({ onBackToExplore }) {
           sfx.playMatchFound();
         });
 
-      // 在场状态监听 (对手断线提醒)
+      // 在场状态监听 (好友加入 / 房主发现好友 / 对手断线)
       channel
+        .on("presence", { event: "sync" }, () => {
+          const state = channel.presenceState();
+          for (const key in state) {
+            const item = state[key]?.[0];
+            if (item && item.playerId !== playerId) {
+              setOpponent({ id: item.playerId, name: item.playerName });
+            }
+          }
+        })
+        .on("presence", { event: "join" }, ({ newPresences }) => {
+          const opp = newPresences.find((p) => p.playerId !== playerId);
+          if (opp) {
+            setOpponent({ id: opp.playerId, name: opp.playerName });
+          }
+        })
         .on("presence", { event: "leave" }, ({ leftPresences }) => {
           const oppLeft = leftPresences.some((p) => p.playerId !== playerId);
-          if (oppLeft && gameState === "PLAYING") {
-            alert("⚠️ 对手已退出对局！你获得了本场对战的胜利。");
-            setGameState("LOBBY");
+          if (oppLeft) {
+            setOpponent(null);
+            setGameState((curState) => {
+              if (curState === "PLAYING" || curState === "ROUND_REVEAL") {
+                alert("⚠️ 对手已退出对局！你获得了本场对战的胜利。");
+                return "LOBBY";
+              }
+              return curState;
+            });
           }
         })
         .subscribe((status) => {
@@ -681,7 +713,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
       channelRef.current = channel;
     },
-    [playerId, playerName, gameState, checkAndRevealRound]
+    [playerId, playerName, checkAndRevealRound]
   );
 
   // ==========================================================================
@@ -768,7 +800,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
   const cancelQuickMatch = () => {
     if (lobbyChannelRef.current) {
-      lobbyChannelRef.current.unsubscribe();
+      supabase.removeChannel(lobbyChannelRef.current);
       lobbyChannelRef.current = null;
     }
     setGameState("LOBBY");
@@ -782,16 +814,6 @@ export default function TravelBattleGame({ onBackToExplore }) {
     const chosen10 = pick10TangQuestions();
     setupRoomChannel(code, true, chosen10, null);
     setGameState("ROOM_WAITING");
-
-    // 监听好友加入
-    if (channelRef.current) {
-      channelRef.current.on("presence", { event: "join" }, ({ newPresences }) => {
-        const guest = newPresences.find((p) => p.playerId !== playerId);
-        if (guest) {
-          setOpponent({ id: guest.playerId, name: guest.playerName });
-        }
-      });
-    }
   };
 
   const joinFriendRoom = () => {
@@ -802,19 +824,6 @@ export default function TravelBattleGame({ onBackToExplore }) {
     }
     setupRoomChannel(code, false, [], null);
     setGameState("ROOM_WAITING");
-
-    // 监听房主发来的开始游戏信令
-    if (channelRef.current) {
-      channelRef.current.on("presence", { event: "sync" }, () => {
-        const state = channelRef.current.presenceState();
-        for (const key in state) {
-          const item = state[key]?.[0];
-          if (item && item.playerId !== playerId) {
-            setOpponent({ id: item.playerId, name: item.playerName });
-          }
-        }
-      });
-    }
   };
 
   const startFriendMatchAsHost = () => {
@@ -868,8 +877,12 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
   const returnToLobby = () => {
     if (channelRef.current) {
-      channelRef.current.unsubscribe();
+      supabase.removeChannel(channelRef.current);
       channelRef.current = null;
+    }
+    if (lobbyChannelRef.current) {
+      supabase.removeChannel(lobbyChannelRef.current);
+      lobbyChannelRef.current = null;
     }
     setGameState("LOBBY");
     setRoomId("");
