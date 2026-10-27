@@ -845,3 +845,27 @@
   background: #16a34a;
   border: 1.5px solid #ffffff;
 }
+
+/* 对手针式插旗标签 (与实景图寻 needle-pin-label 融合) */
+.needle-pin-label.opponent {
+  background: rgba(2, 132, 199, 0.95);
+  color: #ffffff;
+}
+
+/* 滚轮缩放浮动提示 */
+.battle-photo-container .photo-wheel-hint {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  color: #e2e8f0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 10;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+

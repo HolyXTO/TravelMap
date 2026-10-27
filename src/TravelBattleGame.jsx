@@ -12,13 +12,12 @@ import {
   VolumeX,
   Eye,
   ArrowRight,
-  ChevronRight,
   ShieldAlert,
   Sparkles,
-  MapPin,
-  Flame,
   Home,
   UserCheck,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -56,6 +55,18 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
   return Math.round(R * c * 10) / 10;
 }
 
+// 格式化距离显示
+function formatDistance(distKm) {
+  if (!Number.isFinite(distKm)) return "未作答";
+  if (distKm < 1.0) {
+    return `${Math.round(distKm * 1000)} 米`;
+  }
+  if (distKm >= 100) {
+    return `${Math.round(distKm)} 公里`;
+  }
+  return `${distKm.toFixed(1)} 公里`;
+}
+
 // 国际版指数衰减计分公式 (满分 5,000 分，参数 D = 14916.862)
 function calculateBattleScore(distanceKm) {
   if (!Number.isFinite(distanceKm) || distanceKm < 0) return 0;
@@ -76,7 +87,312 @@ function pick10TangQuestions() {
   return pool.slice(0, 10);
 }
 
-// Web Audio API 游戏音效合成器 (零外链加载，高稳定)
+// =========================================================================
+// GeoGuessr 针式图钉图标定义 (与实景图寻 100% 保持一致视觉设计)
+// =========================================================================
+
+// 玩家自己的插旗 (金黄色针式图钉)
+function createGuessPinIcon() {
+  return L.divIcon({
+    className: "game-div-icon-wrapper",
+    html: `
+      <div class="geoguessr-needle-pin guess">
+        <div class="pin-head-bubble">
+          <svg width="38" height="50" viewBox="0 0 38 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="battle-pin-drop-shadow" x="-30%" y="-20%" width="160%" height="150%">
+                <feDropShadow dx="0" dy="5" stdDeviation="3.5" flood-color="rgba(0,0,0,0.4)" />
+              </filter>
+              <linearGradient id="battle-guess-pin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fbbf24" />
+                <stop offset="100%" stop-color="#d97706" />
+              </linearGradient>
+            </defs>
+            <path d="M19 48 C19 48, 35 30, 35 19 C35 10.163, 27.837 3, 19 3 C10.163 3, 3 10.163, 3 19 C3 30, 19 48, 19 48 Z" fill="url(#battle-guess-pin-grad)" stroke="#ffffff" stroke-width="2.5" filter="url(#battle-pin-drop-shadow)" />
+            <circle cx="19" cy="19" r="8" fill="#ffffff" />
+            <circle cx="19" cy="19" r="4.5" fill="#d97706" />
+          </svg>
+          <div class="needle-pin-label">您的插旗</div>
+        </div>
+        <div class="needle-ground-shadow"></div>
+      </div>
+    `,
+    iconSize: [38, 50],
+    iconAnchor: [19, 48],
+  });
+}
+
+// 对手的插旗 (冰蓝色针式图钉)
+function createOpponentPinIcon(oppName) {
+  return L.divIcon({
+    className: "game-div-icon-wrapper",
+    html: `
+      <div class="geoguessr-needle-pin opponent">
+        <div class="pin-head-bubble">
+          <svg width="38" height="50" viewBox="0 0 38 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="battle-opp-drop-shadow" x="-30%" y="-20%" width="160%" height="150%">
+                <feDropShadow dx="0" dy="5" stdDeviation="3.5" flood-color="rgba(0,0,0,0.4)" />
+              </filter>
+              <linearGradient id="battle-opp-pin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#38bdf8" />
+                <stop offset="100%" stop-color="#0284c7" />
+              </linearGradient>
+            </defs>
+            <path d="M19 48 C19 48, 35 30, 35 19 C35 10.163, 27.837 3, 19 3 C10.163 3, 3 10.163, 3 19 C3 30, 19 48, 19 48 Z" fill="url(#battle-opp-pin-grad)" stroke="#ffffff" stroke-width="2.5" filter="url(#battle-opp-drop-shadow)" />
+            <circle cx="19" cy="19" r="8" fill="#ffffff" />
+            <circle cx="19" cy="19" r="4.5" fill="#0284c7" />
+          </svg>
+          <div class="needle-pin-label opponent">${oppName || "对手插旗"}</div>
+        </div>
+        <div class="needle-ground-shadow"></div>
+      </div>
+    `,
+    iconSize: [38, 50],
+    iconAnchor: [19, 48],
+  });
+}
+
+// 目标真实拍摄点 (翡翠绿针式图钉，带雷达波纹)
+function createTargetPinIcon(cityName) {
+  return L.divIcon({
+    className: "game-div-icon-wrapper",
+    html: `
+      <div class="geoguessr-needle-pin target">
+        <div class="pin-head-bubble target">
+          <svg width="38" height="50" viewBox="0 0 38 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="battle-target-drop-shadow" x="-30%" y="-20%" width="160%" height="150%">
+                <feDropShadow dx="0" dy="5" stdDeviation="3.5" flood-color="rgba(0,0,0,0.4)" />
+              </filter>
+              <linearGradient id="battle-target-pin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#34d399" />
+                <stop offset="100%" stop-color="#059669" />
+              </linearGradient>
+            </defs>
+            <path d="M19 48 C19 48, 35 30, 35 19 C35 10.163, 27.837 3, 19 3 C10.163 3, 3 10.163, 3 19 C3 30, 19 48, 19 48 Z" fill="url(#battle-target-pin-grad)" stroke="#ffffff" stroke-width="2.5" filter="url(#battle-target-drop-shadow)" />
+            <circle cx="19" cy="19" r="8.5" fill="#ffffff" />
+            <circle cx="19" cy="19" r="5" fill="#059669" />
+            <circle cx="19" cy="19" r="2" fill="#ffffff" />
+          </svg>
+          <div class="needle-pin-label target">真实位置 · ${cityName || "实际拍摄地"}</div>
+        </div>
+        <div class="target-ground-ripple"></div>
+        <div class="target-ground-ripple delayed"></div>
+      </div>
+    `,
+    iconSize: [38, 50],
+    iconAnchor: [19, 48],
+  });
+}
+
+// 连线中点距离与得分标签
+function createDistanceBadgeIcon(distKm, score) {
+  return L.divIcon({
+    className: "game-distance-label-wrapper",
+    html: `
+      <div class="geoguessr-midpoint-badge">
+        <span class="mid-dist">📏 误差 ${formatDistance(distKm)}</span>
+        <span class="mid-score">+${score.toLocaleString()}分</span>
+      </div>
+    `,
+    iconSize: [0, 0],
+  });
+}
+
+// =========================================================================
+// 交互式滚轮缩放与平移看图组件 (与实景图寻 InteractivePhotoZoomer 对齐)
+// =========================================================================
+function BattlePhotoZoomer({ photoUrl, photoUrlHd, alt }) {
+  const containerRef = useRef(null);
+  const [scale, setScale] = useState(1.0);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const translateStartRef = useRef({ x: 0, y: 0 });
+  const [isHdLoaded, setIsHdLoaded] = useState(false);
+
+  // 预加载高清大图
+  useEffect(() => {
+    setIsHdLoaded(false);
+    setScale(1.0);
+    setTranslate({ x: 0, y: 0 });
+
+    if (!photoUrlHd) return;
+    const img = new Image();
+    img.src = photoUrlHd;
+    img.onload = () => setIsHdLoaded(true);
+  }, [photoUrl, photoUrlHd]);
+
+  // 非被动 wheel 监听器，支持中心相对缩放
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onWheel = (e) => {
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const offsetX = mouseX - centerX;
+      const offsetY = mouseY - centerY;
+      const zoomFactor = e.deltaY < 0 ? 1.18 : 0.85;
+
+      setScale((currentScale) => {
+        const nextScale = Math.min(6.0, Math.max(1.0, currentScale * zoomFactor));
+        if (nextScale <= 1.01) {
+          setTranslate({ x: 0, y: 0 });
+          return 1.0;
+        }
+
+        const deltaRatio = nextScale / currentScale - 1;
+        setTranslate((prevTranslate) => {
+          const nextX = prevTranslate.x - offsetX * deltaRatio;
+          const nextY = prevTranslate.y - offsetY * deltaRatio;
+          const maxTranslateX = Math.max(0, (rect.width * (nextScale - 1)) / 2);
+          const maxTranslateY = Math.max(0, (rect.height * (nextScale - 1)) / 2);
+
+          return {
+            x: Math.max(-maxTranslateX, Math.min(maxTranslateX, nextX)),
+            y: Math.max(-maxTranslateY, Math.min(maxTranslateY, nextY)),
+          };
+        });
+
+        return nextScale;
+      });
+    };
+
+    container.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", onWheel);
+    };
+  }, []);
+
+  const handleMouseDown = (e) => {
+    if (scale <= 1.0 || e.button !== 0) return;
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    translateStartRef.current = { ...translate };
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || scale <= 1.0) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    const rect = containerRef.current?.getBoundingClientRect();
+    const maxTranslateX = rect ? Math.max(0, (rect.width * (scale - 1)) / 2) : 1000;
+    const maxTranslateY = rect ? Math.max(0, (rect.height * (scale - 1)) / 2) : 1000;
+
+    setTranslate({
+      x: Math.max(-maxTranslateX, Math.min(maxTranslateX, translateStartRef.current.x + dx)),
+      y: Math.max(-maxTranslateY, Math.min(maxTranslateY, translateStartRef.current.y + dy)),
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleDoubleClick = (e) => {
+    if (scale > 1.2) {
+      setScale(1.0);
+      setTranslate({ x: 0, y: 0 });
+    } else {
+      const rect = containerRef.current.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const offsetX = e.clientX - rect.left - centerX;
+      const offsetY = e.clientY - rect.top - centerY;
+      const nextScale = 2.5;
+      const deltaRatio = nextScale - 1.0;
+
+      const maxTranslateX = Math.max(0, (rect.width * (nextScale - 1)) / 2);
+      const maxTranslateY = Math.max(0, (rect.height * (nextScale - 1)) / 2);
+
+      setScale(nextScale);
+      setTranslate({
+        x: Math.max(-maxTranslateX, Math.min(maxTranslateX, -offsetX * deltaRatio)),
+        y: Math.max(-maxTranslateY, Math.min(maxTranslateY, -offsetY * deltaRatio)),
+      });
+    }
+  };
+
+  const stepZoom = (direction) => {
+    setScale((current) => {
+      const factor = direction > 0 ? 1.4 : 0.72;
+      const next = Math.min(6.0, Math.max(1.0, current * factor));
+      if (next <= 1.01) {
+        setTranslate({ x: 0, y: 0 });
+        return 1.0;
+      }
+      return next;
+    });
+  };
+
+  const resetZoom = () => {
+    setScale(1.0);
+    setTranslate({ x: 0, y: 0 });
+  };
+
+  const activeSrc = isHdLoaded && scale > 1.6 ? photoUrlHd || photoUrl : photoUrl;
+
+  return (
+    <div
+      className={`game-photo-viewport ${scale > 1.0 ? "zoomed" : ""} ${
+        isDragging ? "dragging" : ""
+      }`}
+      ref={containerRef}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onDoubleClick={handleDoubleClick}
+      style={{ width: "100%", height: "100%", position: "relative" }}
+    >
+      <div
+        className="game-photo-transform-layer"
+        style={{
+          transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+          transformOrigin: "center center",
+          transition: isDragging ? "none" : "transform 0.15s cubic-bezier(0.2, 0, 0, 1)",
+        }}
+      >
+        <img src={activeSrc} alt={alt} className="game-photo-render" draggable={false} />
+      </div>
+
+      <div className="game-photo-hud">
+        <div className="photo-hud-badge">
+          <span>{Math.round(scale * 100)}%</span>
+          {scale > 1.6 && <span className="hd-tag">4K高清</span>}
+        </div>
+        <div className="photo-hud-buttons">
+          <button type="button" onClick={() => stepZoom(1)} title="放大 (+)">
+            <ZoomIn size={14} />
+          </button>
+          <button type="button" onClick={() => stepZoom(-1)} title="缩小 (-)">
+            <ZoomOut size={14} />
+          </button>
+          {scale > 1.01 && (
+            <button type="button" onClick={resetZoom} title="复位 (1x)" className="reset-btn">
+              1x
+            </button>
+          )}
+        </div>
+      </div>
+
+      {scale <= 1.01 && (
+        <div className="photo-wheel-hint">
+          <span>🖱️ 鼠标滚轮缩放细节 · 拖拽平移</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Web Audio API 游戏音效合成器
 class SoundFx {
   constructor() {
     this.ctx = null;
@@ -105,7 +421,7 @@ class SoundFx {
       osc.start();
       osc.stop(this.ctx.currentTime + duration);
     } catch {
-      // Ignore audio context errors
+      // Ignore audio errors
     }
   }
   playMatchFound() {
@@ -155,12 +471,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const [isMuted, setIsMuted] = useState(false);
 
   // 游戏全局阶段状态:
-  // LOBBY: 大厅 (选择匹配 / 好友房间)
-  // MATCHING: 快速匹配中 (雷达动画)
-  // ROOM_WAITING: 私人房间等待对手加入
-  // PLAYING: 10 题对决进行中
-  // ROUND_REVEAL: 回合揭晓双方点位与得分
-  // GAME_OVER: 10 题终局胜负大结算
+  // LOBBY / MATCHING / ROOM_WAITING / PLAYING / ROUND_REVEAL / GAME_OVER
   const [gameState, setGameState] = useState("LOBBY");
 
   // 房间与对战元数据
@@ -176,21 +487,19 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const [myLocked, setMyLocked] = useState(false);
   const [opponentLocked, setOpponentLocked] = useState(false);
   const [urgentSeconds, setUrgentSeconds] = useState(null); // 15s 倒计时
-  const [urgentTriggeredBy, setUrgentTriggeredBy] = useState(null); // 'opponent' 或 null
+  const [urgentTriggeredBy, setUrgentTriggeredBy] = useState(null);
 
   // 回合与全局累计比分
   const [myTotalScore, setMyTotalScore] = useState(0);
   const [opponentTotalScore, setOpponentTotalScore] = useState(0);
-  const [roundResult, setRoundResult] = useState(null); // 当前回合揭晓详情
-  const [matchHistory, setMatchHistory] = useState([]); // 10 回合复盘列表
+  const [roundResult, setRoundResult] = useState(null);
+  const [matchHistory, setMatchHistory] = useState([]);
 
-  // 图片高清切换与查看
-  const [isHdPhoto, setIsHdPhoto] = useState(false);
-  const [showFullPhoto, setShowFullPhoto] = useState(false);
+  // 复制与自动倒计时状态
   const [copiedLink, setCopiedLink] = useState(false);
   const [autoAdvanceSec, setAutoAdvanceSec] = useState(null);
 
-  // 引用与定时器
+  // 关键 Ref 引用 (用于避免广播时序竞争和状态闭包问题)
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerGroupRef = useRef(null);
@@ -198,6 +507,9 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const lobbyChannelRef = useRef(null);
   const urgentTimerRef = useRef(null);
   const autoAdvanceTimerRef = useRef(null);
+
+  // 关键：存放当前回合双方的提交数据 { [playerId]: { playerId, roundIndex, lat, lng, dist, score } }
+  const roundSubmissionsRef = useRef({});
 
   // 卸载清理通道与定时器
   useEffect(() => {
@@ -252,7 +564,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
     if (!mapContainerRef.current) return;
 
     if (!mapInstanceRef.current) {
-      // 默认视角定在欧洲中部 (Tang 精选欧洲题库)
+      // 视角定在欧洲中部 (Tang 精选欧洲题库)
       const map = L.map(mapContainerRef.current, {
         center: [48.8566, 2.3522],
         zoom: 4,
@@ -279,9 +591,9 @@ export default function TravelBattleGame({ onBackToExplore }) {
       const markerGroup = L.featureGroup().addTo(map);
       markerGroupRef.current = markerGroup;
 
-      // 玩家点击地图选点
+      // 玩家点击地图放置图钉
       map.on("click", (e) => {
-        if (myLocked) return; // 已锁定答案不能再修改
+        if (myLocked) return; // 锁定后不可再修改
         const { lat, lng } = e.latlng;
         setMyPin({ lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 });
       });
@@ -298,7 +610,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
   }, [gameState, myLocked]);
 
   // ==========================================================================
-  // 地图标记渲染 (选点标点 与 揭晓双方对比线)
+  // 地图标记渲染 (选点标记 与 回合揭晓同屏对比)
   // ==========================================================================
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -307,212 +619,93 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
     markerGroup.clearLayers();
 
-    // 1. 游戏中阶段：仅显示自己当前的预测点
+    // 1. 游戏中阶段：显示自己当前的金色针式图钉 (与实景图寻一致)
     if (gameState === "PLAYING" && myPin) {
-      const myIcon = L.divIcon({
-        className: "battle-div-icon",
-        html: `
-          <div style="position:relative; transform:translate(-50%, -100%); display:flex; flex-direction:column; align-items:center;">
-            <div class="battle-pin-label you">你 (${playerName})</div>
-            <div style="width:16px; height:16px; background:#dc2626; border:3px solid #ffffff; border-radius:50%; box-shadow:0 0 10px rgba(220,38,38,0.6);"></div>
-            <div style="width:2px; height:8px; background:#dc2626;"></div>
-          </div>
-        `,
-        iconSize: [0, 0],
-      });
-      L.marker([myPin.lat, myPin.lng], { icon: myIcon }).addTo(markerGroup);
+      L.marker([myPin.lat, myPin.lng], {
+        icon: createGuessPinIcon(),
+        draggable: !myLocked,
+        zIndexOffset: 1500,
+      }).addTo(markerGroup);
     }
 
-    // 2. 回合揭晓阶段：同时绘制 目标点、你的点、对手的点 与 连线
+    // 2. 回合揭晓阶段：同时绘制 目标真实针式图钉、你的插旗、对手插旗、中点得分与虚线
     if (gameState === "ROUND_REVEAL" && roundResult) {
       const { targetLat, targetLng, myGuess, oppGuess, targetCity } = roundResult;
       const boundsPoints = [[targetLat, targetLng]];
 
-      // A. 目标真实点 (金色/绿色 旗帜标)
-      const targetIcon = L.divIcon({
-        className: "battle-div-icon",
-        html: `
-          <div style="position:relative; transform:translate(-50%, -100%); display:flex; flex-direction:column; align-items:center;">
-            <div class="battle-pin-label target">🎯 ${targetCity || "真实位置"}</div>
-            <div style="width:20px; height:20px; background:#16a34a; border:3px solid #ffffff; border-radius:50%; box-shadow:0 0 12px rgba(22,163,74,0.8);"></div>
-            <div style="width:2px; height:10px; background:#16a34a;"></div>
-          </div>
-        `,
-        iconSize: [0, 0],
+      // A. 目标真实点 (翡翠绿针式图钉 + 雷达波纹动画)
+      const targetMarker = L.marker([targetLat, targetLng], {
+        icon: createTargetPinIcon(targetCity),
+        zIndexOffset: 2000,
       });
-      L.marker([targetLat, targetLng], { icon: targetIcon, zIndexOffset: 2000 }).addTo(markerGroup);
+      markerGroup.addLayer(targetMarker);
 
-      // B. 你的预测点 (红色)
+      // B. 你的预测插旗 (金黄色针式图钉)
       if (myGuess && myGuess.lat !== null) {
         boundsPoints.push([myGuess.lat, myGuess.lng]);
-        const myIcon = L.divIcon({
-          className: "battle-div-icon",
-          html: `
-            <div style="position:relative; transform:translate(-50%, -100%); display:flex; flex-direction:column; align-items:center;">
-              <div class="battle-pin-label you">你: ${myGuess.dist}km (+${myGuess.score}分)</div>
-              <div style="width:16px; height:16px; background:#dc2626; border:3px solid #ffffff; border-radius:50%;"></div>
-            </div>
-          `,
-          iconSize: [0, 0],
+        const myMarker = L.marker([myGuess.lat, myGuess.lng], {
+          icon: createGuessPinIcon(),
+          zIndexOffset: 1500,
         });
-        L.marker([myGuess.lat, myGuess.lng], { icon: myIcon, zIndexOffset: 1500 }).addTo(markerGroup);
+        markerGroup.addLayer(myMarker);
 
-        // 连线
+        // 连线与中点距离徽章
         L.polyline([[myGuess.lat, myGuess.lng], [targetLat, targetLng]], {
-          color: "#dc2626",
+          color: "#d97706",
           dashArray: "6, 6",
-          weight: 3,
-          opacity: 0.85,
+          weight: 3.5,
+          opacity: 0.9,
+        }).addTo(markerGroup);
+
+        const midLat = (myGuess.lat + targetLat) / 2;
+        const midLng = (myGuess.lng + targetLng) / 2;
+        L.marker([midLat, midLng], {
+          icon: createDistanceBadgeIcon(myGuess.dist, myGuess.score),
+          zIndexOffset: 1800,
         }).addTo(markerGroup);
       }
 
-      // C. 对手的预测点 (蓝色)
+      // C. 对手的预测插旗 (冰蓝色针式图钉)
       if (oppGuess && oppGuess.lat !== null) {
         boundsPoints.push([oppGuess.lat, oppGuess.lng]);
-        const oppIcon = L.divIcon({
-          className: "battle-div-icon",
-          html: `
-            <div style="position:relative; transform:translate(-50%, -100%); display:flex; flex-direction:column; align-items:center;">
-              <div class="battle-pin-label opponent">${opponent?.name || "对手"}: ${oppGuess.dist}km (+${oppGuess.score}分)</div>
-              <div style="width:16px; height:16px; background:#2563eb; border:3px solid #ffffff; border-radius:50%;"></div>
-            </div>
-          `,
-          iconSize: [0, 0],
+        const oppMarker = L.marker([oppGuess.lat, oppGuess.lng], {
+          icon: createOpponentPinIcon(opponent?.name),
+          zIndexOffset: 1400,
         });
-        L.marker([oppGuess.lat, oppGuess.lng], { icon: oppIcon, zIndexOffset: 1400 }).addTo(markerGroup);
+        markerGroup.addLayer(oppMarker);
 
-        // 连线
+        // 连线与中点距离徽章
         L.polyline([[oppGuess.lat, oppGuess.lng], [targetLat, targetLng]], {
-          color: "#2563eb",
+          color: "#0284c7",
           dashArray: "6, 6",
-          weight: 3,
-          opacity: 0.85,
+          weight: 3.5,
+          opacity: 0.9,
+        }).addTo(markerGroup);
+
+        const midLat2 = (oppGuess.lat + targetLat) / 2;
+        const midLng2 = (oppGuess.lng + targetLng) / 2;
+        L.marker([midLat2, midLng2], {
+          icon: createDistanceBadgeIcon(oppGuess.dist, oppGuess.score),
+          zIndexOffset: 1750,
         }).addTo(markerGroup);
       }
 
       // 地图自动自适应聚焦到包含所有点的范围
       if (boundsPoints.length > 1) {
-        map.fitBounds(L.latLngBounds(boundsPoints), { padding: [50, 50], maxZoom: 14 });
+        map.fitBounds(L.latLngBounds(boundsPoints), { padding: [60, 60], maxZoom: 14 });
       }
     }
-  }, [gameState, myPin, roundResult, opponent, playerName]);
+  }, [gameState, myPin, myLocked, roundResult, opponent]);
 
   // ==========================================================================
-  // 回合提交与 15s 绝杀倒计时触发机制
+  // 回合完成判定与成绩揭晓 (彻底修复双方交卷后无法结算的 Bug)
   // ==========================================================================
-  // 倒计时计时器
-  useEffect(() => {
-    if (urgentSeconds === null) return;
-
-    if (urgentSeconds > 0) {
-      urgentTimerRef.current = setTimeout(() => {
-        sfx.playUrgentTick();
-        setUrgentSeconds((prev) => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
-    } else if (urgentSeconds === 0) {
-      // 15 秒绝杀倒计时归零！强制提交！
-      handleForceSubmitOnTimeout();
-    }
-
-    return () => {
-      if (urgentTimerRef.current) clearTimeout(urgentTimerRef.current);
-    };
-  }, [urgentSeconds]);
-
-  // 15s 超时强制提交
-  const handleForceSubmitOnTimeout = useCallback(() => {
-    if (myLocked) return;
-    const curQ = matchQuestions[currentRoundIndex];
-    if (!curQ) return;
-
-    const targetLat = curQ.exactLat ?? curQ.center[1];
-    const targetLng = curQ.exactLng ?? curQ.center[0];
-
-    let dist = 20000;
-    let score = 0;
-    let guessCoords = null;
-
-    if (myPin) {
-      // 如果已点选地图但未按提交，保留所选点
-      dist = calculateDistanceKm(myPin.lat, myPin.lng, targetLat, targetLng);
-      score = calculateBattleScore(dist);
-      guessCoords = myPin;
-    }
-
-    setMyLocked(true);
-    sfx.playLock();
-
-    // 广播自己的提交数据
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: "broadcast",
-        event: "round_submit",
-        payload: {
-          playerId,
-          roundIndex: currentRoundIndex,
-          lat: guessCoords ? guessCoords.lat : null,
-          lng: guessCoords ? guessCoords.lng : null,
-          dist,
-          score,
-        },
-      });
-    }
-  }, [myLocked, matchQuestions, currentRoundIndex, myPin, playerId]);
-
-  // 玩家主动点击“锁定答案”
-  const handleLockInGuess = () => {
-    if (myLocked || !myPin) return;
-    const curQ = matchQuestions[currentRoundIndex];
-    if (!curQ) return;
-
-    setMyLocked(true);
-    sfx.playLock();
-
-    const targetLat = curQ.exactLat ?? curQ.center[1];
-    const targetLng = curQ.exactLng ?? curQ.center[0];
-    const dist = calculateDistanceKm(myPin.lat, myPin.lng, targetLat, targetLng);
-    const score = calculateBattleScore(dist);
-
-    // 广播：A. 告知对手我已交卷 (触发对手 15 秒倒计时)
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: "broadcast",
-        event: "player_locked",
-        payload: {
-          playerId,
-          roundIndex: currentRoundIndex,
-        },
-      });
-
-      // B. 发送自己的成绩数据 (待双方到齐后揭晓)
-      channelRef.current.send({
-        type: "broadcast",
-        event: "round_submit",
-        payload: {
-          playerId,
-          roundIndex: currentRoundIndex,
-          lat: myPin.lat,
-          lng: myPin.lng,
-          dist,
-          score,
-        },
-      });
-    }
-  };
-
-  // 暂存双方本回合成绩并计算揭晓
-  const pendingSubmissionsRef = useRef({});
-
-  const checkAndRevealRound = useCallback(
-    (submissions, roundIdx) => {
+  const triggerRoundReveal = useCallback(
+    (mySub, oppSub, roundIdx) => {
       const curQ = matchQuestions[roundIdx];
       if (!curQ) return;
 
-      const mySub = submissions[playerId];
-      const oppSub = submissions[opponent?.id];
-      if (!mySub || !oppSub) return; // 双方数据未全，继续等待
-
-      // 停止 15s 倒计时
+      // 停止 15s 紧急倒计时
       if (urgentTimerRef.current) clearTimeout(urgentTimerRef.current);
       setUrgentSeconds(null);
       setUrgentTriggeredBy(null);
@@ -547,14 +740,140 @@ export default function TravelBattleGame({ onBackToExplore }) {
       setGameState("ROUND_REVEAL");
       sfx.playReveal();
 
-      // 清空当前回合缓存
-      pendingSubmissionsRef.current = {};
-
-      // 5 秒自动跳转下一题倒计时
+      // 重置本回合缓存并启动 5 秒自动跳转
+      roundSubmissionsRef.current = {};
       setAutoAdvanceSec(5);
     },
-    [matchQuestions, playerId, opponent]
+    [matchQuestions]
   );
+
+  const checkRoundCompletion = useCallback(
+    (submissions, roundIdx) => {
+      const mySub = submissions[playerId];
+      // 匹配非自己的任意玩家提交
+      const oppId = Object.keys(submissions).find((k) => k !== playerId);
+      const oppSub = oppId ? submissions[oppId] : null;
+
+      if (mySub && oppSub) {
+        triggerRoundReveal(mySub, oppSub, roundIdx);
+      }
+    },
+    [playerId, triggerRoundReveal]
+  );
+
+  // 15 秒绝杀倒计时时钟
+  useEffect(() => {
+    if (urgentSeconds === null) return;
+
+    if (urgentSeconds > 0) {
+      urgentTimerRef.current = setTimeout(() => {
+        sfx.playUrgentTick();
+        setUrgentSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    } else if (urgentSeconds === 0) {
+      handleForceSubmitOnTimeout();
+    }
+
+    return () => {
+      if (urgentTimerRef.current) clearTimeout(urgentTimerRef.current);
+    };
+  }, [urgentSeconds]);
+
+  // 15s 超时强制提交
+  const handleForceSubmitOnTimeout = useCallback(() => {
+    if (myLocked) return;
+    const curQ = matchQuestions[currentRoundIndex];
+    if (!curQ) return;
+
+    const targetLat = curQ.exactLat ?? curQ.center[1];
+    const targetLng = curQ.exactLng ?? curQ.center[0];
+
+    let dist = 20000;
+    let score = 0;
+    let guessCoords = null;
+
+    if (myPin) {
+      dist = calculateDistanceKm(myPin.lat, myPin.lng, targetLat, targetLng);
+      score = calculateBattleScore(dist);
+      guessCoords = myPin;
+    }
+
+    setMyLocked(true);
+    sfx.playLock();
+
+    const mySubmission = {
+      playerId,
+      roundIndex: currentRoundIndex,
+      lat: guessCoords ? guessCoords.lat : null,
+      lng: guessCoords ? guessCoords.lng : null,
+      dist,
+      score,
+    };
+
+    // 关键：本地立即写入自己数据！
+    roundSubmissionsRef.current[playerId] = mySubmission;
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "player_locked",
+        payload: { playerId, roundIndex: currentRoundIndex },
+      });
+      channelRef.current.send({
+        type: "broadcast",
+        event: "round_submit",
+        payload: mySubmission,
+      });
+    }
+
+    checkRoundCompletion(roundSubmissionsRef.current, currentRoundIndex);
+  }, [myLocked, matchQuestions, currentRoundIndex, myPin, playerId, checkRoundCompletion]);
+
+  // 玩家主动点击“确认提交锁定”
+  const handleLockInGuess = () => {
+    if (myLocked || !myPin) return;
+    const curQ = matchQuestions[currentRoundIndex];
+    if (!curQ) return;
+
+    setMyLocked(true);
+    sfx.playLock();
+
+    const targetLat = curQ.exactLat ?? curQ.center[1];
+    const targetLng = curQ.exactLng ?? curQ.center[0];
+    const dist = calculateDistanceKm(myPin.lat, myPin.lng, targetLat, targetLng);
+    const score = calculateBattleScore(dist);
+
+    const mySubmission = {
+      playerId,
+      roundIndex: currentRoundIndex,
+      lat: myPin.lat,
+      lng: myPin.lng,
+      dist,
+      score,
+    };
+
+    // 关键：本地立即记录自己的成绩！
+    roundSubmissionsRef.current[playerId] = mySubmission;
+
+    if (channelRef.current) {
+      // 广播通知：A. 告知对手我已锁定 (触发对手 15 秒绝杀倒计时)
+      channelRef.current.send({
+        type: "broadcast",
+        event: "player_locked",
+        payload: { playerId, roundIndex: currentRoundIndex },
+      });
+
+      // 广播通知：B. 发送自己的成绩数据
+      channelRef.current.send({
+        type: "broadcast",
+        event: "round_submit",
+        payload: mySubmission,
+      });
+    }
+
+    // 检查对手是否在之前就已经交卷了
+    checkRoundCompletion(roundSubmissionsRef.current, currentRoundIndex);
+  };
 
   // 自动倒计时进入下一题
   useEffect(() => {
@@ -571,26 +890,40 @@ export default function TravelBattleGame({ onBackToExplore }) {
     };
   }, [gameState, autoAdvanceSec]);
 
-  // 进入下一题或终局大结算
-  const handleNextRound = () => {
+  // 本地执行切题
+  const advanceToNextRoundLocally = useCallback(() => {
     if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
     setAutoAdvanceSec(null);
 
-    if (currentRoundIndex + 1 < matchQuestions.length) {
-      setCurrentRoundIndex((prev) => prev + 1);
-      setMyPin(null);
-      setMyLocked(false);
-      setOpponentLocked(false);
-      setUrgentSeconds(null);
-      setUrgentTriggeredBy(null);
-      setRoundResult(null);
-      setIsHdPhoto(false);
-      setGameState("PLAYING");
-    } else {
-      // 10 题对决全部完成，进入大结算！
-      setGameState("GAME_OVER");
-      sfx.playVictory();
+    setCurrentRoundIndex((prev) => {
+      if (prev + 1 < matchQuestions.length) {
+        setMyPin(null);
+        setMyLocked(false);
+        setOpponentLocked(false);
+        setUrgentSeconds(null);
+        setUrgentTriggeredBy(null);
+        setRoundResult(null);
+        roundSubmissionsRef.current = {};
+        setGameState("PLAYING");
+        return prev + 1;
+      } else {
+        setGameState("GAME_OVER");
+        sfx.playVictory();
+        return prev;
+      }
+    });
+  }, [matchQuestions.length]);
+
+  // 玩家手动或自动点击“进入下一题”
+  const handleNextRound = () => {
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "sync_next_round",
+        payload: { nextRoundIndex: currentRoundIndex + 1 },
+      });
     }
+    advanceToNextRoundLocally();
   };
 
   // ==========================================================================
@@ -615,7 +948,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       setMyLocked(false);
       setOpponentLocked(false);
       setUrgentSeconds(null);
-      pendingSubmissionsRef.current = {};
+      roundSubmissionsRef.current = {};
 
       const channel = supabase.channel(`travel_battle_room_${targetRoomId}`, {
         config: {
@@ -624,12 +957,11 @@ export default function TravelBattleGame({ onBackToExplore }) {
         },
       });
 
-      // 监听广播事件
+      // 注册所有广播监听 (必须在 subscribe 之前)
       channel
         .on("broadcast", { event: "player_locked" }, ({ payload }) => {
           if (payload.playerId !== playerId) {
             setOpponentLocked(true);
-            // 对手交卷！若自己尚未交卷，立即触发 15 秒绝杀倒计时！
             setMyLocked((alreadyLocked) => {
               if (!alreadyLocked) {
                 setUrgentSeconds(15);
@@ -641,14 +973,14 @@ export default function TravelBattleGame({ onBackToExplore }) {
           }
         })
         .on("broadcast", { event: "round_submit" }, ({ payload }) => {
-          pendingSubmissionsRef.current[payload.playerId] = payload;
-          // 检查是否双方都已提交
-          if (
-            pendingSubmissionsRef.current[playerId] &&
-            pendingSubmissionsRef.current[payload.playerId]
-          ) {
-            checkAndRevealRound(pendingSubmissionsRef.current, payload.roundIndex);
+          if (payload.playerId !== playerId) {
+            setOpponentLocked(true);
+            roundSubmissionsRef.current[payload.playerId] = payload;
+            checkRoundCompletion(roundSubmissionsRef.current, payload.roundIndex);
           }
+        })
+        .on("broadcast", { event: "sync_next_round" }, () => {
+          advanceToNextRoundLocally();
         })
         .on("broadcast", { event: "start_game" }, ({ payload }) => {
           const qs = payload.questionIds
@@ -671,12 +1003,11 @@ export default function TravelBattleGame({ onBackToExplore }) {
           setMyLocked(false);
           setOpponentLocked(false);
           setRoundResult(null);
+          roundSubmissionsRef.current = {};
           setGameState("PLAYING");
           sfx.playMatchFound();
-        });
-
-      // 在场状态监听 (好友加入 / 房主发现好友 / 对手断线)
-      channel
+        })
+        // 注册在场状态监听 (好友加入 / 房主发现好友 / 对手断线)
         .on("presence", { event: "sync" }, () => {
           const state = channel.presenceState();
           for (const key in state) {
@@ -713,7 +1044,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
       channelRef.current = channel;
     },
-    [playerId, playerName, checkAndRevealRound]
+    [playerId, playerName, checkRoundCompletion, advanceToNextRoundLocally]
   );
 
   // ==========================================================================
@@ -723,7 +1054,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
     setGameState("MATCHING");
 
     if (lobbyChannelRef.current) {
-      lobbyChannelRef.current.unsubscribe();
+      supabase.removeChannel(lobbyChannelRef.current);
+      lobbyChannelRef.current = null;
     }
 
     const lobby = supabase.channel("travel_battle_lobby", {
@@ -741,18 +1073,15 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
         // 当等待队列中有 2 名玩家时，决定谁当 Host 并撮合对局
         if (waitingPlayers.length >= 2) {
-          // 字典序最小的玩家作为 Match Host，避免双方重复撮合
           waitingPlayers.sort((a, b) => a.playerId.localeCompare(b.playerId));
           const p1 = waitingPlayers[0];
           const p2 = waitingPlayers[1];
 
           if (playerId === p1.playerId) {
-            // 我是 Host！生成房间与 10 道 Tang 题目
             const newRoomId = "duel_" + Math.random().toString(36).substring(2, 8);
             const chosen10 = pick10TangQuestions();
             const questionIds = chosen10.map((q) => q.id);
 
-            // 广播撮合成功通知
             lobby.send({
               type: "broadcast",
               event: "match_found",
@@ -766,8 +1095,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
               },
             });
 
-            // 自己进入对战房间
-            lobby.unsubscribe();
+            supabase.removeChannel(lobby);
+            lobbyChannelRef.current = null;
             setupRoomChannel(newRoomId, true, chosen10, { id: p2.playerId, name: p2.playerName });
             setGameState("PLAYING");
             sfx.playMatchFound();
@@ -775,9 +1104,9 @@ export default function TravelBattleGame({ onBackToExplore }) {
         }
       })
       .on("broadcast", { event: "match_found" }, ({ payload }) => {
-        // 如果自己是被匹配上的 Guest
         if (payload.guestId === playerId) {
-          lobby.unsubscribe();
+          supabase.removeChannel(lobby);
+          lobbyChannelRef.current = null;
           const qs = payload.questionIds
             .map((id) => TANG_QUESTIONS.find((q) => q.id === id))
             .filter(Boolean);
@@ -870,6 +1199,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       setMyLocked(false);
       setOpponentLocked(false);
       setRoundResult(null);
+      roundSubmissionsRef.current = {};
       setGameState("PLAYING");
       sfx.playMatchFound();
     }
@@ -889,7 +1219,6 @@ export default function TravelBattleGame({ onBackToExplore }) {
     setOpponent(null);
   };
 
-  // 当前题目
   const currentQ = matchQuestions[currentRoundIndex] || null;
 
   return (
@@ -932,7 +1261,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       {gameState === "LOBBY" && (
         <div className="battle-lobby-card">
           <div className="battle-lobby-hero-badge">
-            <Flame size={15} /> 实时竞技全新上线
+            <Zap size={15} /> 实时竞技全新上线
           </div>
           <h2 className="battle-lobby-title">极速双人图寻对决</h2>
           <p className="battle-lobby-desc">
@@ -1214,30 +1543,13 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
           {/* 核心分屏游戏区 */}
           <div className="battle-play-grid">
-            {/* 照片展示区 */}
+            {/* 照片展示区：支持鼠标滚轮缩放、双击缩放、拖拽平移与高清无缝切换 */}
             <div className="battle-photo-container">
-              <img
-                src={isHdPhoto ? currentQ.photoUrlHd || currentQ.photoUrl : currentQ.photoUrl}
+              <BattlePhotoZoomer
+                photoUrl={currentQ.photoUrl}
+                photoUrlHd={currentQ.photoUrlHd}
                 alt="对决实景照片"
-                className="battle-photo-img"
               />
-
-              <div className="battle-photo-controls">
-                <button
-                  type="button"
-                  className="battle-photo-btn"
-                  onClick={() => setIsHdPhoto(!isHdPhoto)}
-                >
-                  {isHdPhoto ? "标清 1440px" : "超清 2800px"}
-                </button>
-                <button
-                  type="button"
-                  className="battle-photo-btn"
-                  onClick={() => setShowFullPhoto(true)}
-                >
-                  <Eye size={14} /> 放大看图
-                </button>
-              </div>
 
               <div className="battle-author-tag">
                 <span>📸 Tang 欧洲精选</span>
@@ -1296,7 +1608,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
                   🎯 正确位置：{roundResult.targetCountry} · {roundResult.targetCity}
                 </div>
                 <div className="battle-reveal-subtitle">
-                  双方预测点位已在地图揭晓，红蓝虚线标记各自误差
+                  双方预测点位已在地图揭晓，虚线标记各自误差
                 </div>
               </div>
 
@@ -1304,13 +1616,13 @@ export default function TravelBattleGame({ onBackToExplore }) {
                 <div className="battle-reveal-card you">
                   <span className="name">你 ({playerName})</span>
                   <span className="pts">+{roundResult.myGuess.score} 分</span>
-                  <span className="dist">误差: {roundResult.myGuess.dist} km</span>
+                  <span className="dist">误差: {formatDistance(roundResult.myGuess.dist)}</span>
                 </div>
 
                 <div className="battle-reveal-card opponent">
                   <span className="name">{opponent?.name || "对手"}</span>
                   <span className="pts">+{roundResult.oppGuess.score} 分</span>
-                  <span className="dist">误差: {roundResult.oppGuess.dist} km</span>
+                  <span className="dist">误差: {formatDistance(roundResult.oppGuess.dist)}</span>
                 </div>
               </div>
 
@@ -1394,11 +1706,11 @@ export default function TravelBattleGame({ onBackToExplore }) {
                       <td>
                         {item.targetCountry} · {item.targetCity}
                       </td>
-                      <td style={{ color: "#dc2626", fontWeight: 700 }}>
-                        {item.myGuess.dist} km (+{item.myGuess.score}分)
+                      <td style={{ color: "#d97706", fontWeight: 700 }}>
+                        {formatDistance(item.myGuess.dist)} (+{item.myGuess.score}分)
                       </td>
-                      <td style={{ color: "#2563eb", fontWeight: 700 }}>
-                        {item.oppGuess.dist} km (+{item.oppGuess.score}分)
+                      <td style={{ color: "#0284c7", fontWeight: 700 }}>
+                        {formatDistance(item.oppGuess.dist)} (+{item.oppGuess.score}分)
                       </td>
                       <td>
                         {youWon ? (
@@ -1406,7 +1718,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
                         ) : tie ? (
                           <span style={{ color: "#64748b", fontWeight: 700 }}>平局</span>
                         ) : (
-                          <span style={{ color: "#2563eb", fontWeight: 700 }}>对手胜出</span>
+                          <span style={{ color: "#0284c7", fontWeight: 700 }}>对手胜出</span>
                         )}
                       </td>
                     </tr>
@@ -1434,29 +1746,6 @@ export default function TravelBattleGame({ onBackToExplore }) {
               <Home size={18} /> 返回对战大厅
             </button>
           </div>
-        </div>
-      )}
-
-      {/* 图片放大 Modal */}
-      {showFullPhoto && currentQ && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.9)",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "20px",
-          }}
-          onClick={() => setShowFullPhoto(false)}
-        >
-          <img
-            src={currentQ.photoUrlHd || currentQ.photoUrl}
-            alt="放大照片"
-            style={{ maxWidth: "95vw", maxHeight: "95vh", objectFit: "contain", borderRadius: "12px" }}
-          />
         </div>
       )}
     </div>
