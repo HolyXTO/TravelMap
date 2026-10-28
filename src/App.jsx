@@ -6556,12 +6556,16 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
     renderer.domElement.addEventListener("pointermove", handlePointerMove);
     renderer.domElement.addEventListener("pointerleave", hideTooltip);
 
+    let globeResizeRafId = null;
     const resizeObserver = new ResizeObserver(([entry]) => {
-      const nextWidth = entry.contentRect.width || width;
-      const nextHeight = entry.contentRect.height || nextWidth;
-      camera.aspect = nextWidth / nextHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(nextWidth, nextHeight);
+      if (globeResizeRafId) cancelAnimationFrame(globeResizeRafId);
+      globeResizeRafId = requestAnimationFrame(() => {
+        const nextWidth = entry.contentRect.width || width;
+        const nextHeight = entry.contentRect.height || nextWidth;
+        camera.aspect = nextWidth / nextHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(nextWidth, nextHeight);
+      });
     });
     resizeObserver.observe(mount);
 
@@ -6605,6 +6609,7 @@ function SatellitePinGlobe({ active, ariaLabel = "真实纹理 3D 地球足迹",
       window.clearTimeout(idleTimer);
       cameraRef.current = null;
       controlsRef.current = null;
+      if (globeResizeRafId) window.cancelAnimationFrame(globeResizeRafId);
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener("wheel", handleWheel);
       renderer.domElement.removeEventListener("pointermove", handlePointerMove);
@@ -11577,14 +11582,14 @@ function TravelNotesSection({ isEditor, session, activeProfile, profiles, mapTil
 
       {/* 底部隐藏按钮：图寻题库全景分布 (在三个按钮最左侧, right: 150px) */}
       <button
-        aria-label="实景图寻题库全景分布与统计"
+        aria-label="实景图寻与 360° 街景题库全景分布与统计"
         className="hidden-question-bank-trigger"
         onClick={() => {
           setIsQuestionBankStatsOpen((prev) => !prev);
           setIsRecycleBinOpen(false);
           setIsRowsSettingsOpen(false);
         }}
-        title="实景图寻题库全景分布 (3,834 题)"
+        title="实景图寻与 360° 街景题库全景分布 (7,100+ 题)"
         type="button"
       >
         <Database size={17} />

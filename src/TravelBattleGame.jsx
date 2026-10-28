@@ -28,11 +28,22 @@ import {
   AlertTriangle,
   ShieldCheck,
   Skull,
+  Globe2,
+  Camera,
+  Car,
+  Key,
+  Navigation,
+  Lock,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import gameData from "./data/guessGameData.json";
 import { supabase } from "./lib/supabase";
+import StreetViewViewer from "./components/StreetViewViewer";
+import {
+  STREET_VIEW_QUESTIONS,
+  getStreetViewQuestions,
+} from "./services/streetViewService";
 import "./battleStyles.css";
 
 // 题库过滤与洗牌工具 (支持 Xiao / Tang / Xiao & Tang 全量题库)
@@ -108,8 +119,31 @@ function getRoundMultiplier(roundIndex) {
   return Math.min(4.0, 4.0 + (roundNum - 10) * 0.5);
 }
 
-// 随机洗牌选取题目 (支持扣血制多题目池与积分制 10 题)
-function pickBattleQuestions(filter = "Tang", count = 30) {
+// 全局题目查找器 (兼容 360° 全景街景与旅拍照片)
+function findQuestionById(id) {
+  const fromGameData = gameData.questions.find((q) => q.id === id);
+  if (fromGameData) return fromGameData;
+  const fromStreetView = STREET_VIEW_QUESTIONS.find((q) => q.id === id);
+  if (fromStreetView) {
+    return {
+      ...fromStreetView,
+      countryName: fromStreetView.countryName || fromStreetView.country,
+      cityName: fromStreetView.cityName || fromStreetView.city,
+      exactLat: fromStreetView.lat,
+      exactLng: fromStreetView.lng,
+      center: [fromStreetView.lng, fromStreetView.lat],
+      photoUrl: fromStreetView.panoUrl,
+      photoUrlHd: fromStreetView.panoUrl,
+    };
+  }
+  return null;
+}
+
+// 随机洗牌选取题目 (支持 360° 全球街景与旅拍照片两大对战模式)
+function pickBattleQuestions(mediaMode = "streetview", filter = "global", count = 30) {
+  if (mediaMode === "streetview") {
+    return getStreetViewQuestions(filter, count);
+  }
   const pool = [...getFilteredQuestions(filter)];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -265,6 +299,22 @@ function createDistanceBadgeIcon(distKm, score, isOpponent) {
   });
 }
 
+// 繁体中文与别名映射到标准简体中文（确保与 public/flags/circle-195/*.png 100% 对应）
+const TRAD_TO_SIMP_COUNTRIES = {
+  "中國": "中国", "法國": "法国", "德國": "德国", "美國": "美国", "荷蘭": "荷兰",
+  "奧地利": "奥地利", "波蘭": "波兰", "愛沙尼亞": "爱沙尼亚", "拉脫維亞": "拉脱维亚",
+  "烏克蘭": "乌克兰", "烏拉圭": "乌拉圭", "愛爾蘭共和國": "爱尔兰", "愛爾蘭": "爱尔兰",
+  "坦桑尼亞": "坦桑尼亚", "白俄羅斯": "白俄罗斯", "芬蘭": "芬兰", "梵蒂岡城國": "梵蒂冈",
+  "梵蒂岡": "梵蒂冈", "羅馬尼亞": "罗马尼亚", "馬達加斯加": "马达加斯加", "希臘": "希腊",
+  "俄羅斯": "俄罗斯", "義大利": "意大利", "澳大利亞": "澳大利亚", "紐西蘭": "新西兰",
+  "南非共和國": "南非", "沙烏地阿拉伯": "沙特阿拉伯", "土耳其共和國": "土耳其",
+  "南韓": "韩国", "北韓": "朝鲜", "菲律賓": "菲律宾", "阿爾及利亞": "阿尔及利亚",
+  "奈及利亞": "尼日利亚", "利比亞": "利比亚", "葛摩": "科摩罗", "香港": "中国",
+  "澳門": "中国", "台湾": "中国", "臺灣": "中国", "United States": "美国",
+  "France": "法国", "Germany": "德国", "Italy": "意大利", "Spain": "西班牙",
+  "United Kingdom": "英国", "Japan": "日本", "Brazil": "巴西", "Russia": "俄罗斯"
+};
+
 // 国家国旗圆形图标组件 (优先读取本地 /TravelMap/flags/circle-195/*.png，若无则平滑降级为 Emoji)
 const COUNTRY_FLAG_EMOJIS = {
   "中国": "🇨🇳", "挪威": "🇳🇴", "法国": "🇫🇷", "德国": "🇩🇪", "瑞士": "🇨🇭",
@@ -273,16 +323,26 @@ const COUNTRY_FLAG_EMOJIS = {
   "安道尔": "🇦🇩", "列支敦士登": "🇱🇮", "塞浦路斯": "🇨🇾", "梵蒂冈": "🇻🇦",
   "英国": "🇬🇧", "瑞典": "🇸🇪", "芬兰": "🇫🇮", "丹麦": "🇩🇰", "葡萄牙": "🇵🇹",
   "爱尔兰": "🇮🇪", "匈牙利": "🇭🇺", "克罗地亚": "🇭🇷", "摩纳哥": "🇲🇨", "圣马力诺": "🇸🇲",
-  "日本": "🇯🇵", "韩国": "🇰🇷", "泰国": "🇹🇭", "新加坡": "🇸🇬", "美国": "🇺🇸"
+  "日本": "🇯🇵", "韩国": "🇰🇷", "泰国": "🇹🇭", "新加坡": "🇸🇬", "美国": "🇺🇸",
+  "加拿大": "🇨🇦", "澳大利亚": "🇦🇺", "新西兰": "🇳🇿", "巴西": "🇧🇷", "阿根廷": "🇦🇷",
+  "智利": "🇨🇱", "墨西哥": "🇲🇽", "土耳其": "🇹🇷", "俄罗斯": "🇷🇺", "乌克兰": "🇺🇦",
+  "爱沙尼亚": "🇪🇪", "拉脱维亚": "🇱🇻", "立陶宛": "🇱🇹", "斯洛伐克": "🇸🇰", "斯洛文尼亚": "🇸🇮",
+  "塞尔维亚": "🇷🇸", "保加利亚": "🇧🇬", "罗马尼亚": "🇷🇴", "埃及": "🇪🇬", "南非": "🇿🇦",
+  "印度": "🇮🇳", "印度尼西亚": "🇮🇩", "马来西亚": "🇲🇾", "越南": "🇻🇳", "菲律宾": "🇵🇭"
 };
 
 function CountryFlag({ countryName, size = 26, className = "" }) {
   const [hasError, setHasError] = useState(false);
-  const cleanName = (countryName || "").trim();
+  const rawName = (countryName || "").trim();
+  const cleanName = TRAD_TO_SIMP_COUNTRIES[rawName] || rawName;
   const flagUrl = `${import.meta.env.BASE_URL}flags/circle-195/${encodeURIComponent(cleanName)}.png`;
 
+  useEffect(() => {
+    setHasError(false);
+  }, [cleanName]);
+
   if (hasError || !cleanName) {
-    const emoji = COUNTRY_FLAG_EMOJIS[cleanName] || "🌍";
+    const emoji = COUNTRY_FLAG_EMOJIS[cleanName] || COUNTRY_FLAG_EMOJIS[rawName] || "🌍";
     return (
       <span
         className={`country-flag-emoji ${className}`}
@@ -614,6 +674,36 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const [matchMode, setMatchMode] = useState("HP");
   const matchModeRef = useRef("HP");
 
+  // 题目形式：streetview (全球360°真实街景) | photo (经典旅拍照片)
+  const [battleMediaMode, setBattleMediaMode] = useState("streetview");
+  const battleMediaModeRef = useRef("streetview");
+
+  // 街景分类选择：全球 / 国内 / 国外
+  const [streetViewRegion, setStreetViewRegion] = useState("global"); // "global" | "domestic" | "international"
+  const streetViewRegionRef = useRef("global");
+
+  // 街景观察规则：自由拖拽/环视变焦 (默认开启)
+  const [movementAllowed, setMovementAllowed] = useState(true);
+  const movementAllowedRef = useRef(true);
+
+  const updateBattleMediaMode = (mode) => {
+    setBattleMediaMode(mode);
+    battleMediaModeRef.current = mode;
+  };
+  const updateStreetViewRegion = (region) => {
+    setStreetViewRegion(region);
+    streetViewRegionRef.current = region;
+  };
+  const updateMovementAllowed = (allowed) => {
+    setMovementAllowed(allowed);
+    movementAllowedRef.current = allowed;
+  };
+
+  const getActiveQuestionFilter = () => {
+    if (battleMediaModeRef.current === "streetview") return streetViewRegionRef.current;
+    return authorFilterRef.current;
+  };
+
   // 题库分类选择: "Xiao" (4365张) | "Tang" (502张) | "Xiao&Tang" (4867张全量)
   const [authorFilter, setAuthorFilter] = useState("Tang");
   const authorFilterRef = useRef("Tang");
@@ -705,10 +795,18 @@ export default function TravelBattleGame({ onBackToExplore }) {
     setGameState(st);
   };
 
-  // 地图视角复位 (欧洲居中)
+  // 地图视角复位 (街景国内模式居中中国，国外/全球居中世界，照片模式居中欧洲)
   const handleResetMapView = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+      if (battleMediaModeRef.current === "streetview") {
+        if (streetViewRegionRef.current === "domestic") {
+          mapInstanceRef.current.setView([35.8617, 104.1954], 4);
+        } else {
+          mapInstanceRef.current.setView([25.0, 15.0], 2);
+        }
+      } else {
+        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+      }
     }
   };
 
@@ -1002,7 +1100,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       targetLat,
       targetLng,
       targetCity: curQ.cityName,
-      targetCountry: curQ.countryName,
+      targetCountry: TRAD_TO_SIMP_COUNTRIES[curQ.countryName] || curQ.countryName,
       myGuess: {
         lat: mySub.lat,
         lng: mySub.lng,
@@ -1230,7 +1328,15 @@ export default function TravelBattleGame({ onBackToExplore }) {
     updateGameState("PLAYING");
 
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+      if (battleMediaModeRef.current === "streetview") {
+        if (streetViewRegionRef.current === "domestic") {
+          mapInstanceRef.current.setView([35.8617, 104.1954], 4);
+        } else {
+          mapInstanceRef.current.setView([25.0, 15.0], 2);
+        }
+      } else {
+        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
+      }
     }
   }, []);
 
@@ -1277,12 +1383,20 @@ export default function TravelBattleGame({ onBackToExplore }) {
       advanceToRound(targetIdx);
     },
     onStartGame: (payload) => {
-      const qs = payload.questionIds
-        .map((id) => gameData.questions.find((q) => q.id === id))
-        .filter(Boolean);
+      const qs = (payload.questions && payload.questions.length > 0)
+        ? payload.questions
+        : (payload.questionIds || [])
+            .map((id) => findQuestionById(id))
+            .filter(Boolean);
       if (payload.matchMode) {
         setMatchMode(payload.matchMode);
         matchModeRef.current = payload.matchMode;
+      }
+      if (payload.battleMediaMode) {
+        updateBattleMediaMode(payload.battleMediaMode);
+      }
+      if (payload.movementAllowed !== undefined) {
+        updateMovementAllowed(payload.movementAllowed);
       }
       setMyHp(6000);
       setOpponentHp(6000);
@@ -1301,18 +1415,24 @@ export default function TravelBattleGame({ onBackToExplore }) {
       setRoundResult(null);
       roundSubmissionsRef.current = {};
       updateGameState("PLAYING");
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
-      }
+      handleResetMapView();
       sfx.playMatchFound();
     },
     onRematchStart: (payload) => {
-      const qs = payload.questionIds
-        .map((id) => gameData.questions.find((q) => q.id === id))
-        .filter(Boolean);
+      const qs = (payload.questions && payload.questions.length > 0)
+        ? payload.questions
+        : (payload.questionIds || [])
+            .map((id) => findQuestionById(id))
+            .filter(Boolean);
       if (payload.matchMode) {
         setMatchMode(payload.matchMode);
         matchModeRef.current = payload.matchMode;
+      }
+      if (payload.battleMediaMode) {
+        updateBattleMediaMode(payload.battleMediaMode);
+      }
+      if (payload.movementAllowed !== undefined) {
+        updateMovementAllowed(payload.movementAllowed);
       }
       setMyHp(6000);
       setOpponentHp(6000);
@@ -1331,9 +1451,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       setRoundResult(null);
       roundSubmissionsRef.current = {};
       updateGameState("PLAYING");
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
-      }
+      handleResetMapView();
       sfx.playMatchFound();
     },
   };
@@ -1467,7 +1585,11 @@ export default function TravelBattleGame({ onBackToExplore }) {
           if (playerId === p1.playerId) {
             const newRoomId = "duel_" + Math.random().toString(36).substring(2, 8);
             const qCount = matchModeRef.current === "HP" ? 30 : 10;
-            const chosen = pickBattleQuestions(authorFilterRef.current, qCount);
+            const chosen = pickBattleQuestions(
+              battleMediaModeRef.current,
+              getActiveQuestionFilter(),
+              qCount
+            );
             const questionIds = chosen.map((q) => q.id);
 
             lobby.send({
@@ -1480,7 +1602,10 @@ export default function TravelBattleGame({ onBackToExplore }) {
                 guestId: p2.playerId,
                 guestName: p2.playerName,
                 questionIds,
+                questions: chosen,
                 matchMode: matchModeRef.current,
+                battleMediaMode: battleMediaModeRef.current,
+                movementAllowed: movementAllowedRef.current,
               },
             });
 
@@ -1488,9 +1613,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
             lobbyChannelRef.current = null;
             setupRoomChannel(newRoomId, true, chosen, { id: p2.playerId, name: p2.playerName });
             updateGameState("PLAYING");
-            if (mapInstanceRef.current) {
-              mapInstanceRef.current.setView([48.8566, 2.3522], 4);
-            }
+            handleResetMapView();
             sfx.playMatchFound();
           }
         }
@@ -1503,17 +1626,23 @@ export default function TravelBattleGame({ onBackToExplore }) {
             setMatchMode(payload.matchMode);
             matchModeRef.current = payload.matchMode;
           }
-          const qs = payload.questionIds
-            .map((id) => gameData.questions.find((q) => q.id === id))
-            .filter(Boolean);
+          if (payload.battleMediaMode) {
+            updateBattleMediaMode(payload.battleMediaMode);
+          }
+          if (payload.movementAllowed !== undefined) {
+            updateMovementAllowed(payload.movementAllowed);
+          }
+          const qs = (payload.questions && payload.questions.length > 0)
+            ? payload.questions
+            : (payload.questionIds || [])
+                .map((id) => findQuestionById(id))
+                .filter(Boolean);
           setupRoomChannel(payload.roomId, false, qs, {
             id: payload.hostId,
             name: payload.hostName,
           });
           updateGameState("PLAYING");
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.setView([48.8566, 2.3522], 4);
-          }
+          handleResetMapView();
           sfx.playMatchFound();
         }
       })
@@ -1548,7 +1677,11 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const createFriendRoom = () => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const qCount = matchModeRef.current === "HP" ? 30 : 10;
-    const chosen = pickBattleQuestions(authorFilterRef.current, qCount);
+    const chosen = pickBattleQuestions(
+      battleMediaModeRef.current,
+      getActiveQuestionFilter(),
+      qCount
+    );
     matchQuestionsRef.current = chosen;
     setupRoomChannel(code, true, chosen, null);
     updateGameState("ROOM_WAITING");
@@ -1574,7 +1707,13 @@ export default function TravelBattleGame({ onBackToExplore }) {
       channelRef.current.send({
         type: "broadcast",
         event: "start_game",
-        payload: { questionIds: qIds, matchMode: matchModeRef.current },
+        payload: {
+          questionIds: qIds,
+          questions: matchQuestionsRef.current,
+          matchMode: matchModeRef.current,
+          battleMediaMode: battleMediaModeRef.current,
+          movementAllowed: movementAllowedRef.current,
+        },
       });
       updateRoundIndex(0);
       setMyHp(6000);
@@ -1592,9 +1731,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       setRoundResult(null);
       roundSubmissionsRef.current = {};
       updateGameState("PLAYING");
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
-      }
+      handleResetMapView();
       sfx.playMatchFound();
     }
   };
@@ -1611,12 +1748,22 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const handleRematch = () => {
     if (channelRef.current) {
       const qCount = matchModeRef.current === "HP" ? 30 : 10;
-      const newQs = pickBattleQuestions(authorFilterRef.current, qCount);
+      const newQs = pickBattleQuestions(
+        battleMediaModeRef.current,
+        getActiveQuestionFilter(),
+        qCount
+      );
       const questionIds = newQs.map((q) => q.id);
       channelRef.current.send({
         type: "broadcast",
         event: "rematch_start",
-        payload: { questionIds, matchMode: matchModeRef.current },
+        payload: {
+          questionIds,
+          questions: newQs,
+          matchMode: matchModeRef.current,
+          battleMediaMode: battleMediaModeRef.current,
+          movementAllowed: movementAllowedRef.current,
+        },
       });
       updateMatchQuestions(newQs);
       updateRoundIndex(0);
@@ -1635,9 +1782,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       setRoundResult(null);
       roundSubmissionsRef.current = {};
       updateGameState("PLAYING");
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.setView([48.8566, 2.3522], 4);
-      }
+      handleResetMapView();
       sfx.playMatchFound();
     }
   };
@@ -1700,19 +1845,29 @@ export default function TravelBattleGame({ onBackToExplore }) {
         <div className="travel-game-header-row">
           <div className="travel-game-title-group">
             <h2 className="notes-hero-title">
-              <Swords className="notes-hero-icon" size={24} />
+              {battleMediaMode === "streetview" ? (
+                <Globe2 className="notes-hero-icon" size={24} />
+              ) : (
+                <Swords className="notes-hero-icon" size={24} />
+              )}
               <span className="game-hero-brand-text">GEO GUESS PK</span>
-              <span className="notes-title-sub">旅行图寻 · 实时对局</span>
+              <span className="notes-title-sub">
+                {battleMediaMode === "streetview"
+                  ? "全球 360° 街景 · 实时对决"
+                  : "旅行图寻 · 实时对局"}
+              </span>
             </h2>
             <p className="travel-game-subtitle">
               <Sparkles size={16} className="game-sub-icon" />
               <span>
-                根据真实旅拍照片探索地理细节，双人实时同题对抗，决胜千里！
+                {battleMediaMode === "streetview"
+                  ? "根据全球真实 360° 全景街景探索地理细节，双人实时同题对抗，决胜千里！"
+                  : "根据真实旅拍照片探索地理细节，双人实时同题对抗，决胜千里！"}
               </span>
             </p>
           </div>
 
-          {/* 顶部操作群组：玩家代号 + 音效切换 + 题库分类选项卡 (Xiao / Tang / Xiao & Tang) */}
+          {/* 顶部操作群组：玩家代号 + 音效切换 + 题库/区域分类选项卡 */}
           <div className="travel-game-header-actions">
             {/* 玩家当前代号胶囊 */}
             <div
@@ -1739,34 +1894,67 @@ export default function TravelBattleGame({ onBackToExplore }) {
               {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
 
-            {/* 题库分类选项卡 (Xiao / Tang / Xiao & Tang)，带“题库:”说明 */}
+            {/* 题库 / 区域分类选项卡 */}
             <div className="travel-bank-tabs-wrapper">
-              <span className="travel-bank-label">题库:</span>
+              <span className="travel-bank-label">
+                {battleMediaMode === "streetview" ? "区域:" : "题库:"}
+              </span>
               <div className="travel-game-category-tabs">
-                <button
-                  type="button"
-                  className={`game-tab-btn ${authorFilter === "Xiao" ? "active" : ""}`}
-                  onClick={() => setAuthorFilter("Xiao")}
-                  title="Xiao 拍摄的照片 (共 4,365 张)"
-                >
-                  Xiao
-                </button>
-                <button
-                  type="button"
-                  className={`game-tab-btn ${authorFilter === "Tang" ? "active" : ""}`}
-                  onClick={() => setAuthorFilter("Tang")}
-                  title="Tang 拍摄的照片 (共 502 张)"
-                >
-                  Tang
-                </button>
-                <button
-                  type="button"
-                  className={`game-tab-btn ${authorFilter === "Xiao&Tang" ? "active" : ""}`}
-                  onClick={() => setAuthorFilter("Xiao&Tang")}
-                  title="Xiao 与 Tang 两人照片合集 (共 4,867 张)"
-                >
-                  Xiao & Tang
-                </button>
+                {battleMediaMode === "streetview" ? (
+                  <>
+                    <button
+                      type="button"
+                      className={`game-tab-btn ${streetViewRegion === "global" ? "active" : ""}`}
+                      onClick={() => updateStreetViewRegion("global")}
+                      title="全球各地海量 360° 真实街景 (国内 + 国外，全库收录 2,290+ 题并直连 150 万+ 全球开放全景池)"
+                    >
+                      全球
+                    </button>
+                    <button
+                      type="button"
+                      className={`game-tab-btn ${streetViewRegion === "domestic" ? "active" : ""}`}
+                      onClick={() => updateStreetViewRegion("domestic")}
+                      title="中国国内名胜、高校与城市街道 360° 真实街景 (涵盖全国各省市)"
+                    >
+                      国内
+                    </button>
+                    <button
+                      type="button"
+                      className={`game-tab-btn ${streetViewRegion === "international" ? "active" : ""}`}
+                      onClick={() => updateStreetViewRegion("international")}
+                      title="国外世界各大洲 360° 真实街景 (跨越欧亚美非各大名胜)"
+                    >
+                      国外
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className={`game-tab-btn ${authorFilter === "Xiao" ? "active" : ""}`}
+                      onClick={() => setAuthorFilter("Xiao")}
+                      title="Xiao 拍摄的照片 (共 4,365 张)"
+                    >
+                      Xiao
+                    </button>
+                    <button
+                      type="button"
+                      className={`game-tab-btn ${authorFilter === "Tang" ? "active" : ""}`}
+                      onClick={() => setAuthorFilter("Tang")}
+                      title="Tang 拍摄的照片 (共 502 张)"
+                    >
+                      Tang
+                    </button>
+                    <button
+                      type="button"
+                      className={`game-tab-btn ${authorFilter === "Xiao&Tang" ? "active" : ""}`}
+                      onClick={() => setAuthorFilter("Xiao&Tang")}
+                      title="Xiao 与 Tang 两人照片合集 (共 4,867 张)"
+                    >
+                      Xiao & Tang
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1788,8 +1976,30 @@ export default function TravelBattleGame({ onBackToExplore }) {
                 </div>
                 <h3>欢迎来到双人图寻对决！</h3>
                 <p className="game-welcome-desc">
-                  从真实旅程中精选实景照片，双人实时同题对抗。考验观察力与手速的时刻到了——在地图上插下您的图钉，率先交卷施加 15 秒绝杀倒计时，决胜千里！
+                  {battleMediaMode === "streetview"
+                    ? "基于全球真实 360° 全景街景，支持鼠标自由拖拽环视、俯仰观察与高倍滚轮变焦。在华为地图上插下您的图钉，率先交卷施加 15 秒绝杀倒计时，决胜千里！"
+                    : "从真实旅程中精选实景照片，双人实时同题对抗。考验观察力与手速的时刻到了——在华为地图上插下您的图钉，率先交卷施加 15 秒绝杀倒计时，决胜千里！"}
                 </p>
+
+                {/* 对战媒介模式选择：360° 全球真实街景 VS 旅拍照片 */}
+                <div className="battle-media-mode-switcher">
+                  <button
+                    type="button"
+                    className={`media-mode-btn ${battleMediaMode === "streetview" ? "active" : ""}`}
+                    onClick={() => updateBattleMediaMode("streetview")}
+                  >
+                    <Globe2 size={16} />
+                    <span>🌐 360° 真实街景 PK (推荐 · 沉浸式图寻)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`media-mode-btn ${battleMediaMode === "photo" ? "active" : ""}`}
+                    onClick={() => updateBattleMediaMode("photo")}
+                  >
+                    <Camera size={16} />
+                    <span>📸 旅拍照片对决 (Xiao & Tang)</span>
+                  </button>
+                </div>
 
                 {/* 玩家昵称输入与赛制玩法选择卡片 (与实景图寻 game-player-setup-card 风格一致) */}
                 <div className="game-player-setup-card battle-lobby-setup-card">
@@ -1839,14 +2049,22 @@ export default function TravelBattleGame({ onBackToExplore }) {
                   <div className="game-rule-item">
                     <div className="rule-icon-box">1</div>
                     <div>
-                      <strong>自由观察实景图片</strong>
-                      <p>鼠标放在照片上滑动滚轮放大细节，判断照片所在拍摄位置。</p>
+                      <strong>
+                        {battleMediaMode === "streetview"
+                          ? "360° 自由拖拽环视街景"
+                          : "自由观察实景图片"}
+                      </strong>
+                      <p>
+                        {battleMediaMode === "streetview"
+                          ? "按住鼠标左键全方位拖拽观察周围路牌、建筑风格与自然风貌，滚轮放大细节。"
+                          : "鼠标放在照片上滑动滚轮放大细节，判断照片所在拍摄位置。"}
+                      </p>
                     </div>
                   </div>
                   <div className="game-rule-item">
                     <div className="rule-icon-box">2</div>
                     <div>
-                      <strong>地图预测插旗锁定</strong>
+                      <strong>华为地图预测插旗</strong>
                       <p>在地图上插下预测图钉，率先交卷施加 15 秒绝杀倒计时！</p>
                     </div>
                   </div>
@@ -1859,7 +2077,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
                       <p>
                         {matchMode === "HP"
                           ? "双方初始 6,000 血量按分差扣血，第 5 题起启动伤害倍率，直至一方淘汰！"
-                          : "双人同题测距积分，单题最高 5,000 分，10 题后累计总积分多者获胜！"}
+                          : "共 10 题定胜负，单题最高 5,000 分，累计总分高者获胜。"}
                       </p>
                     </div>
                   </div>
@@ -2216,13 +2434,20 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
           {/* 核心分屏游戏区 */}
           <div className="battle-play-grid">
-            {/* 照片展示区：支持鼠标滚轮缩放、双击缩放、拖拽平移与高清无缝切换 */}
+            {/* 视觉展示区：支持 360° 球面全景或旅拍照片滚轮变焦 */}
             <div className="battle-photo-container">
-              <BattlePhotoZoomer
-                photoUrl={currentQ.photoUrl}
-                photoUrlHd={currentQ.photoUrlHd}
-                alt="对决实景照片"
-              />
+              {battleMediaMode === "streetview" ? (
+                <StreetViewViewer
+                  panoUrl={currentQ?.panoUrl}
+                  initialHeading={currentQ?.initialHeading || 0}
+                />
+              ) : (
+                <BattlePhotoZoomer
+                  photoUrl={currentQ?.photoUrl}
+                  photoUrlHd={currentQ?.photoUrlHd}
+                  alt="对决实景照片"
+                />
+              )}
             </div>
 
             {/* 交互地图选点区 */}
@@ -2507,8 +2732,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
                           return (
                             <tr key={idx}>
                               <td style={{ fontWeight: 800 }}>第 {idx + 1} 题</td>
-                              <td>
-                                <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <td className="target-city-col">
+                                <div className="target-city-inner">
                                   <CountryFlag countryName={item.targetCountry} size={20} />
                                   <span>{item.targetCountry} · {item.targetCity}</span>
                                 </div>
@@ -2606,8 +2831,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
                       return (
                         <tr key={idx}>
                           <td style={{ fontWeight: 800 }}>第 {idx + 1} 题</td>
-                          <td>
-                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <td className="target-city-col">
+                            <div className="target-city-inner">
                               <CountryFlag countryName={item.targetCountry} size={20} />
                               <span>{item.targetCountry} · {item.targetCity}</span>
                             </div>

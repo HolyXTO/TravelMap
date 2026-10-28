@@ -4125,6 +4125,45 @@ h2 {
   border-color: #cbd5e1;
 }
 
+/* 题库大类切换器 (最顶部) */
+.qb-bank-type-switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 11px;
+}
+
+.qb-bank-switch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.81rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.qb-bank-switch-btn:hover {
+  color: #0f172a;
+}
+
+.qb-bank-switch-btn.active {
+  background: #ffffff;
+  color: #0284c7;
+  font-weight: 850;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
 /* 4个核心指标网格 */
 .qb-metrics-grid {
   display: grid;
@@ -4276,23 +4315,25 @@ h2 {
 
 .qb-category-tabs {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   background: #f1f5f9;
   padding: 3px;
   border-radius: 8px;
+  flex-wrap: wrap;
 }
 
 .qb-tab-btn {
   border: none;
   background: transparent;
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: #64748b;
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .qb-tab-btn:hover {
@@ -4347,6 +4388,108 @@ h2 {
 .qb-accordion-scroll::-webkit-scrollbar-thumb {
   background: rgba(203, 213, 225, 0.8);
   border-radius: 4px;
+}
+
+/* 360° 街景题库列表（国家扁平化展示，无需展开城市） */
+.qb-streetview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qb-streetview-country-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 11px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  transition: all 0.15s ease;
+}
+
+.qb-streetview-country-row:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.qb-sv-country-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qb-sv-country-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.qb-sv-country-name {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.qb-sv-continent-tag {
+  font-size: 0.68rem;
+  font-weight: 750;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  line-height: 1.1;
+}
+
+.qb-sv-continent-tag.domestic {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.qb-sv-country-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qb-sv-progress-bar-wrap {
+  width: 70px;
+  height: 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.qb-sv-progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #0284c7);
+}
+
+.qb-sv-count-badge {
+  font-size: 0.82rem;
+  color: #0f172a;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: var(--prophet-code);
+}
+
+.qb-sv-count-badge strong {
+  font-weight: 850;
+  color: #0284c7;
+}
+
+.qb-sv-percent-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-family: var(--prophet-code);
+  min-width: 38px;
+  text-align: right;
 }
 
 .qb-country-card {

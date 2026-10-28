@@ -15,6 +15,14 @@
   <body>
     <script>
       window.onerror = function(message, source, lineno, colno, error) {
+        // 忽略浏览器良性 ResizeObserver 布局帧循环通知，避免阻断游戏
+        var msgStr = (message || '').toString();
+        if (
+          msgStr.indexOf('ResizeObserver') !== -1 ||
+          msgStr.indexOf('undelivered notifications') !== -1
+        ) {
+          return true;
+        }
         var div = document.createElement('div');
         div.style.position = 'fixed';
         div.style.top = '0';

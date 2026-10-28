@@ -1,0 +1,95 @@
+ 339: 意大利
+ 270: 德國
+ 179: 瑞士
+ 172: 中国
+ 165: 巴西
+ 110: 英国
+  89: 西班牙
+  64: 日本
+  64: 俄罗斯
+  57: 德国
+  47: 美國
+  45: 瑞典
+  36: 法国
+  35: 美国
+  32: 希腊
+  30: 加拿大
+  28: 奥地利
+  25: 南非
+  23: 荷蘭
+  22: 荷兰
+  18: 奧地利
+  18: 捷克
+  17: 土耳其
+  16: 芬兰
+  15: 葡萄牙
+  15: 墨西哥
+  15: 波蘭
+  14: 澳大利亚
+  14: 泰国
+  13: 印度尼西亚
+  12: 法國
+  12: 波兰
+  12: 新西兰
+  11: 挪威
+  11: 埃及
+  11: 比利时
+  10: Iceland 360 panorama
+  10: Budapest 360 panorama
+   9: 海外名胜
+   9: 愛沙尼亞
+   9: 格鲁吉亚
+   9: Los Angeles 360 panorama
+   9: 丹麦
+   9: 阿根廷
+   9: Category:360° panoramics in Iceland
+   8: West Lake 360 panorama
+   8: photosphere Europe
+   7: Category:360° panoramics in Latvia
+   6: 拉脫維亞
+   6: 印度
+   5: 烏克蘭
+   5: 烏拉圭
+   5: San Francisco 360 panorama
+   5: Category:360° panoramics in Armenia
+   5: Category:360° panoramas of Georgia (country)
+   4: 伊朗
+   4: Eiffel 360 panorama
+   4: Alps 360 panorama
+   4: Category:360° panoramics in Israel
+   4: 全景 360
+   3: 沙特阿拉伯
+   3: Category:360° panoramics in Cambodia
+   3: Category:360° panoramics in Estonia
+   2: 几内亚
+   2: 智利
+   2: 白俄羅斯
+   2: 愛爾蘭共和國
+   2: 坦桑尼亞
+   2: 阿拉伯联合酋长国
+   2: 新加坡
+   2: 韩国
+   2: 爱尔兰
+   2: Hungary 360 panorama
+   2: Category:360° panoramics in Slovenia
+   2: Category:360° panoramics in Serbia
+   2: Category:360° panoramics in the Philippines
+   2: Category:360° panoramics in Slovakia
+   2: Category:360° panoramics in Uzbekistan
+   1: 匈牙利
+   1: 奈及利亞
+   1: 斯洛伐克
+   1: 哥伦比亚
+   1: 阿爾及利亞
+   1: 梵蒂岡城國
+   1: 格陵兰
+   1: 芬蘭
+   1: 阿塞拜疆
+   1: 以色列
+   1: 阿曼
+   1: 葛摩
+   1: 利比亞
+   1: 馬達加斯加
+   1: 哈萨克斯坦
+   1: 羅馬尼亞
+   1: 肯尼亚

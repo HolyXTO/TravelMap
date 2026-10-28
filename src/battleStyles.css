@@ -18,6 +18,11 @@
   position: relative;
 }
 
+.battle-master-wrapper.game-over {
+  max-width: 1540px;
+  width: 98%;
+}
+
 .battle-master-wrapper .notes-hero-title .game-hero-brand-text,
 .battle-master-wrapper .game-hero-brand-text {
   font-family: "Times New Roman", Times, serif !important;
@@ -82,6 +87,130 @@
   height: 17px !important;
   margin: 0 !important;
   flex-shrink: 0 !important;
+}
+
+/* 街景 Token 配置按钮 */
+.game-token-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: 0.84rem;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 8px 16px;
+  min-height: 38px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(22, 101, 52, 0.08);
+  font-family: inherit;
+}
+
+.game-token-btn:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #14532d;
+  transform: translateY(-1px);
+}
+
+/* 对战媒介模式切换器 (旅拍照片 VS 360° 真实街景) */
+.battle-media-mode-switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .battle-media-mode-switcher {
+    grid-template-columns: 1fr;
+  }
+}
+
+.media-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 18px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  font-family: inherit;
+}
+
+.media-mode-btn:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.media-mode-btn.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
+}
+
+.media-mode-badge-new {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 1px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+}
+
+/* 街景移动规则选择卡片 */
+.battle-streetview-options-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.streetview-rule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.streetview-rule-label {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.streetview-rule-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0369a1;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.streetview-rule-icon {
+  color: #0284c7;
+  flex-shrink: 0;
 }
 
 /* 缩回常规非全屏模式下的主容器：对齐实景图寻，大厅顶栏在透明底外部，主卡片为白底 */
@@ -2029,12 +2158,12 @@
   background: #ffffff;
   border-radius: 28px;
   border: 1.5px solid #e2e8f0;
-  padding: 40px 36px;
+  padding: 36px 36px;
   box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.1);
   text-align: center;
-  width: 95%;
-  max-width: 1160px;
-  margin: 32px auto;
+  width: 98%;
+  max-width: min(1500px, 98vw);
+  margin: 24px auto;
   box-sizing: border-box;
 }
 
@@ -2108,7 +2237,7 @@
   color: #0f172a;
 }
 
-/* 详细逐题复盘表格与滚动包装盒 (单行不折行、大空间展示) */
+/* 详细逐题复盘表格与滚动包装盒 (拉宽自适应、完整展开无需滚动) */
 .battle-review-table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -2122,14 +2251,13 @@
 .battle-review-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.92rem;
+  font-size: 0.94rem;
   text-align: left;
 }
 
 .battle-review-table th,
 .battle-review-table td {
-  white-space: nowrap !important;
-  padding: 14px 20px !important;
+  padding: 13px 16px !important;
   box-sizing: border-box;
 }
 
@@ -2141,11 +2269,27 @@
   font-size: 0.88rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  white-space: nowrap !important;
 }
 
 .battle-review-table td {
   border-bottom: 1px solid #f1f5f9;
   color: #1e293b;
+  white-space: nowrap;
+}
+
+.battle-review-table td.target-city-col {
+  white-space: normal !important;
+  min-width: 220px;
+  max-width: 380px;
+  word-break: break-word;
+}
+
+.battle-review-table .target-city-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .battle-review-table tr:hover td {
@@ -2230,7 +2374,15 @@
   color: #ffffff;
 }
 
-/* 照片展示区：自适应最大高宽，杜绝小图居中空旷问题 */
+/* 视觉展示区：360° 真实街景与旅拍照片自适应满铺，杜绝居中空旷或过小问题 */
+.battle-photo-container .streetview-master-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 !important;
+  border-radius: 0 !important;
+}
+
 .battle-photo-container .game-photo-viewport {
   width: 100% !important;
   height: 100% !important;
@@ -2241,13 +2393,16 @@
 .battle-photo-container .game-photo-transform-layer {
   width: 100% !important;
   height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .battle-photo-container .game-photo-render {
   max-width: 100% !important;
   max-height: 100% !important;
-  width: auto !important;
-  height: auto !important;
+  width: 100% !important;
+  height: 100% !important;
   object-fit: contain !important;
   border-radius: 8px !important;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2) !important;
