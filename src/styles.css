@@ -9840,16 +9840,16 @@ h2 {
 
 .notes-hero-title .game-hero-brand-text,
 .notes-hero-title > span:first-of-type {
-  font-family: 'Cinzel', var(--prophet-serif), serif;
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
   font-size: 26px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   color: #1e293b;
   text-transform: uppercase;
 }
 
 .game-hero-brand-text {
-  font-family: 'Cinzel', serif;
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
 }
 
 .notes-hero-icon {
@@ -9862,12 +9862,12 @@ h2 {
 }
 
 .notes-title-sub {
-  font-family: var(--prophet-serif);
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
   font-size: 20px;
   font-weight: 800;
   color: #1e293b;
   margin-left: 6px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.02em;
 }
 
 .travel-game-header-actions {
@@ -9885,6 +9885,7 @@ h2 {
   font-size: 0.95rem;
   font-weight: 600;
   margin: 6px 0 0;
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
 }
 
 .game-sub-icon {
@@ -9905,7 +9906,7 @@ h2 {
   background: transparent;
   padding: 8px 22px;
   border-radius: 999px;
-  font-family: var(--prophet-serif);
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
   font-weight: 800;
   font-size: 0.94rem;
   color: #5b6678;
@@ -11214,8 +11215,9 @@ h2 {
 .travel-game-section {
   position: relative;
   width: min(1240px, 100%);
-  margin: 40px auto 54px;
+  margin: 0 auto 54px;
   padding: 0;
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
 }
 
 .geoguessr-needle-pin {
@@ -11338,8 +11340,8 @@ h2 {
 .travel-game-header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-wrap: nowrap;
 }
 
 /* 玩家名称胶囊徽章 */
@@ -11358,6 +11360,7 @@ h2 {
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
 }
 
 .game-player-badge-pill:hover {
@@ -11386,6 +11389,7 @@ h2 {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 6px rgba(245, 158, 11, 0.12);
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
 }
 
 
@@ -11405,6 +11409,7 @@ h2 {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 6px rgba(37, 99, 235, 0.1);
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
 }
 
 .game-roster-btn:hover {

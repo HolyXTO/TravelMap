@@ -15,10 +15,19 @@ import {
   ShieldAlert,
   Sparkles,
   Home,
+  User,
   UserCheck,
   ZoomIn,
   ZoomOut,
   Crosshair,
+  Maximize2,
+  Minimize2,
+  Crown,
+  Flame,
+  Heart,
+  AlertTriangle,
+  ShieldCheck,
+  Skull,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -26,8 +35,17 @@ import gameData from "./data/guessGameData.json";
 import { supabase } from "./lib/supabase";
 import "./battleStyles.css";
 
-// 严格限定对战题库：仅采用第十一批 Tang 的照片 (共 502 张欧洲精选照片)
-const TANG_QUESTIONS = gameData.questions.filter((q) => q.author === "Tang");
+// 题库过滤与洗牌工具 (支持 Xiao / Tang / Xiao & Tang 全量题库)
+function getFilteredQuestions(filter = "Tang") {
+  if (filter === "Xiao") {
+    return gameData.questions.filter((q) => q.author === "Xiao" || !q.author || q.author !== "Tang");
+  }
+  if (filter === "Tang") {
+    return gameData.questions.filter((q) => q.author === "Tang");
+  }
+  // Xiao & Tang 两人照片合集
+  return gameData.questions;
+}
 
 // 华为地图瓦片服务 (带 OSM 自动优雅降级)
 const HUAWEI_MAP_TILE_URL =
@@ -78,14 +96,26 @@ function calculateBattleScore(distanceKm) {
   return Math.max(0, Math.min(5000, Math.round(rawScore)));
 }
 
-// 随机洗牌选取 10 道题目
-function pick10TangQuestions() {
-  const pool = [...TANG_QUESTIONS];
+// GeoGuessr / 图寻主流扣血制伤害倍率计算 (第 5 题起启动倍率，最高 4.0x)
+function getRoundMultiplier(roundIndex) {
+  const roundNum = roundIndex + 1;
+  if (roundNum <= 4) return 1.0;
+  if (roundNum === 5) return 1.5;
+  if (roundNum === 6) return 2.0;
+  if (roundNum === 7) return 2.5;
+  if (roundNum === 8) return 3.0;
+  if (roundNum === 9) return 3.5;
+  return Math.min(4.0, 4.0 + (roundNum - 10) * 0.5);
+}
+
+// 随机洗牌选取题目 (支持扣血制多题目池与积分制 10 题)
+function pickBattleQuestions(filter = "Tang", count = 30) {
+  const pool = [...getFilteredQuestions(filter)];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return pool.slice(0, 10);
+  return pool.slice(0, Math.min(count, pool.length));
 }
 
 // =========================================================================
@@ -136,13 +166,13 @@ function createOpponentPinIcon(oppName) {
                 <feDropShadow dx="0" dy="5" stdDeviation="3.5" flood-color="rgba(0,0,0,0.4)" />
               </filter>
               <linearGradient id="battle-opp-pin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#38bdf8" />
-                <stop offset="100%" stop-color="#0284c7" />
+                <stop offset="0%" stop-color="#a855f7" />
+                <stop offset="100%" stop-color="#7c3aed" />
               </linearGradient>
             </defs>
             <path d="M19 48 C19 48, 35 30, 35 19 C35 10.163, 27.837 3, 19 3 C10.163 3, 3 10.163, 3 19 C3 30, 19 48, 19 48 Z" fill="url(#battle-opp-pin-grad)" stroke="#ffffff" stroke-width="2.5" filter="url(#battle-opp-drop-shadow)" />
             <circle cx="19" cy="19" r="8" fill="#ffffff" />
-            <circle cx="19" cy="19" r="4.5" fill="#0284c7" />
+            <circle cx="19" cy="19" r="4.5" fill="#7c3aed" />
           </svg>
           <div class="needle-pin-label opponent">${oppName || "对手插旗"}</div>
         </div>
@@ -154,51 +184,136 @@ function createOpponentPinIcon(oppName) {
   });
 }
 
-// 目标真实拍摄点 (翡翠绿针式图钉，带雷达波纹)
+// 目标真实拍摄点：经典普通规范小红旗 (直立细杆 + 纯正红色三角旗面 + 精准触地红点)
 function createTargetPinIcon(cityName) {
   return L.divIcon({
-    className: "game-div-icon-wrapper",
+    className: "battle-red-flag-icon-wrap",
     html: `
-      <div class="geoguessr-needle-pin target">
-        <div class="pin-head-bubble target">
-          <svg width="38" height="50" viewBox="0 0 38 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <filter id="battle-target-drop-shadow" x="-30%" y="-20%" width="160%" height="150%">
-                <feDropShadow dx="0" dy="5" stdDeviation="3.5" flood-color="rgba(0,0,0,0.4)" />
-              </filter>
-              <linearGradient id="battle-target-pin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#34d399" />
-                <stop offset="100%" stop-color="#059669" />
-              </linearGradient>
-            </defs>
-            <path d="M19 48 C19 48, 35 30, 35 19 C35 10.163, 27.837 3, 19 3 C10.163 3, 3 10.163, 3 19 C3 30, 19 48, 19 48 Z" fill="url(#battle-target-pin-grad)" stroke="#ffffff" stroke-width="2.5" filter="url(#battle-target-drop-shadow)" />
-            <circle cx="19" cy="19" r="8.5" fill="#ffffff" />
-            <circle cx="19" cy="19" r="5" fill="#059669" />
-            <circle cx="19" cy="19" r="2" fill="#ffffff" />
-          </svg>
-          <div class="needle-pin-label target">真实位置 · ${cityName || "实际拍摄地"}</div>
-        </div>
-        <div class="target-ground-ripple"></div>
-        <div class="target-ground-ripple delayed"></div>
+      <div class="battle-target-flag-container">
+        <div class="battle-flag-label target">真实位置 · ${cityName || "实际拍摄地"}</div>
+        <svg class="battle-flag-svg" width="36" height="42" viewBox="0 0 36 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="battle-flag-shadow" x="-20%" y="-10%" width="150%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.25)" />
+            </filter>
+          </defs>
+          <!-- 地面锚点浅灰微阴影 -->
+          <ellipse cx="6" cy="39" rx="5" ry="2" fill="rgba(0,0,0,0.2)" />
+          <!-- 笔直金属细旗杆 -->
+          <line x1="6" y1="4" x2="6" y2="39" stroke="#334155" stroke-width="2.4" stroke-linecap="round" />
+          <!-- 旗杆顶部金属小圆头 -->
+          <circle cx="6" cy="4" r="2" fill="#94a3b8" />
+          <!-- 经典规范的小红旗 (向右三角旗面，纯净红底白边) -->
+          <path d="M6 5 L28 14 L6 23 Z" fill="#ef4444" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round" filter="url(#battle-flag-shadow)" />
+          <!-- 触地点红色定位小圆珠 -->
+          <circle cx="6" cy="39" r="2.5" fill="#ef4444" stroke="#ffffff" stroke-width="1" />
+        </svg>
       </div>
     `,
-    iconSize: [38, 50],
-    iconAnchor: [19, 48],
+    iconSize: [36, 42],
+    iconAnchor: [6, 39],
   });
 }
 
-// 连线中点距离与得分标签
-function createDistanceBadgeIcon(distKm, score) {
+// 智能计算连线徽章最佳放置坐标 (避开目标点、己方与对手插旗，以及其他徽章，杜绝遮挡)
+function getOptimalBadgeCoord(guessLat, guessLng, targetLat, targetLng, obstacles = [], preferredT = 0.35) {
+  // 根据 preferredT 区分双方徽章在连线上的侧重采样区间：我方偏向 0.30~0.42，敌方偏向 0.60~0.75
+  const candidates =
+    preferredT < 0.5
+      ? [0.35, 0.28, 0.42, 0.22, 0.48]
+      : [0.65, 0.72, 0.58, 0.78, 0.52];
+
+  let bestT = candidates[0];
+  let maxMinDist = -1;
+
+  for (const t of candidates) {
+    const lat = guessLat * (1 - t) + targetLat * t;
+    const lng = guessLng * (1 - t) + targetLng * t;
+
+    let minDist = Infinity;
+    for (const obs of obstacles) {
+      if (!obs || obs[0] === null || obs[1] === null) continue;
+      const dLat = (lat - obs[0]) * 111;
+      const dLng = (lng - obs[1]) * 111 * Math.cos((lat * Math.PI) / 180);
+      const d = Math.sqrt(dLat * dLat + dLng * dLng);
+      if (d < minDist) minDist = d;
+    }
+
+    const score = minDist - Math.abs(t - preferredT) * 45;
+    if (score > maxMinDist) {
+      maxMinDist = score;
+      bestT = t;
+    }
+  }
+
+  return [guessLat * (1 - bestT) + targetLat * bestT, guessLng * (1 - bestT) + targetLng * bestT];
+}
+
+// 连线中点距离与得分徽章 (极简高质感双色浮动胶囊，彻底杜绝重叠与黑圈)
+function createDistanceBadgeIcon(distKm, score, isOpponent) {
+  const badgeClass = isOpponent ? "opp" : "you";
   return L.divIcon({
-    className: "game-distance-label-wrapper",
+    className: "battle-distance-badge-wrap",
     html: `
-      <div class="geoguessr-midpoint-badge">
-        <span class="mid-dist">📏 误差 ${formatDistance(distKm)}</span>
-        <span class="mid-score">+${score.toLocaleString()}分</span>
+      <div class="battle-midpoint-pill ${badgeClass}">
+        <span class="pill-dist">${formatDistance(distKm)}</span>
+        <span class="pill-divider">·</span>
+        <span class="pill-score">+${score.toLocaleString()}分</span>
       </div>
     `,
     iconSize: [0, 0],
   });
+}
+
+// 国家国旗圆形图标组件 (优先读取本地 /TravelMap/flags/circle-195/*.png，若无则平滑降级为 Emoji)
+const COUNTRY_FLAG_EMOJIS = {
+  "中国": "🇨🇳", "挪威": "🇳🇴", "法国": "🇫🇷", "德国": "🇩🇪", "瑞士": "🇨🇭",
+  "荷兰": "🇳🇱", "卢森堡": "🇱🇺", "冰岛": "🇮🇸", "意大利": "🇮🇹", "西班牙": "🇪🇸",
+  "捷克": "🇨🇿", "奥地利": "🇦🇹", "比利时": "🇧🇪", "希腊": "🇬🇷", "波兰": "🇵🇱",
+  "安道尔": "🇦🇩", "列支敦士登": "🇱🇮", "塞浦路斯": "🇨🇾", "梵蒂冈": "🇻🇦",
+  "英国": "🇬🇧", "瑞典": "🇸🇪", "芬兰": "🇫🇮", "丹麦": "🇩🇰", "葡萄牙": "🇵🇹",
+  "爱尔兰": "🇮🇪", "匈牙利": "🇭🇺", "克罗地亚": "🇭🇷", "摩纳哥": "🇲🇨", "圣马力诺": "🇸🇲",
+  "日本": "🇯🇵", "韩国": "🇰🇷", "泰国": "🇹🇭", "新加坡": "🇸🇬", "美国": "🇺🇸"
+};
+
+function CountryFlag({ countryName, size = 26, className = "" }) {
+  const [hasError, setHasError] = useState(false);
+  const cleanName = (countryName || "").trim();
+  const flagUrl = `${import.meta.env.BASE_URL}flags/circle-195/${encodeURIComponent(cleanName)}.png`;
+
+  if (hasError || !cleanName) {
+    const emoji = COUNTRY_FLAG_EMOJIS[cleanName] || "🌍";
+    return (
+      <span
+        className={`country-flag-emoji ${className}`}
+        style={{ fontSize: `${size * 0.85}px`, lineHeight: 1, display: "inline-block", verticalAlign: "middle" }}
+        role="img"
+        aria-label={cleanName}
+      >
+        {emoji}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={flagUrl}
+      alt={cleanName}
+      className={`country-flag-circle ${className}`}
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        borderRadius: "50%",
+        objectFit: "cover",
+        display: "inline-block",
+        verticalAlign: "middle",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.12)",
+        border: "1.5px solid rgba(255, 255, 255, 0.9)",
+        flexShrink: 0
+      }}
+      onError={() => setHasError(true)}
+    />
+  );
 }
 
 // =========================================================================
@@ -376,19 +491,16 @@ function BattlePhotoZoomer({ photoUrl, photoUrlHd, alt }) {
           <button type="button" onClick={() => stepZoom(-1)} title="缩小 (-)">
             <ZoomOut size={14} />
           </button>
-          {scale > 1.01 && (
-            <button type="button" onClick={resetZoom} title="复位 (1x)" className="reset-btn">
-              1x
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={resetZoom}
+            title="复位照片视角 (1x)"
+            className="photo-hud-reset-btn"
+          >
+            <RotateCcw size={14} />
+          </button>
         </div>
       </div>
-
-      {scale <= 1.01 && (
-        <div className="photo-wheel-hint">
-          <span>🖱️ 鼠标滚轮缩放细节 · 拖拽平移</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -442,6 +554,14 @@ class SoundFx {
       setTimeout(() => this.playTone(freq, "sine", 0.25, 0.15), i * 110);
     });
   }
+  playHit() {
+    this.playTone(440, "triangle", 0.12, 0.22);
+    setTimeout(() => this.playTone(660, "square", 0.18, 0.18), 70);
+  }
+  playDamage() {
+    this.playTone(180, "sawtooth", 0.22, 0.2);
+    setTimeout(() => this.playTone(120, "sawtooth", 0.3, 0.25), 90);
+  }
   playVictory() {
     [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((freq, i) => {
       setTimeout(() => this.playTone(freq, "triangle", 0.4, 0.2), i * 120);
@@ -490,6 +610,23 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const [urgentSeconds, setUrgentSeconds] = useState(null); // 15s 倒计时
   const [urgentTriggeredBy, setUrgentTriggeredBy] = useState(null);
 
+  // 赛制玩法: "HP" (6000 HP 扣血淘汰) | "POINTS" (10 题经典积分)
+  const [matchMode, setMatchMode] = useState("HP");
+  const matchModeRef = useRef("HP");
+
+  // 题库分类选择: "Xiao" (4365张) | "Tang" (502张) | "Xiao&Tang" (4867张全量)
+  const [authorFilter, setAuthorFilter] = useState("Tang");
+  const authorFilterRef = useRef("Tang");
+  useEffect(() => {
+    authorFilterRef.current = authorFilter;
+  }, [authorFilter]);
+
+  // 双方血量 (6000 HP 扣血模式独享)
+  const [myHp, setMyHp] = useState(6000);
+  const [opponentHp, setOpponentHp] = useState(6000);
+  const myHpRef = useRef(6000);
+  const opponentHpRef = useRef(6000);
+
   // 回合与全局累计比分
   const [myTotalScore, setMyTotalScore] = useState(0);
   const [opponentTotalScore, setOpponentTotalScore] = useState(0);
@@ -521,6 +658,18 @@ export default function TravelBattleGame({ onBackToExplore }) {
   const handlersRef = useRef({});
 
   // 实时同步状态至 Refs
+  useEffect(() => {
+    matchModeRef.current = matchMode;
+  }, [matchMode]);
+
+  useEffect(() => {
+    myHpRef.current = myHp;
+  }, [myHp]);
+
+  useEffect(() => {
+    opponentHpRef.current = opponentHp;
+  }, [opponentHp]);
+
   useEffect(() => {
     matchQuestionsRef.current = matchQuestions;
   }, [matchQuestions]);
@@ -563,6 +712,31 @@ export default function TravelBattleGame({ onBackToExplore }) {
     }
   };
 
+  // 全屏沉浸对战模式 (对局时自动扩展铺满整个网页视口，带来沉浸式电竞体验)
+  const [isImmersive, setIsImmersive] = useState(true);
+
+  // 对战进行或结算阶段锁定外层网页滚动，防止背景穿透
+  useEffect(() => {
+    if (isImmersive && (gameState === "PLAYING" || gameState === "ROUND_REVEAL" || gameState === "GAME_OVER")) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isImmersive, gameState]);
+
+  // 全屏模式切换时重新自适应地图尺寸
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [isImmersive, gameState]);
+
   // 卸载清理通道与定时器
   useEffect(() => {
     return () => {
@@ -579,10 +753,14 @@ export default function TravelBattleGame({ onBackToExplore }) {
   }, [isMuted]);
 
   // 保存昵称
-  const handleNameChange = (e) => {
-    const val = e.target.value.trim().substring(0, 12);
+  const handlePlayerNameChange = (nameStr) => {
+    const val = (nameStr || "").trim().substring(0, 12);
     setPlayerName(val || "探险家");
     localStorage.setItem("travel_battle_player_name", val || "探险家");
+  };
+
+  const handleNameChange = (e) => {
+    handlePlayerNameChange(e.target.value);
   };
 
   // URL 带参加入房间 (e.g. ?duel=123456)
@@ -682,17 +860,22 @@ export default function TravelBattleGame({ onBackToExplore }) {
       }).addTo(markerGroup);
     }
 
-    // 2. 回合揭晓阶段：同时绘制 目标真实针式图钉、你的插旗、对手插旗、中点得分与虚线
+    // 2. 回合揭晓阶段：同时绘制 目标真实战旗、你的插旗、对手插旗、智能避让得分徽章与虚线
     if (gameState === "ROUND_REVEAL" && roundResult) {
       const { targetLat, targetLng, myGuess, oppGuess, targetCity } = roundResult;
       const boundsPoints = [[targetLat, targetLng]];
 
-      // A. 目标真实点 (翡翠绿针式图钉 + 雷达波纹动画)
+      // A. 目标真实点 (鲜艳红色战旗 + 地面雷达波纹)
       const targetMarker = L.marker([targetLat, targetLng], {
         icon: createTargetPinIcon(targetCity),
         zIndexOffset: 2000,
       });
       markerGroup.addLayer(targetMarker);
+
+      // 收集地图上所有障碍点 (目标真实点、双方插旗点)，供徽章避让算法排布
+      const obstacles = [[targetLat, targetLng]];
+      if (myGuess && myGuess.lat !== null) obstacles.push([myGuess.lat, myGuess.lng]);
+      if (oppGuess && oppGuess.lat !== null) obstacles.push([oppGuess.lat, oppGuess.lng]);
 
       // B. 你的预测插旗 (金黄色针式图钉)
       if (myGuess && myGuess.lat !== null) {
@@ -703,7 +886,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
         });
         markerGroup.addLayer(myMarker);
 
-        // 连线与中点距离徽章
+        // 连线与距离徽章 (动态计算避让坐标，彻底杜绝遮挡插旗与虚线)
         L.polyline([[myGuess.lat, myGuess.lng], [targetLat, targetLng]], {
           color: "#d97706",
           dashArray: "6, 6",
@@ -711,10 +894,18 @@ export default function TravelBattleGame({ onBackToExplore }) {
           opacity: 0.9,
         }).addTo(markerGroup);
 
-        const midLat = (myGuess.lat + targetLat) / 2;
-        const midLng = (myGuess.lng + targetLng) / 2;
-        L.marker([midLat, midLng], {
-          icon: createDistanceBadgeIcon(myGuess.dist, myGuess.score),
+        const myBadgeCoord = getOptimalBadgeCoord(
+          myGuess.lat,
+          myGuess.lng,
+          targetLat,
+          targetLng,
+          obstacles,
+          0.35
+        );
+        obstacles.push(myBadgeCoord); // 将己方徽章也记录为障碍物，防止敌方徽章重叠
+
+        L.marker(myBadgeCoord, {
+          icon: createDistanceBadgeIcon(myGuess.dist, myGuess.score, false),
           zIndexOffset: 1800,
         }).addTo(markerGroup);
       }
@@ -728,18 +919,25 @@ export default function TravelBattleGame({ onBackToExplore }) {
         });
         markerGroup.addLayer(oppMarker);
 
-        // 连线与中点距离徽章
+        // 连线与距离徽章 (智能避开己方徽章、目标点与双方图钉)
         L.polyline([[oppGuess.lat, oppGuess.lng], [targetLat, targetLng]], {
-          color: "#0284c7",
+          color: "#7c3aed",
           dashArray: "6, 6",
           weight: 3.5,
           opacity: 0.9,
         }).addTo(markerGroup);
 
-        const midLat2 = (oppGuess.lat + targetLat) / 2;
-        const midLng2 = (oppGuess.lng + targetLng) / 2;
-        L.marker([midLat2, midLng2], {
-          icon: createDistanceBadgeIcon(oppGuess.dist, oppGuess.score),
+        const oppBadgeCoord = getOptimalBadgeCoord(
+          oppGuess.lat,
+          oppGuess.lng,
+          targetLat,
+          targetLng,
+          obstacles,
+          0.65
+        );
+
+        L.marker(oppBadgeCoord, {
+          icon: createDistanceBadgeIcon(oppGuess.dist, oppGuess.score, true),
           zIndexOffset: 1750,
         }).addTo(markerGroup);
       }
@@ -760,7 +958,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
     setUrgentSeconds(null);
     setUrgentTriggeredBy(null);
 
-    const questions = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : TANG_QUESTIONS;
+    const fallbackPool = getFilteredQuestions(authorFilterRef.current);
+    const questions = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : fallbackPool;
     const curQ = questions[roundIdx] ?? questions[currentRoundIndexRef.current];
     if (!curQ) {
       console.warn("Could not find question for round", roundIdx);
@@ -769,6 +968,34 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
     const targetLat = curQ.exactLat ?? curQ.center[1];
     const targetLng = curQ.exactLng ?? curQ.center[0];
+
+    // GeoGuessr / 图寻 扣血伤害计算
+    const myScore = mySub.score || 0;
+    const oppScore = oppSub.score || 0;
+    const diff = Math.abs(myScore - oppScore);
+    const multiplier = matchModeRef.current === "HP" ? getRoundMultiplier(roundIdx) : 1.0;
+    const damage = Math.round(diff * multiplier);
+
+    let nextMyHp = myHpRef.current;
+    let nextOppHp = opponentHpRef.current;
+    let isKo = false;
+
+    if (matchModeRef.current === "HP") {
+      if (myScore > oppScore) {
+        nextOppHp = Math.max(0, nextOppHp - damage);
+        sfx.playHit();
+      } else if (oppScore > myScore) {
+        nextMyHp = Math.max(0, nextMyHp - damage);
+        sfx.playDamage();
+      }
+      setMyHp(nextMyHp);
+      myHpRef.current = nextMyHp;
+      setOpponentHp(nextOppHp);
+      opponentHpRef.current = nextOppHp;
+      if (nextMyHp <= 0 || nextOppHp <= 0) {
+        isKo = true;
+      }
+    }
 
     const res = {
       roundIndex: roundIdx,
@@ -788,6 +1015,11 @@ export default function TravelBattleGame({ onBackToExplore }) {
         dist: oppSub.dist,
         score: oppSub.score,
       },
+      damage,
+      multiplier,
+      myHp: nextMyHp,
+      oppHp: nextOppHp,
+      isKo,
     };
 
     setRoundResult(res);
@@ -797,8 +1029,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
     updateGameState("ROUND_REVEAL");
     sfx.playReveal();
 
-    // 启动 5 秒自动跳转下一题倒计时
-    setAutoAdvanceSec(5);
+    // 启动 10 秒自动跳转下一题倒计时 (给予玩家更充裕的复盘与看图时间)
+    setAutoAdvanceSec(10);
   }, []);
 
   const checkRoundCompletion = useCallback(
@@ -836,7 +1068,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
   // 15s 超时强制提交
   const handleForceSubmitOnTimeout = useCallback(() => {
     if (myLockedRef.current) return;
-    const questions = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : TANG_QUESTIONS;
+    const fallbackPool = getFilteredQuestions(authorFilterRef.current);
+    const questions = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : fallbackPool;
     const curQ = questions[currentRoundIndexRef.current];
     if (!curQ) return;
 
@@ -888,7 +1121,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
   // 玩家主动点击“确认提交锁定”
   const handleLockInGuess = () => {
     if (myLockedRef.current || !myPinRef.current) return;
-    const questions = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : TANG_QUESTIONS;
+    const fallbackPool = getFilteredQuestions(authorFilterRef.current);
+    const questions = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : fallbackPool;
     const curQ = questions[currentRoundIndexRef.current];
     if (!curQ) return;
 
@@ -953,11 +1187,26 @@ export default function TravelBattleGame({ onBackToExplore }) {
     if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
     setAutoAdvanceSec(null);
 
-    const totalRounds = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current.length : 10;
+    // 扣血制模式：若任一方血量已清零，立即判定 K.O. 结算！
+    if (matchModeRef.current === "HP" && (myHpRef.current <= 0 || opponentHpRef.current <= 0)) {
+      updateGameState("GAME_OVER");
+      sfx.playVictory();
+      return;
+    }
+
+    const totalRounds = matchQuestionsRef.current.length > 0
+      ? matchQuestionsRef.current.length
+      : (matchModeRef.current === "HP" ? 30 : 10);
     const nextIdx = targetRoundIdx !== undefined ? targetRoundIdx : currentRoundIndexRef.current + 1;
 
+    // 经典积分制模式：10 题定胜负
+    if (matchModeRef.current === "POINTS" && nextIdx >= 10) {
+      updateGameState("GAME_OVER");
+      sfx.playVictory();
+      return;
+    }
+
     if (nextIdx >= totalRounds) {
-      // 10 题全部完成，进入终局大结算
       updateGameState("GAME_OVER");
       sfx.playVictory();
       return;
@@ -1029,8 +1278,16 @@ export default function TravelBattleGame({ onBackToExplore }) {
     },
     onStartGame: (payload) => {
       const qs = payload.questionIds
-        .map((id) => TANG_QUESTIONS.find((q) => q.id === id))
+        .map((id) => gameData.questions.find((q) => q.id === id))
         .filter(Boolean);
+      if (payload.matchMode) {
+        setMatchMode(payload.matchMode);
+        matchModeRef.current = payload.matchMode;
+      }
+      setMyHp(6000);
+      setOpponentHp(6000);
+      myHpRef.current = 6000;
+      opponentHpRef.current = 6000;
       updateMatchQuestions(qs);
       updateRoundIndex(0);
       setMyTotalScore(0);
@@ -1051,8 +1308,16 @@ export default function TravelBattleGame({ onBackToExplore }) {
     },
     onRematchStart: (payload) => {
       const qs = payload.questionIds
-        .map((id) => TANG_QUESTIONS.find((q) => q.id === id))
+        .map((id) => gameData.questions.find((q) => q.id === id))
         .filter(Boolean);
+      if (payload.matchMode) {
+        setMatchMode(payload.matchMode);
+        matchModeRef.current = payload.matchMode;
+      }
+      setMyHp(6000);
+      setOpponentHp(6000);
+      myHpRef.current = 6000;
+      opponentHpRef.current = 6000;
       updateMatchQuestions(qs);
       updateRoundIndex(0);
       setMyTotalScore(0);
@@ -1088,6 +1353,10 @@ export default function TravelBattleGame({ onBackToExplore }) {
       setOpponent(oppObj);
       updateMatchQuestions(questionsArr);
       updateRoundIndex(0);
+      setMyHp(6000);
+      setOpponentHp(6000);
+      myHpRef.current = 6000;
+      opponentHpRef.current = 6000;
       setMyTotalScore(0);
       setOpponentTotalScore(0);
       setMatchHistory([]);
@@ -1197,8 +1466,9 @@ export default function TravelBattleGame({ onBackToExplore }) {
 
           if (playerId === p1.playerId) {
             const newRoomId = "duel_" + Math.random().toString(36).substring(2, 8);
-            const chosen10 = pick10TangQuestions();
-            const questionIds = chosen10.map((q) => q.id);
+            const qCount = matchModeRef.current === "HP" ? 30 : 10;
+            const chosen = pickBattleQuestions(authorFilterRef.current, qCount);
+            const questionIds = chosen.map((q) => q.id);
 
             lobby.send({
               type: "broadcast",
@@ -1210,12 +1480,13 @@ export default function TravelBattleGame({ onBackToExplore }) {
                 guestId: p2.playerId,
                 guestName: p2.playerName,
                 questionIds,
+                matchMode: matchModeRef.current,
               },
             });
 
             supabase.removeChannel(lobby);
             lobbyChannelRef.current = null;
-            setupRoomChannel(newRoomId, true, chosen10, { id: p2.playerId, name: p2.playerName });
+            setupRoomChannel(newRoomId, true, chosen, { id: p2.playerId, name: p2.playerName });
             updateGameState("PLAYING");
             if (mapInstanceRef.current) {
               mapInstanceRef.current.setView([48.8566, 2.3522], 4);
@@ -1228,8 +1499,12 @@ export default function TravelBattleGame({ onBackToExplore }) {
         if (payload.guestId === playerId) {
           supabase.removeChannel(lobby);
           lobbyChannelRef.current = null;
+          if (payload.matchMode) {
+            setMatchMode(payload.matchMode);
+            matchModeRef.current = payload.matchMode;
+          }
           const qs = payload.questionIds
-            .map((id) => TANG_QUESTIONS.find((q) => q.id === id))
+            .map((id) => gameData.questions.find((q) => q.id === id))
             .filter(Boolean);
           setupRoomChannel(payload.roomId, false, qs, {
             id: payload.hostId,
@@ -1257,6 +1532,14 @@ export default function TravelBattleGame({ onBackToExplore }) {
       lobbyChannelRef.current = null;
     }
     updateGameState("LOBBY");
+    setTimeout(() => {
+      const target = document.getElementById("travel-game-section");
+      if (target) {
+        const offset = 100;
+        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      }
+    }, 60);
   };
 
   // ==========================================================================
@@ -1264,9 +1547,10 @@ export default function TravelBattleGame({ onBackToExplore }) {
   // ==========================================================================
   const createFriendRoom = () => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const chosen10 = pick10TangQuestions();
-    matchQuestionsRef.current = chosen10;
-    setupRoomChannel(code, true, chosen10, null);
+    const qCount = matchModeRef.current === "HP" ? 30 : 10;
+    const chosen = pickBattleQuestions(authorFilterRef.current, qCount);
+    matchQuestionsRef.current = chosen;
+    setupRoomChannel(code, true, chosen, null);
     updateGameState("ROOM_WAITING");
   };
 
@@ -1290,9 +1574,13 @@ export default function TravelBattleGame({ onBackToExplore }) {
       channelRef.current.send({
         type: "broadcast",
         event: "start_game",
-        payload: { questionIds: qIds },
+        payload: { questionIds: qIds, matchMode: matchModeRef.current },
       });
       updateRoundIndex(0);
+      setMyHp(6000);
+      setOpponentHp(6000);
+      myHpRef.current = 6000;
+      opponentHpRef.current = 6000;
       setMyTotalScore(0);
       setOpponentTotalScore(0);
       setMatchHistory([]);
@@ -1322,15 +1610,20 @@ export default function TravelBattleGame({ onBackToExplore }) {
   // 申请再来一局
   const handleRematch = () => {
     if (channelRef.current) {
-      const new10 = pick10TangQuestions();
-      const questionIds = new10.map((q) => q.id);
+      const qCount = matchModeRef.current === "HP" ? 30 : 10;
+      const newQs = pickBattleQuestions(authorFilterRef.current, qCount);
+      const questionIds = newQs.map((q) => q.id);
       channelRef.current.send({
         type: "broadcast",
         event: "rematch_start",
-        payload: { questionIds },
+        payload: { questionIds, matchMode: matchModeRef.current },
       });
-      updateMatchQuestions(new10);
+      updateMatchQuestions(newQs);
       updateRoundIndex(0);
+      setMyHp(6000);
+      setOpponentHp(6000);
+      myHpRef.current = 6000;
+      opponentHpRef.current = 6000;
       setMyTotalScore(0);
       setOpponentTotalScore(0);
       setMatchHistory([]);
@@ -1358,6 +1651,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
       supabase.removeChannel(lobbyChannelRef.current);
       lobbyChannelRef.current = null;
     }
+    setIsImmersive(false);
     updateGameState("LOBBY");
     setRoomId("");
     setOpponent(null);
@@ -1373,263 +1667,377 @@ export default function TravelBattleGame({ onBackToExplore }) {
     setOpponentLocked(false);
     setRoundResult(null);
     roundSubmissionsRef.current = {};
+
+    // 确保返回大厅后，页面平滑滚动并锁定在实时对战游戏区域，杜绝跳到其他板块
+    setTimeout(() => {
+      const target = document.getElementById("travel-game-section");
+      if (target) {
+        const offset = 100;
+        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      }
+    }, 60);
   };
 
   const questionsList = matchQuestionsRef.current.length > 0 ? matchQuestionsRef.current : matchQuestions;
   const currentQ = questionsList[currentRoundIndex] || null;
 
   return (
-    <div className="battle-master-wrapper">
-      {/* 顶部状态与品牌栏 */}
-      <header className="battle-header-bar">
-        <div className="battle-brand">
-          <div className="battle-brand-icon">
-            <Swords size={22} />
-          </div>
-          <div>
-            <div className="battle-brand-title">
-              1v1 实时图寻对决
-              <span className="battle-brand-tag">Tang 欧洲精选专场</span>
-            </div>
-            <div className="battle-brand-sub">实时同题对抗 · 先交卷施加 15s 绝杀倒计时</div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div className="battle-player-pill">
-            <span style={{ width: 8, height: 8, background: "#22c55e", borderRadius: "50%" }}></span>
-            <span>{playerName}</span>
-          </div>
-
-          <button
-            type="button"
-            className="battle-sound-btn"
-            onClick={() => setIsMuted(!isMuted)}
-            title={isMuted ? "开启音效" : "静音"}
-          >
-            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-          </button>
-        </div>
-      </header>
-
-      {/* ==================================================================
-          阶段 1：对战大厅 (LOBBY)
-          ================================================================== */}
-      {gameState === "LOBBY" && (
-        <div className="battle-lobby-card">
-          <div className="battle-lobby-hero-badge">
-            <Zap size={15} /> 实时竞技全新上线
-          </div>
-          <h2 className="battle-lobby-title">极速双人图寻对决</h2>
-          <p className="battle-lobby-desc">
-            两位玩家同时在线，随机抽取 10 道相同的欧洲精选照片。谁先锁定答案，对方即刻进入 15
-            秒倒计时绝杀！分秒必争，得分最高者胜出。
-          </p>
-
-          <div className="battle-nickname-box">
-            <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 700 }}>你的昵称:</span>
-            <input
-              type="text"
-              className="battle-nickname-input"
-              value={playerName}
-              onChange={handleNameChange}
-              maxLength={12}
-            />
-          </div>
-
-          <div className="battle-modes-grid">
-            {/* 模式 A：快速匹配 */}
-            <div className="battle-mode-panel">
-              <div>
-                <div className="battle-mode-icon quick">
-                  <Zap size={26} />
-                </div>
-                <div className="battle-mode-name">随机快速匹配</div>
-                <div className="battle-mode-details">
-                  一键接入全网在线对战大厅，系统将自动为你寻找旗鼓相当的对手并瞬时开局。
-                </div>
-              </div>
-              <button
-                type="button"
-                className="battle-action-btn primary"
-                onClick={startQuickMatch}
-              >
-                <Zap size={18} /> 开始匹配对手
-              </button>
-            </div>
-
-            {/* 模式 B：好友房间开黑 */}
-            <div className="battle-mode-panel">
-              <div>
-                <div className="battle-mode-icon friend">
-                  <Users size={26} />
-                </div>
-                <div className="battle-mode-name">好友专属房间</div>
-                <div className="battle-mode-details">
-                  创建 6 位私人房间码或生成链接发给好友，支持一键点开直接进房 1v1 单挑。
-                </div>
-              </div>
-              <div>
-                <button
-                  type="button"
-                  className="battle-action-btn secondary"
-                  onClick={createFriendRoom}
-                  style={{ marginBottom: "10px" }}
-                >
-                  <Sparkles size={17} /> 创建私人房间
-                </button>
-
-                <div className="battle-room-input-row">
-                  <input
-                    type="text"
-                    className="battle-room-input"
-                    placeholder="输入6位房间码"
-                    value={inputRoomCode}
-                    onChange={(e) => setInputRoomCode(e.target.value.toUpperCase())}
-                    maxLength={6}
-                  />
-                  <button
-                    type="button"
-                    className="battle-action-btn primary"
-                    style={{ width: "auto", padding: "10px 16px" }}
-                    onClick={joinFriendRoom}
-                  >
-                    加入
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="battle-rules-summary">
-            <span>🎯 题库范围：502 张 Tang 欧洲纪行实景精选</span>
-            <span>⚡ 题量：每局 10 回合</span>
-            <span>⏱️ 绝杀机制：首个提交后触发 15 秒倒计时</span>
-          </div>
-        </div>
-      )}
-
-      {/* ==================================================================
-          阶段 2：快速匹配中 (MATCHING)
-          ================================================================== */}
-      {gameState === "MATCHING" && (
-        <div className="battle-lobby-card">
-          <div className="battle-matching-overlay">
-            <div className="battle-radar-circle">
-              <Zap size={36} color="#ea580c" />
-            </div>
-            <h3 style={{ fontSize: "1.5rem", fontWeight: 900, marginBottom: "8px" }}>
-              正在寻找对手...
-            </h3>
-            <p style={{ color: "#64748b", fontSize: "0.95rem", marginBottom: "28px" }}>
-              已连接至匹配池，请保持页面开启，匹配成功将自动开启对决
+    <div
+      className={`battle-master-wrapper ${
+        isImmersive &&
+        (gameState === "PLAYING" ||
+          gameState === "ROUND_REVEAL" ||
+          gameState === "GAME_OVER")
+          ? "immersive-mode"
+          : ""
+      } ${gameState === "GAME_OVER" ? "game-over" : ""}`}
+    >
+      {/* 顶部标题栏与题库选择 (对齐实景图寻与地图盲填) */}
+      {gameState !== "PLAYING" &&
+        gameState !== "ROUND_REVEAL" &&
+        gameState !== "GAME_OVER" && (
+        <div className="travel-game-header-row">
+          <div className="travel-game-title-group">
+            <h2 className="notes-hero-title">
+              <Swords className="notes-hero-icon" size={24} />
+              <span className="game-hero-brand-text">GEO GUESS PK</span>
+              <span className="notes-title-sub">旅行图寻 · 实时对局</span>
+            </h2>
+            <p className="travel-game-subtitle">
+              <Sparkles size={16} className="game-sub-icon" />
+              <span>
+                根据真实旅拍照片探索地理细节，双人实时同题对抗，决胜千里！
+              </span>
             </p>
-            <button
-              type="button"
-              className="battle-action-btn secondary"
-              style={{ maxWidth: "200px" }}
-              onClick={cancelQuickMatch}
-            >
-              取消匹配
-            </button>
           </div>
-        </div>
-      )}
 
-      {/* ==================================================================
-          阶段 3：好友房间等待中 (ROOM_WAITING)
-          ================================================================== */}
-      {gameState === "ROOM_WAITING" && (
-        <div className="battle-lobby-card">
-          <div style={{ padding: "20px 0" }}>
-            <div className="battle-lobby-hero-badge">
-              <Users size={16} /> 专属房间: {roomId}
-            </div>
-            <h3 style={{ fontSize: "1.6rem", fontWeight: 900, marginBottom: "12px" }}>
-              {isHost ? "邀请好友加入对局" : "已加入房间，等待房主开始"}
-            </h3>
-
-            {isHost && (
-              <div style={{ marginBottom: "24px" }}>
-                <p style={{ color: "#64748b", marginBottom: "16px" }}>
-                  复制下方链接发送给好友，对方点击即可直达本房间：
-                </p>
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    background: "#f1f5f9",
-                    padding: "8px 16px",
-                    borderRadius: "12px",
-                  }}
-                >
-                  <span style={{ fontSize: "1.3rem", fontWeight: 900, letterSpacing: "0.1em" }}>
-                    {roomId}
-                  </span>
-                  <button
-                    type="button"
-                    className="battle-action-btn primary"
-                    style={{ width: "auto", padding: "8px 14px", fontSize: "0.85rem" }}
-                    onClick={copyInviteLink}
-                  >
-                    {copiedLink ? <Check size={16} /> : <Copy size={16} />}
-                    {copiedLink ? "已复制链接" : "复制邀请链接"}
-                  </button>
-                </div>
-              </div>
-            )}
-
+          {/* 顶部操作群组：玩家代号 + 音效切换 + 题库分类选项卡 (Xiao / Tang / Xiao & Tang) */}
+          <div className="travel-game-header-actions">
+            {/* 玩家当前代号胶囊 */}
             <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "24px",
-                margin: "24px 0 32px 0",
+              className="game-player-badge-pill"
+              title="当前玩家代号 (点击可快速修改)"
+              onClick={() => {
+                const newName = prompt("请输入您的玩家代号或昵称：", playerName);
+                if (newName !== null && newName.trim()) {
+                  handlePlayerNameChange(newName.trim());
+                }
               }}
             >
-              <div className="battle-player-pill" style={{ padding: "10px 20px" }}>
-                <UserCheck size={18} color="#16a34a" /> 房主: {playerName} (你)
-              </div>
-              <div className="battle-player-pill" style={{ padding: "10px 20px" }}>
-                {opponent ? (
-                  <>
-                    <UserCheck size={18} color="#2563eb" /> 对手: {opponent.name} (已就绪)
-                  </>
-                ) : (
-                  <>
-                    <Clock size={18} color="#94a3b8" /> 等待好友加入...
-                  </>
-                )}
-              </div>
+              <User size={13} className="player-badge-icon" />
+              <span className="player-badge-name">{playerName}</span>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", gap: "12px" }}>
-              {isHost ? (
+            {/* 音效控制按钮 */}
+            <button
+              type="button"
+              className="game-sound-toggle-btn"
+              onClick={() => setIsMuted(!isMuted)}
+              title={isMuted ? "开启音效" : "静音"}
+            >
+              {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            </button>
+
+            {/* 题库分类选项卡 (Xiao / Tang / Xiao & Tang)，带“题库:”说明 */}
+            <div className="travel-bank-tabs-wrapper">
+              <span className="travel-bank-label">题库:</span>
+              <div className="travel-game-category-tabs">
                 <button
                   type="button"
-                  className="battle-action-btn primary"
-                  style={{ maxWidth: "240px" }}
-                  disabled={!opponent}
-                  onClick={startFriendMatchAsHost}
+                  className={`game-tab-btn ${authorFilter === "Xiao" ? "active" : ""}`}
+                  onClick={() => setAuthorFilter("Xiao")}
+                  title="Xiao 拍摄的照片 (共 4,365 张)"
                 >
-                  <Swords size={18} /> 开始对决
+                  Xiao
                 </button>
-              ) : (
-                <div style={{ color: "#64748b", fontSize: "0.95rem" }}>
-                  已就绪，正在等待房主点击开始...
-                </div>
-              )}
-              <button
-                type="button"
-                className="battle-action-btn secondary"
-                style={{ maxWidth: "160px" }}
-                onClick={returnToLobby}
-              >
-                退出房间
-              </button>
+                <button
+                  type="button"
+                  className={`game-tab-btn ${authorFilter === "Tang" ? "active" : ""}`}
+                  onClick={() => setAuthorFilter("Tang")}
+                  title="Tang 拍摄的照片 (共 502 张)"
+                >
+                  Tang
+                </button>
+                <button
+                  type="button"
+                  className={`game-tab-btn ${authorFilter === "Xiao&Tang" ? "active" : ""}`}
+                  onClick={() => setAuthorFilter("Xiao&Tang")}
+                  title="Xiao 与 Tang 两人照片合集 (共 4,867 张)"
+                >
+                  Xiao & Tang
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 主游戏交互卡片容器 (1:1 对齐实景图寻 travel-game-card 样式) */}
+      {(gameState === "LOBBY" || gameState === "MATCHING" || gameState === "ROOM_WAITING") && (
+        <div className="travel-game-card">
+          {/* ==================================================================
+              阶段 1：对战大厅 (LOBBY)
+              ================================================================== */}
+          {gameState === "LOBBY" && (
+            <div className="game-welcome-banner">
+              <div className="game-welcome-content">
+                <div className="game-welcome-badge">
+                  <Swords size={15} />
+                  <span>1v1 实时在线对战玩法</span>
+                </div>
+                <h3>欢迎来到双人图寻对决！</h3>
+                <p className="game-welcome-desc">
+                  从真实旅程中精选实景照片，双人实时同题对抗。考验观察力与手速的时刻到了——在地图上插下您的图钉，率先交卷施加 15 秒绝杀倒计时，决胜千里！
+                </p>
+
+                {/* 玩家昵称输入与赛制玩法选择卡片 (与实景图寻 game-player-setup-card 风格一致) */}
+                <div className="game-player-setup-card battle-lobby-setup-card">
+                  <div className="player-setup-left">
+                    <div className="player-avatar-badge">
+                      <User size={18} />
+                    </div>
+                    <div className="player-input-group">
+                      <label htmlFor="battle-welcome-player-input">探险家昵称 / 玩家名称</label>
+                      <input
+                        id="battle-welcome-player-input"
+                        type="text"
+                        className="welcome-player-input"
+                        placeholder="输入您的昵称 (默认: 探险家-XXXX)"
+                        maxLength={16}
+                        value={playerName}
+                        onChange={(e) => handlePlayerNameChange(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 赛制玩法快速切换 */}
+                  <div className="battle-lobby-rule-pills">
+                    <button
+                      type="button"
+                      className={`battle-lobby-rule-pill ${matchMode === "HP" ? "active" : ""}`}
+                      onClick={() => setMatchMode("HP")}
+                      title="主流电竞赛制：初始 6000 血，按分差扣血淘汰"
+                    >
+                      <Swords size={14} />
+                      <span>巅峰血量对决 (6000 HP)</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`battle-lobby-rule-pill ${matchMode === "POINTS" ? "active" : ""}`}
+                      onClick={() => setMatchMode("POINTS")}
+                      title="经典积分赛：10 题定胜负，累计总分高者获胜"
+                    >
+                      <Trophy size={14} />
+                      <span>经典积分赛 (10 题)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3步规则指引 (1:1 对齐实景图寻三栏数字方块) */}
+                <div className="game-rules-grid">
+                  <div className="game-rule-item">
+                    <div className="rule-icon-box">1</div>
+                    <div>
+                      <strong>自由观察实景图片</strong>
+                      <p>鼠标放在照片上滑动滚轮放大细节，判断照片所在拍摄位置。</p>
+                    </div>
+                  </div>
+                  <div className="game-rule-item">
+                    <div className="rule-icon-box">2</div>
+                    <div>
+                      <strong>地图预测插旗锁定</strong>
+                      <p>在地图上插下预测图钉，率先交卷施加 15 秒绝杀倒计时！</p>
+                    </div>
+                  </div>
+                  <div className="game-rule-item">
+                    <div className="rule-icon-box">3</div>
+                    <div>
+                      <strong>
+                        {matchMode === "HP" ? "实时伤害扣血竞技 (6000 HP)" : "实测距离积分挑战 (10 题)"}
+                      </strong>
+                      <p>
+                        {matchMode === "HP"
+                          ? "双方初始 6,000 血量按分差扣血，第 5 题起启动伤害倍率，直至一方淘汰！"
+                          : "双人同题测距积分，单题最高 5,000 分，10 题后累计总积分多者获胜！"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 对战行动按钮组 */}
+                <div className="game-welcome-actions battle-welcome-actions">
+                  <button
+                    type="button"
+                    className="game-primary-btn start-btn"
+                    onClick={startQuickMatch}
+                  >
+                    <Zap size={18} />
+                    以「{playerName || "旅行探险家"}」开始快速对战
+                  </button>
+
+                  {/* 好友专属房间（单行清爽设计） */}
+                  <div className="battle-lobby-friend-row">
+                    <button
+                      type="button"
+                      className="battle-friend-btn"
+                      onClick={createFriendRoom}
+                    >
+                      <Sparkles size={15} />
+                      <span>创建私人房间</span>
+                    </button>
+                    <span className="battle-friend-divider">或</span>
+                    <div className="battle-friend-join-group">
+                      <input
+                        type="text"
+                        className="battle-friend-code-input"
+                        placeholder="输入6位房间码"
+                        value={inputRoomCode}
+                        onChange={(e) => setInputRoomCode(e.target.value.toUpperCase())}
+                        maxLength={6}
+                      />
+                      <button
+                        type="button"
+                        className="battle-room-join-btn"
+                        onClick={joinFriendRoom}
+                      >
+                        加入
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================================================================
+              阶段 2：快速匹配中 (MATCHING)
+              ================================================================== */}
+          {gameState === "MATCHING" && (
+            <div className="game-welcome-banner">
+              <div className="game-welcome-content">
+                <div className="battle-matching-overlay">
+                  <div className="battle-radar-circle">
+                    <Zap size={36} color="#7c3aed" />
+                  </div>
+                  <h3 style={{ fontSize: "1.6rem", fontWeight: 900, marginBottom: "8px" }}>
+                    正在寻找对手...
+                  </h3>
+                  <p style={{ color: "#64748b", fontSize: "0.95rem", marginBottom: "28px" }}>
+                    已连接至在线匹配大厅，请保持页面开启，匹配成功将自动开启对决
+                  </p>
+                  <button
+                    type="button"
+                    className="game-secondary-btn"
+                    style={{ padding: "10px 28px", fontSize: "0.95rem" }}
+                    onClick={cancelQuickMatch}
+                  >
+                    取消匹配
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================================================================
+              阶段 3：好友房间等待中 (ROOM_WAITING)
+              ================================================================== */}
+          {gameState === "ROOM_WAITING" && (
+            <div className="game-welcome-banner">
+              <div className="game-welcome-content">
+                <div className="game-welcome-badge">
+                  <Users size={15} />
+                  <span>专属房间: {roomId}</span>
+                </div>
+                <h3 style={{ fontSize: "1.7rem", fontWeight: 900, marginBottom: "12px" }}>
+                  {isHost ? "邀请好友加入对局" : "已加入房间，等待房主开始"}
+                </h3>
+
+                {isHost && (
+                  <div style={{ marginBottom: "24px" }}>
+                    <p style={{ color: "#64748b", marginBottom: "16px", fontSize: "0.95rem" }}>
+                      复制下方链接发送给好友，对方点击即可直达本房间：
+                    </p>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        background: "#f1f5f9",
+                        padding: "8px 16px",
+                        borderRadius: "12px",
+                        border: "1.5px solid #e2e8f0",
+                      }}
+                    >
+                      <span style={{ fontSize: "1.3rem", fontWeight: 900, letterSpacing: "0.1em" }}>
+                        {roomId}
+                      </span>
+                      <button
+                        type="button"
+                        className="game-primary-btn"
+                        style={{ padding: "8px 16px", fontSize: "0.85rem" }}
+                        onClick={copyInviteLink}
+                      >
+                        {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+                        {copiedLink ? "已复制链接" : "复制邀请链接"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: "24px",
+                    margin: "24px 0 32px 0",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div className="battle-player-pill" style={{ padding: "10px 20px" }}>
+                    <UserCheck size={18} color="#16a34a" /> 房主: {playerName} (你)
+                  </div>
+                  <div className="battle-player-pill" style={{ padding: "10px 20px" }}>
+                    {opponent ? (
+                      <>
+                        <UserCheck size={18} color="#7c3aed" /> 对手: {opponent.name} (已就绪)
+                      </>
+                    ) : (
+                      <>
+                        <Clock size={18} color="#94a3b8" /> 等待好友加入...
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "center", gap: "12px" }}>
+                  {isHost ? (
+                    <button
+                      type="button"
+                      className="game-primary-btn"
+                      style={{ padding: "12px 28px" }}
+                      disabled={!opponent}
+                      onClick={startFriendMatchAsHost}
+                    >
+                      <Swords size={18} /> 开始对决
+                    </button>
+                  ) : (
+                    <div style={{ color: "#64748b", fontSize: "0.95rem", alignSelf: "center" }}>
+                      已就绪，正在等待房主点击开始...
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="game-secondary-btn"
+                    style={{ padding: "12px 24px" }}
+                    onClick={returnToLobby}
+                  >
+                    退出房间
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1637,66 +2045,174 @@ export default function TravelBattleGame({ onBackToExplore }) {
           阶段 4 & 5：对战进行中 (PLAYING) 与 回合揭晓 (ROUND_REVEAL)
           ================================================================== */}
       {(gameState === "PLAYING" || gameState === "ROUND_REVEAL") && currentQ && (
-        <div>
-          {/* 实时比分 HUD */}
-          <div className="battle-hud-panel">
-            <div className="battle-scoreboard">
-              {/* 你 */}
-              <div className="battle-score-player you">
-                <div className="battle-score-avatar">你</div>
-                <div className="battle-score-info">
-                  <div className="battle-score-name">
-                    {playerName}
-                    {myLocked && (
-                      <span style={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 800 }}>
-                        ✓ 已交卷
-                      </span>
-                    )}
-                  </div>
-                  <div className="battle-score-pts">{myTotalScore.toLocaleString()}</div>
+        <div className="battle-play-area">
+          {/* 电竞级 1v1 对决顶栏 (HUD - 极简平铺架构：两侧无框平铺展开，中央 3 键位于轮次上方) */}
+          <div className="battle-esports-hud">
+            {/* 左侧：我方 (YOU) 平铺排布 */}
+            <div className="battle-hud-flat-combatant you">
+              <div className="combatant-avatar-box">
+                <div className="combatant-avatar you">
+                  <div className="avatar-ring you" />
+                  <Crown size={22} className="avatar-badge-icon" />
+                  <span className="avatar-role-tag you">我方</span>
                 </div>
+                {myLocked && <div className="combatant-locked-dot" title="已锁定" />}
               </div>
-
-              <div className="battle-vs-badge">VS</div>
-
-              {/* 对手 */}
-              <div className="battle-score-player opponent">
-                <div className="battle-score-avatar">{opponent?.name?.substring(0, 1) || "敌"}</div>
-                <div className="battle-score-info">
-                  <div className="battle-score-name">
-                    {opponent?.name || "对手"}
-                    {opponentLocked && (
-                      <span style={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 800 }}>
-                        ✓ 已交卷
-                      </span>
-                    )}
-                  </div>
-                  <div className="battle-score-pts">{opponentTotalScore.toLocaleString()}</div>
+              <div className="combatant-meta">
+                <div className="combatant-name-row">
+                  <span className="combatant-name" title={playerName}>{playerName}</span>
+                  <span className={`combatant-status ${myLocked ? "locked" : "thinking"}`}>
+                    {myLocked ? "已锁定" : "答题中"}
+                  </span>
                 </div>
+
+                {matchMode === "HP" ? (
+                  <div className="combatant-hp-row">
+                    <div className="combatant-hp-text you">
+                      <Heart size={12} fill="#d97706" color="#d97706" />
+                      <span className="hp-val-cur">{myHp}</span>
+                      <span className="hp-val-sep">/</span>
+                      <span className="hp-val-max">6000</span>
+                      <span className="hp-val-unit">HP</span>
+                    </div>
+                    <div className="combatant-hp-track">
+                      <div
+                        className={`combatant-hp-fill ${myHp > 3500 ? "healthy" : myHp > 1500 ? "warning" : "danger"}`}
+                        style={{ width: `${Math.max(0, Math.min(100, (myHp / 6000) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="combatant-score you">{myTotalScore.toLocaleString()} 分</div>
+                )}
               </div>
             </div>
 
-            {/* 回合数 */}
-            <div className="battle-round-badge">
-              <Sparkles size={16} color="#f97316" />
-              第 {currentRoundIndex + 1} / {matchQuestionsRef.current.length || matchQuestions.length || 10} 题
+            {/* 中央：操作按钮在上方，轮次与倍率在下方 (绝杀倒计时触发时原地高能切换) */}
+            <div className="battle-hud-center-arena">
+              {urgentSeconds !== null && gameState === "PLAYING" ? (
+                <div className="battle-hud-urgent-countdown">
+                  <div className="urgent-top-line">
+                    <div className="urgent-meta-wrap">
+                      <ShieldAlert size={15} color="#ef4444" />
+                      <span className="urgent-hazard-tag">ALERT</span>
+                      <span className="urgent-title-text">
+                        {urgentTriggeredBy === "opponent" ? "对手率先交卷！绝杀倒计时" : "我方率先交卷！对手倒计时"}
+                      </span>
+                    </div>
+                    <div className="urgent-neon-clock">{urgentSeconds}s</div>
+                  </div>
+                  <div className="urgent-laser-track">
+                    <div
+                      className="urgent-laser-fill"
+                      style={{ width: `${Math.max(0, Math.min(100, (urgentSeconds / 15) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="battle-hud-center-stack">
+                  {/* 控制按钮组 (全屏切换、静音、退出) 放置在轮次上方 */}
+                  <div className="battle-hud-center-tools">
+                    <button
+                      type="button"
+                      className="battle-center-btn"
+                      onClick={() => setIsImmersive((prev) => !prev)}
+                      title={isImmersive ? "退出全屏对战" : "进入全屏对战"}
+                    >
+                      {isImmersive ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                    </button>
+                    <button
+                      type="button"
+                      className="battle-center-btn"
+                      onClick={() => setIsMuted((prev) => !prev)}
+                      title={isMuted ? "开启音效" : "静音"}
+                    >
+                      {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                    </button>
+                    <button
+                      type="button"
+                      className="battle-center-btn exit"
+                      onClick={() => {
+                        if (window.confirm("确定要离开当前对局返回大厅吗？")) {
+                          returnToLobby();
+                        }
+                      }}
+                      title="离开房间"
+                    >
+                      <Home size={14} />
+                    </button>
+                  </div>
+
+                  {/* 下方：轮次与倍率胶囊 */}
+                  <div className="duel-match-hub">
+                    <div className="duel-round-pill">
+                      <Sparkles size={12} color="#f59e0b" />
+                      <span className="round-prefix">ROUND</span>
+                      <span className="round-number">{currentRoundIndex + 1}</span>
+                      {matchMode === "POINTS" && (
+                        <span className="round-total">/{matchQuestionsRef.current.length || matchQuestions.length || 10}</span>
+                      )}
+                    </div>
+                    {matchMode === "HP" ? (
+                      (() => {
+                        const mult = getRoundMultiplier(currentRoundIndex);
+                        return (
+                          <div className={`duel-multiplier-chip ${mult > 1.0 ? "boosted" : "normal"}`}>
+                            {mult > 1.0 ? <Flame size={12} color="#ef4444" /> : <Zap size={12} />}
+                            <span>{mult.toFixed(1)}x {mult > 1.0 ? "绝杀倍率" : "常规倍率"}</span>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <div className="duel-points-pill">10 题经典赛</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 右侧：敌方 (RIVAL) 平铺排布 (镜像对称) */}
+            <div className="battle-hud-flat-combatant opp">
+              <div className="combatant-avatar-box">
+                <div className="combatant-avatar opp">
+                  <div className="avatar-ring opp" />
+                  <Swords size={22} className="avatar-badge-icon" />
+                  <span className="avatar-role-tag opp">对手</span>
+                </div>
+                {opponentLocked && <div className="combatant-locked-dot" title="对手已交卷" />}
+              </div>
+              <div className="combatant-meta opp">
+                <div className="combatant-name-row opp">
+                  <span className="combatant-name" title={opponent?.name || "对手"}>
+                    {opponent?.name || "对手"}
+                  </span>
+                  <span className={`combatant-status ${opponentLocked ? "locked" : "thinking"}`}>
+                    {opponentLocked ? "已锁定" : "思考中"}
+                  </span>
+                </div>
+
+                {matchMode === "HP" ? (
+                  <div className="combatant-hp-row opp">
+                    <div className="combatant-hp-track">
+                      <div
+                        className={`combatant-hp-fill ${opponentHp > 3500 ? "healthy" : opponentHp > 1500 ? "warning" : "danger"}`}
+                        style={{ width: `${Math.max(0, Math.min(100, (opponentHp / 6000) * 100))}%` }}
+                      />
+                    </div>
+                    <div className="combatant-hp-text opp" style={{ justifyContent: "flex-end" }}>
+                      <Heart size={12} fill="#7c3aed" color="#7c3aed" />
+                      <span className="hp-val-cur">{opponentHp}</span>
+                      <span className="hp-val-sep">/</span>
+                      <span className="hp-val-max">6000</span>
+                      <span className="hp-val-unit">HP</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="combatant-score opp">{opponentTotalScore.toLocaleString()} 分</div>
+                )}
+              </div>
             </div>
           </div>
-
-          {/* 15 秒绝杀倒计时紧急横幅 */}
-          {urgentSeconds !== null && gameState === "PLAYING" && (
-            <div className="battle-urgent-timer-bar">
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <ShieldAlert size={24} />
-                <span>
-                  {urgentTriggeredBy === "opponent"
-                    ? "对手已率先交卷！触发 15 秒绝杀倒计时，请尽快选择答案："
-                    : "你已交卷！对手进入 15 秒绝杀倒计时："}
-                </span>
-              </div>
-              <div className="battle-urgent-sec">{urgentSeconds}s</div>
-            </div>
-          )}
 
           {/* 核心分屏游戏区 */}
           <div className="battle-play-grid">
@@ -1707,12 +2223,6 @@ export default function TravelBattleGame({ onBackToExplore }) {
                 photoUrlHd={currentQ.photoUrlHd}
                 alt="对决实景照片"
               />
-
-              <div className="battle-author-tag">
-                <span>📸 Tang 欧洲精选</span>
-                <span>·</span>
-                <span>{currentQ.shootTime?.substring(0, 10) || "欧洲实拍"}</span>
-              </div>
             </div>
 
             {/* 交互地图选点区 */}
@@ -1745,23 +2255,9 @@ export default function TravelBattleGame({ onBackToExplore }) {
                 </div>
               )}
 
-              {/* 选点提示与确认提交按钮 */}
+              {/* 确认提交按钮 (居中极简悬浮，移除了冗余提示黑框) */}
               {gameState === "PLAYING" && (
                 <div className="battle-map-bottom-bar">
-                  <div
-                    style={{
-                      background: "rgba(15, 23, 42, 0.85)",
-                      backdropFilter: "blur(8px)",
-                      color: "#ffffff",
-                      padding: "8px 14px",
-                      borderRadius: "10px",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {myPin ? "已放置图钉，确认无误后点击提交" : "点击地图任意位置标出你预测的地点"}
-                  </div>
-
                   <button
                     type="button"
                     className={`battle-submit-btn ${myLocked ? "locked" : ""}`}
@@ -1783,43 +2279,165 @@ export default function TravelBattleGame({ onBackToExplore }) {
             </div>
           </div>
 
-          {/* 回合结算揭晓弹窗条 (ROUND_REVEAL) */}
-          {gameState === "ROUND_REVEAL" && roundResult && (
-            <div className="battle-reveal-modal">
-              <div className="battle-reveal-location">
-                <div className="battle-reveal-title">
-                  🎯 正确位置：{roundResult.targetCountry} · {roundResult.targetCity}
+          {/* 回合结算揭晓悬浮卡片 (ROUND_REVEAL - 零下移滚动，悬浮停靠在画面底部中央) */}
+          {gameState === "ROUND_REVEAL" && roundResult && (() => {
+            const myScore = roundResult.myGuess?.score ?? 0;
+            const oppScore = roundResult.oppGuess?.score ?? 0;
+            const verdict = myScore > oppScore ? "win" : myScore < oppScore ? "lose" : "tie";
+            const verdictText =
+              verdict === "win"
+                ? "🎉 本回合获胜！"
+                : verdict === "lose"
+                ? "⚠️ 本回合惜败"
+                : "🤝 势均力敌 (平局)";
+
+            const isHpMode = matchMode === "HP";
+            const damage = roundResult.damage ?? 0;
+            const multiplier = roundResult.multiplier ?? 1.0;
+            const isKo = roundResult.isKo ?? false;
+
+            return (
+              <div className="battle-reveal-overlay-card">
+                {/* 左侧：目标地与战况战损 */}
+                <div className="reveal-left-col">
+                  <div className="reveal-location-header">
+                    <CountryFlag countryName={roundResult.targetCountry} size={34} />
+                    <div className="reveal-place-text">
+                      <span className="reveal-place-sub">真实拍摄地点</span>
+                      <span className="reveal-place-title">
+                        {roundResult.targetCountry} · {roundResult.targetCity}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 战果横幅 */}
+                  <div className={`reveal-combat-banner ${isKo ? "ko" : verdict}`}>
+                    {isKo ? (
+                      <>
+                        <span className="banner-icon">⚡</span>
+                        <div className="banner-text-wrap">
+                          <span className="banner-title">绝杀 K.O. 判定！</span>
+                          <span className="banner-sub">
+                            {verdict === "win" ? "对手血量见底，你获得了胜利！" : "我方血量见底，对决终结"}
+                          </span>
+                        </div>
+                      </>
+                    ) : verdict === "win" ? (
+                      <>
+                        <span className="banner-icon">🏆</span>
+                        <div className="banner-text-wrap">
+                          <span className="banner-title">本回合胜利</span>
+                          {isHpMode ? (
+                            <span className="banner-sub">
+                              对手受到 {damage} HP 伤害 (倍率{multiplier.toFixed(1)}x)
+                            </span>
+                          ) : (
+                            <span className="banner-sub">本回合领先 {myScore - oppScore} 分</span>
+                          )}
+                        </div>
+                      </>
+                    ) : verdict === "lose" ? (
+                      <>
+                        <span className="banner-icon">⚔️</span>
+                        <div className="banner-text-wrap">
+                          <span className="banner-title">本回合失败</span>
+                          {isHpMode ? (
+                            <span className="banner-sub">
+                              我方受到 {damage} HP 伤害 (倍率{multiplier.toFixed(1)}x)
+                            </span>
+                          ) : (
+                            <span className="banner-sub">本回合落后 {oppScore - myScore} 分</span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="banner-icon">🛡️</span>
+                        <div className="banner-text-wrap">
+                          <span className="banner-title">势均力敌</span>
+                          <span className="banner-sub">双方平局 (0 伤害)</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="battle-reveal-subtitle">
-                  双方预测点位已在地图揭晓，虚线标记各自误差
+
+                {/* 中间：双雄数据对比竞技场 */}
+                <div className="reveal-showdown-arena">
+                  {/* 我方战绩 */}
+                  <div className={`showdown-fighter you ${myScore > oppScore ? "winner" : ""}`}>
+                    <div className="fighter-head">
+                      <span className="fighter-badge you">我方</span>
+                      <span className="fighter-name" title={playerName}>{playerName}</span>
+                    </div>
+                    <div className="fighter-score you">
+                      <span className="score-prefix">+</span>
+                      <span className="score-val">{myScore.toLocaleString()}</span>
+                      <span className="score-unit">分</span>
+                    </div>
+                    <div className="fighter-meta">
+                      <span className="fighter-dist">误差 {formatDistance(roundResult.myGuess.dist)}</span>
+                      {isHpMode && (
+                        <span className="fighter-hp you">
+                          <Heart size={10} fill="#f59e0b" color="#f59e0b" />
+                          剩余血量 {roundResult.myHp ?? myHp} HP
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 中间 VS 决斗标 */}
+                  <div className="showdown-vs-column">
+                    <div className="vs-badge-circle">VS</div>
+                    {isHpMode && <span className="vs-mult-pill">{multiplier.toFixed(1)}x</span>}
+                  </div>
+
+                  {/* 敌方战绩 */}
+                  <div className={`showdown-fighter opp ${oppScore > myScore ? "winner" : ""}`}>
+                    <div className="fighter-head opp">
+                      <span className="fighter-name" title={opponent?.name || "对手"}>{opponent?.name || "对手"}</span>
+                      <span className="fighter-badge opp">对手</span>
+                    </div>
+                    <div className="fighter-score opp">
+                      <span className="score-prefix">+</span>
+                      <span className="score-val">{oppScore.toLocaleString()}</span>
+                      <span className="score-unit">分</span>
+                    </div>
+                    <div className="fighter-meta opp">
+                      <span className="fighter-dist">误差 {formatDistance(roundResult.oppGuess.dist)}</span>
+                      {isHpMode && (
+                        <span className="fighter-hp opp">
+                          <Heart size={10} fill="#7c3aed" color="#7c3aed" />
+                          剩余血量 {roundResult.oppHp ?? opponentHp} HP
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
+
+                {/* 右侧：下一题操作按钮 */}
+                <button
+                  type="button"
+                  className="battle-reveal-next-btn"
+                  onClick={handleNextRound}
+                >
+                  <span>
+                    {isKo
+                      ? "查看终局胜负 (K.O.)"
+                      : isHpMode
+                      ? `进入第 ${currentRoundIndex + 2} 题`
+                      : currentRoundIndex + 1 < (matchQuestionsRef.current.length || matchQuestions.length || 10)
+                      ? `进入第 ${currentRoundIndex + 2} 题`
+                      : "查看最终赛果"}
+                  </span>
+                  {autoAdvanceSec !== null && (
+                    <span className="reveal-auto-countdown">{autoAdvanceSec}s</span>
+                  )}
+                  <ArrowRight size={18} />
+                </button>
               </div>
-
-              <div className="battle-reveal-scores">
-                <div className="battle-reveal-card you">
-                  <span className="name">你 ({playerName})</span>
-                  <span className="pts">+{roundResult.myGuess.score} 分</span>
-                  <span className="dist">误差: {formatDistance(roundResult.myGuess.dist)}</span>
-                </div>
-
-                <div className="battle-reveal-card opponent">
-                  <span className="name">{opponent?.name || "对手"}</span>
-                  <span className="pts">+{roundResult.oppGuess.score} 分</span>
-                  <span className="dist">误差: {formatDistance(roundResult.oppGuess.dist)}</span>
-                </div>
-              </div>
-
-              <button type="button" className="battle-next-btn" onClick={handleNextRound}>
-                <span>
-                  {currentRoundIndex + 1 < (matchQuestionsRef.current.length || matchQuestions.length || 10)
-                    ? `进入第 ${currentRoundIndex + 2} 题`
-                    : "查看最终赛果"}
-                  {autoAdvanceSec !== null && ` (${autoAdvanceSec}s)`}
-                </span>
-                <ArrowRight size={18} />
-              </button>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
@@ -1828,88 +2446,195 @@ export default function TravelBattleGame({ onBackToExplore }) {
           ================================================================== */}
       {gameState === "GAME_OVER" && (
         <div className="battle-gameover-card">
-          <div className="battle-victory-trophy">
-            {myTotalScore > opponentTotalScore ? "🏆" : myTotalScore < opponentTotalScore ? "⚔️" : "🤝"}
-          </div>
+          {matchMode === "HP" ? (
+            (() => {
+              const youWon = opponentHp <= 0 || myHp > opponentHp;
+              const tie = myHp === opponentHp;
+              return (
+                <>
+                  <div className="battle-victory-trophy">
+                    {youWon ? "🏆" : tie ? "🤝" : "⚔️"}
+                  </div>
 
-          <h2
-            className={`battle-victory-title ${
-              myTotalScore > opponentTotalScore
-                ? "win"
-                : myTotalScore < opponentTotalScore
-                ? "lose"
-                : "tie"
-            }`}
-          >
-            {myTotalScore > opponentTotalScore
-              ? "大获全胜！VICTORY"
-              : myTotalScore < opponentTotalScore
-              ? "棋差一招！DEFEAT"
-              : "势均力敌！DRAW"}
-          </h2>
+                  <h2
+                    className={`battle-victory-title ${youWon ? "win" : tie ? "tie" : "lose"}`}
+                  >
+                    {youWon ? "K.O. 绝杀胜出！VICTORY" : tie ? "势均力敌！DRAW" : "K.O. 棋差一招！DEFEAT"}
+                  </h2>
 
-          <p className="battle-victory-subtitle">
-            10 回合 Tang 欧洲纪行图寻对决全部结束，总分累计如下：
-          </p>
+                  <p className="battle-victory-subtitle">
+                    历经 {matchHistory.length} 轮惊险刺激的 6000 HP 扣血淘汰赛，巅峰决战最终赛果如下：
+                  </p>
 
-          <div className="battle-total-score-box">
-            <div className="battle-total-card you">
-              <span className="label">你 ({playerName})</span>
-              <span className="val">{myTotalScore.toLocaleString()}</span>
-            </div>
-            <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#cbd5e1" }}>VS</div>
-            <div className="battle-total-card opponent">
-              <span className="label">{opponent?.name || "对手"}</span>
-              <span className="val">{opponentTotalScore.toLocaleString()}</span>
-            </div>
-          </div>
+                  <div className="battle-total-score-box">
+                    <div className="battle-total-card you">
+                      <span className="label">我方剩余血量 ({playerName})</span>
+                      <span className="val" style={{ color: youWon ? "#16a34a" : "#dc2626" }}>
+                        {myHp.toLocaleString()} <span style={{ fontSize: "1.1rem" }}>HP</span>
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#cbd5e1" }}>VS</div>
+                    <div className="battle-total-card opponent">
+                      <span className="label">敌方剩余血量 ({opponent?.name || "对手"})</span>
+                      <span className="val" style={{ color: opponentHp <= 0 ? "#dc2626" : "#7c3aed" }}>
+                        {opponentHp.toLocaleString()} <span style={{ fontSize: "1.1rem" }}>HP</span>
+                      </span>
+                    </div>
+                  </div>
 
-          {/* 10 题复盘列表 */}
-          <h4 style={{ fontSize: "1.1rem", fontWeight: 800, textAlign: "left", marginBottom: "14px" }}>
-            对决逐题详细复盘 (10 题)
-          </h4>
-          <div style={{ overflowX: "auto" }}>
-            <table className="battle-review-table">
-              <thead>
-                <tr>
-                  <th>回合</th>
-                  <th>目标城市</th>
-                  <th>你的误差 / 得分</th>
-                  <th>对手误差 / 得分</th>
-                  <th>本回合优胜</th>
-                </tr>
-              </thead>
-              <tbody>
-                {matchHistory.map((item, idx) => {
-                  const youWon = item.myGuess.score > item.oppGuess.score;
-                  const tie = item.myGuess.score === item.oppGuess.score;
-                  return (
-                    <tr key={idx}>
-                      <td style={{ fontWeight: 800 }}>第 {idx + 1} 题</td>
-                      <td>
-                        {item.targetCountry} · {item.targetCity}
-                      </td>
-                      <td style={{ color: "#d97706", fontWeight: 700 }}>
-                        {formatDistance(item.myGuess.dist)} (+{item.myGuess.score}分)
-                      </td>
-                      <td style={{ color: "#0284c7", fontWeight: 700 }}>
-                        {formatDistance(item.oppGuess.dist)} (+{item.oppGuess.score}分)
-                      </td>
-                      <td>
-                        {youWon ? (
-                          <span style={{ color: "#16a34a", fontWeight: 800 }}>🏆 你胜出</span>
-                        ) : tie ? (
-                          <span style={{ color: "#64748b", fontWeight: 700 }}>平局</span>
-                        ) : (
-                          <span style={{ color: "#0284c7", fontWeight: 700 }}>对手胜出</span>
-                        )}
-                      </td>
+                  {/* 详细逐题伤害复盘列表 */}
+                  <h4 style={{ fontSize: "1.1rem", fontWeight: 800, textAlign: "left", marginBottom: "14px" }}>
+                    对决逐题伤害复盘 ({matchHistory.length} 轮)
+                  </h4>
+                  <div className="battle-review-table-wrapper">
+                    <table className="battle-review-table">
+                      <thead>
+                        <tr>
+                          <th>回合</th>
+                          <th>目标城市</th>
+                          <th>我方得分 / 误差</th>
+                          <th>敌方得分 / 误差</th>
+                          <th>伤害结算 (倍率)</th>
+                          <th>战局走向</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {matchHistory.map((item, idx) => {
+                          const youWonRound = item.myGuess.score > item.oppGuess.score;
+                          const tieRound = item.myGuess.score === item.oppGuess.score;
+                          const mult = item.multiplier ?? 1.0;
+                          const dmg = item.damage ?? 0;
+                          return (
+                            <tr key={idx}>
+                              <td style={{ fontWeight: 800 }}>第 {idx + 1} 题</td>
+                              <td>
+                                <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                  <CountryFlag countryName={item.targetCountry} size={20} />
+                                  <span>{item.targetCountry} · {item.targetCity}</span>
+                                </div>
+                              </td>
+                              <td style={{ color: "#d97706", fontWeight: 700 }}>
+                                +{item.myGuess.score}分 ({formatDistance(item.myGuess.dist)})
+                              </td>
+                              <td style={{ color: "#7c3aed", fontWeight: 700 }}>
+                                +{item.oppGuess.score}分 ({formatDistance(item.oppGuess.dist)})
+                              </td>
+                              <td style={{ fontWeight: 800 }}>
+                                {youWonRound ? (
+                                  <span style={{ color: "#16a34a" }}>💥 对手受到 {dmg} HP 伤害 (倍率{mult.toFixed(1)}x)</span>
+                                ) : tieRound ? (
+                                  <span style={{ color: "#64748b" }}>0 伤害 (平局)</span>
+                                ) : (
+                                  <span style={{ color: "#dc2626" }}>💔 我方受到 {dmg} HP 伤害 (倍率{mult.toFixed(1)}x)</span>
+                                )}
+                              </td>
+                              <td>
+                                {youWonRound ? (
+                                  <span style={{ color: "#16a34a", fontWeight: 800 }}>🏆 我方胜出</span>
+                                ) : tieRound ? (
+                                  <span style={{ color: "#64748b", fontWeight: 700 }}>平局</span>
+                                ) : (
+                                  <span style={{ color: "#dc2626", fontWeight: 700 }}>敌方胜出</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()
+          ) : (
+            <>
+              <div className="battle-victory-trophy">
+                {myTotalScore > opponentTotalScore ? "🏆" : myTotalScore < opponentTotalScore ? "⚔️" : "🤝"}
+              </div>
+
+              <h2
+                className={`battle-victory-title ${
+                  myTotalScore > opponentTotalScore
+                    ? "win"
+                    : myTotalScore < opponentTotalScore
+                    ? "lose"
+                    : "tie"
+                }`}
+              >
+                {myTotalScore > opponentTotalScore
+                  ? "大获全胜！VICTORY"
+                  : myTotalScore < opponentTotalScore
+                  ? "棋差一招！DEFEAT"
+                  : "势均力敌！DRAW"}
+              </h2>
+
+              <p className="battle-victory-subtitle">
+                10 回合 Tang 欧洲纪行图寻对决全部结束，总分累计如下：
+              </p>
+
+              <div className="battle-total-score-box">
+                <div className="battle-total-card you">
+                  <span className="label">我方总积分 ({playerName})</span>
+                  <span className="val">{myTotalScore.toLocaleString()}</span>
+                </div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#cbd5e1" }}>VS</div>
+                <div className="battle-total-card opponent">
+                  <span className="label">敌方总积分 ({opponent?.name || "对手"})</span>
+                  <span className="val">{opponentTotalScore.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* 10 题复盘列表 */}
+              <h4 style={{ fontSize: "1.1rem", fontWeight: 800, textAlign: "left", marginBottom: "14px" }}>
+                对决逐题详细复盘 (10 题)
+              </h4>
+              <div className="battle-review-table-wrapper">
+                <table className="battle-review-table">
+                  <thead>
+                    <tr>
+                      <th>回合</th>
+                      <th>目标城市</th>
+                      <th>你的误差 / 得分</th>
+                      <th>对手误差 / 得分</th>
+                      <th>回合结果</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {matchHistory.map((item, idx) => {
+                      const youWon = item.myGuess.score > item.oppGuess.score;
+                      const tie = item.myGuess.score === item.oppGuess.score;
+                      return (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 800 }}>第 {idx + 1} 题</td>
+                          <td>
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <CountryFlag countryName={item.targetCountry} size={20} />
+                              <span>{item.targetCountry} · {item.targetCity}</span>
+                            </div>
+                          </td>
+                          <td style={{ color: "#d97706", fontWeight: 700 }}>
+                            {formatDistance(item.myGuess.dist)} (+{item.myGuess.score}分)
+                          </td>
+                          <td style={{ color: "#7c3aed", fontWeight: 700 }}>
+                            {formatDistance(item.oppGuess.dist)} (+{item.oppGuess.score}分)
+                          </td>
+                          <td>
+                            {youWon ? (
+                              <span style={{ color: "#16a34a", fontWeight: 800 }}>🏆 你胜出</span>
+                            ) : tie ? (
+                              <span style={{ color: "#64748b", fontWeight: 700 }}>平局</span>
+                            ) : (
+                              <span style={{ color: "#7c3aed", fontWeight: 700 }}>对手胜出</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           <div className="battle-gameover-actions">
             <button
