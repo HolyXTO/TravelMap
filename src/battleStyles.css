@@ -120,7 +120,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-bottom: 20px;
+  max-width: 740px;
+  width: 100%;
+  margin: 0 auto 20px auto;
+  box-sizing: border-box;
 }
 
 @media (max-width: 640px) {
@@ -135,16 +138,17 @@
   justify-content: center;
   gap: 8px;
   background: #f8fafc;
-  border: 2px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
   border-radius: 14px;
   padding: 12px 18px;
   font-size: 0.95rem;
-  font-weight: 800;
+  font-weight: 700;
   color: #475569;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .media-mode-btn:hover {
@@ -1253,6 +1257,8 @@
 /* 对齐实景图寻界面的对战大厅样式 */
 .battle-lobby-setup-card {
   max-width: 740px !important;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .battle-lobby-rule-pills {

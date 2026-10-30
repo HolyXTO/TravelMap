@@ -1977,8 +1977,8 @@ export default function TravelBattleGame({ onBackToExplore }) {
                 <h3>欢迎来到双人图寻对决！</h3>
                 <p className="game-welcome-desc">
                   {battleMediaMode === "streetview"
-                    ? "基于全球真实 360° 全景街景，支持鼠标自由拖拽环视、俯仰观察与高倍滚轮变焦。在华为地图上插下您的图钉，率先交卷施加 15 秒绝杀倒计时，决胜千里！"
-                    : "从真实旅程中精选实景照片，双人实时同题对抗。考验观察力与手速的时刻到了——在华为地图上插下您的图钉，率先交卷施加 15 秒绝杀倒计时，决胜千里！"}
+                    ? "基于全球真实 360° 全景街景，支持鼠标自由拖拽环视、俯仰观察与高倍滚轮变焦。在地图上插下您的图钉，率先交卷施加 15 秒绝杀倒计时，决胜千里！"
+                    : "从真实旅程中精选实景照片，双人实时同题对抗。考验观察力与手速的时刻到了——在地图上插下您的图钉，率先交卷施加 15 秒绝杀倒计时，决胜千里！"}
                 </p>
 
                 {/* 对战媒介模式选择：360° 全球真实街景 VS 旅拍照片 */}
@@ -1989,7 +1989,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
                     onClick={() => updateBattleMediaMode("streetview")}
                   >
                     <Globe2 size={16} />
-                    <span>🌐 360° 真实街景 PK (推荐 · 沉浸式图寻)</span>
+                    <span>360° 真实街景 PK</span>
                   </button>
                   <button
                     type="button"
@@ -1997,7 +1997,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
                     onClick={() => updateBattleMediaMode("photo")}
                   >
                     <Camera size={16} />
-                    <span>📸 旅拍照片对决 (Xiao & Tang)</span>
+                    <span>旅拍照片对决</span>
                   </button>
                 </div>
 
@@ -2064,7 +2064,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
                   <div className="game-rule-item">
                     <div className="rule-icon-box">2</div>
                     <div>
-                      <strong>华为地图预测插旗</strong>
+                      <strong>地图预测插旗</strong>
                       <p>在地图上插下预测图钉，率先交卷施加 15 秒绝杀倒计时！</p>
                     </div>
                   </div>
@@ -2076,7 +2076,7 @@ export default function TravelBattleGame({ onBackToExplore }) {
                       </strong>
                       <p>
                         {matchMode === "HP"
-                          ? "双方初始 6,000 血量按分差扣血，第 5 题起启动伤害倍率，直至一方淘汰！"
+                          ? "双方初始 6,000 血量按分差扣血，第 5 题起启动伤害倍率递增，直至一方淘汰！"
                           : "共 10 题定胜负，单题最高 5,000 分，累计总分高者获胜。"}
                       </p>
                     </div>
