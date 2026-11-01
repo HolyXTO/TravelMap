@@ -12,9 +12,11 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "hls.js": "^1.7.4",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.468.0",
     "mapillary-js": "^4.1.2",
+    "maplibre-gl": "6.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.185.0",

@@ -15,6 +15,7 @@ import {
   Pin,
   PinOff,
   Swords,
+  RadioTower,
 } from "lucide-react";
 
 export default function LeftSidebarNav({
@@ -218,6 +219,16 @@ export default function LeftSidebarNav({
           },
         },
       ],
+    },
+    {
+      id: "live-cams",
+      title: "全球实时摄像头",
+      enTitle: "Live World",
+      icon: RadioTower,
+      accentColor: "#00b8d9",
+      bgColor: "#e6faff",
+      action: () => scrollToPageSection("live-cams-section"),
+      submenus: null,
     },
   ];
 

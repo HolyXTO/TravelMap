@@ -9,3 +9,6 @@ __pycache__/
 世界地图/
 ~$*
 scratch_table.csv
+tools/osiris_repo/
+tools/osiris_src/
+tools/*.png

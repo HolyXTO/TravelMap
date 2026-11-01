@@ -12896,11 +12896,11 @@ h2 {
   border: none;
   background: transparent;
   color: #64748b;
-  font-size: 14.5px;
-  font-weight: 700;
+  font-size: 0.94rem;
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  font-family: inherit;
+  font-family: "Times New Roman", Times, "STZhongsong", "华文中宋", serif;
 }
 
 .game-nav-tab-btn:hover {

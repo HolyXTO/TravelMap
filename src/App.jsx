@@ -58,6 +58,7 @@ import MapFillGame from "./MapFillGame";
 import TravelBattleGame from "./TravelBattleGame";
 import LeftSidebarNav from "./LeftSidebarNav";
 import QuestionBankStatsPopover from "./QuestionBankStatsPopover";
+import WorldLiveCams from "./features/liveCams/WorldLiveCams";
 
 
 const staticVisits = initialVisits.map((v) => {
@@ -3920,7 +3921,8 @@ function App() {
       sectionId === "dot-matrix-section" ||
       sectionId === "journey-timeline-section" ||
       sectionId === "travel-ratings-section" ||
-      sectionId === "travel-game-section";
+      sectionId === "travel-game-section" ||
+      sectionId === "live-cams-section";
 
     if (isVisualSection && !journeyVisualsLoaded) {
       setJourneyVisualsLoaded(true);
@@ -4528,6 +4530,11 @@ function App() {
             searchPlaces={searchPlaces}
           />
         )}
+      </section>
+
+      {/* 全球实时摄像头 · Live World */}
+      <section id="live-cams-section" className="live-cams-section">
+        <WorldLiveCams />
       </section>
       {editingPlace && (
         <VisitEditDialog
