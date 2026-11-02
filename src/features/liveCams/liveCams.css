@@ -990,11 +990,11 @@
 
 /* 底部操作按钮 */
 .livecam-viewer-actions {
-  padding: 12px 18px;
+  padding: 12px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .livecam-action-btn {
@@ -1002,15 +1002,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 9px 14px;
-  border-radius: 10px;
-  font-size: 0.82rem;
+  gap: 5px;
+  padding: 8px 8px;
+  border-radius: 9px;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .livecam-action-btn.primary {
@@ -1031,6 +1032,16 @@
 .livecam-action-btn.secondary:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+}
+
+.livecam-action-btn.next {
+  background: rgba(0, 230, 118, 0.15);
+  border: 1px solid var(--livecam-green);
+  color: var(--livecam-green);
+}
+.livecam-action-btn.next:hover {
+  background: rgba(0, 230, 118, 0.28);
+  box-shadow: 0 0 14px rgba(0, 230, 118, 0.3);
 }
 
 /* =========================================================================
@@ -1135,6 +1146,15 @@
   background: #00e676;
   box-shadow: 0 0 8px #00e676;
   animation: livecam-pulse 1.8s infinite;
+}
+
+.livecam-clip-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: livecam-pulse 2.2s infinite;
 }
 
 .livecam-media-fallback-error {
@@ -2076,6 +2096,16 @@
 .livecam-shell.is-light-theme .livecam-action-btn.secondary:hover {
   background: #ffffff;
   color: #0f172a;
+}
+
+.livecam-shell.is-light-theme .livecam-action-btn.next {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #059669;
+}
+
+.livecam-shell.is-light-theme .livecam-action-btn.next:hover {
+  background: rgba(16, 185, 129, 0.22);
 }
 
 .livecam-shell.is-light-theme .liveworld-fullscreen-toolbar {

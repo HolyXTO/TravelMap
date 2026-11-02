@@ -29,6 +29,11 @@ import { RAW_CAMERAS, filterCameras, loadFullCamerasData } from "./services/came
 import { getSavedMapTheme, saveMapTheme, DEFAULT_THEME, getLuminance } from "./utils/mapTheme";
 import "./liveCams.css";
 
+const INITIAL_CAMERA =
+  RAW_CAMERAS.find((c) => c.id === "tfl-JamCams_00001.09096") ||
+  RAW_CAMERAS[0] ||
+  null;
+
 export default function WorldLiveCams() {
   const [activeModuleTab, setActiveModuleTab] = useState("cameras");
   const [allCameras, setAllCameras] = useState(RAW_CAMERAS);
@@ -38,7 +43,7 @@ export default function WorldLiveCams() {
   const [selectedContinent, setSelectedContinent] = useState("all");
   const [streamFilter, setStreamFilter] = useState("all"); // 'all' | 'live' | 'snapshot'
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCamera, setSelectedCamera] = useState(null);
+  const [selectedCamera, setSelectedCamera] = useState(INITIAL_CAMERA);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [resetTrigger, setResetTrigger] = useState(0);
@@ -119,6 +124,20 @@ export default function WorldLiveCams() {
   const handleSelectCamera = useCallback((camera) => {
     setSelectedCamera(camera);
   }, []);
+
+  // 切换至下一个摄像头 (在当前过滤列表安全闭环循环，到达最后一路时自动绕回首路)
+  const handleNextCamera = useCallback(() => {
+    if (!displayedCameras || displayedCameras.length === 0) return;
+    const currentIndex = displayedCameras.findIndex(
+      (c) => String(c.id) === String(selectedCamera?.id)
+    );
+    if (currentIndex === -1) {
+      setSelectedCamera(displayedCameras[0]);
+    } else {
+      const nextIndex = (currentIndex + 1) % displayedCameras.length;
+      setSelectedCamera(displayedCameras[nextIndex]);
+    }
+  }, [displayedCameras, selectedCamera]);
 
   // 重置视角
   const handleResetView = useCallback(() => {
@@ -324,6 +343,7 @@ export default function WorldLiveCams() {
           <CameraViewer
             camera={selectedCamera}
             onClose={() => setSelectedCamera(null)}
+            onNextCamera={handleNextCamera}
           />
         )}
 

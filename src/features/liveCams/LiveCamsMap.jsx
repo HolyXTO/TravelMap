@@ -566,11 +566,18 @@ export default function LiveCamsMap({
     });
   }, [resetTrigger, projectionMode]);
 
-  // 7. 当外部选中某摄像头时飞过去
+  const hasInitialFlownRef = useRef(false);
+
+  // 7. 当外部选中某摄像头时飞过去 (初始加载跳过自动下潜放大，保持 3D 地球宏观全貌；后续用户点击或按“下一个”时飞过去)
   useEffect(() => {
     if (!selectedCamera) return;
     const map = mapRef.current;
     if (!map || !isLoadedRef.current) return;
+
+    if (!hasInitialFlownRef.current) {
+      hasInitialFlownRef.current = true;
+      return;
+    }
 
     map.flyTo({
       center: [selectedCamera.lng, selectedCamera.lat],

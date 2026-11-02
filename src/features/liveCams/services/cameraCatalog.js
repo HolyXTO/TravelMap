@@ -32,6 +32,43 @@ const CONTINENT_MAP = {
   Africa: "非洲",
 };
 
+// 官方机构与市民交通路况门户直达网址映射 (替代底层 .m3u8 切片或 /api 地址)
+const OFFICIAL_PORTALS = {
+  "INDOT TrafficWise": "https://511in.org",
+  "Caltrans": "https://quickmap.dot.ca.gov",
+  "TxDOT": "https://drivetexas.org",
+  "FDOT": "https://fl511.com",
+  "GDOT": "https://511ga.org",
+  "UDOT": "https://udottraffic.utah.gov",
+  "NCDOT": "https://drivenc.gov",
+  "MDOT MiDrive": "https://mdotjboss.state.mi.us/MiDrive/map",
+  "SCDOT": "https://www.511sc.org",
+  "ADOT": "https://az511.com",
+  "MDOT SHA CHART": "https://chart.maryland.gov",
+  "Houston TranStar": "https://traffic.houstontranstar.org",
+  "DelDOT": "https://deldot.gov",
+  "LADOTD": "https://511la.org",
+  "ODOT TripCheck": "https://tripcheck.com",
+  "NDOT": "https://nvroads.com",
+  "DriveBC": "https://www.drivebc.ca",
+  "511 Ontario": "https://511on.ca",
+  "City of Toronto": "https://www.toronto.ca",
+  "City of Ottawa": "https://traffic.ottawa.ca",
+  "Alberta 511": "https://511.alberta.ca",
+  "City of Edmonton": "https://www.edmonton.ca",
+  "TfL": "https://tfl.gov.uk/traffic/status/",
+  "Autostrade per l'Italia": "https://www.autostrade.it",
+  "Trafikverket": "https://www.trafikverket.se",
+  "Fintraffic": "https://liikennetilanne.fintraffic.fi",
+  "DGT": "https://infocar.dgt.es",
+  "Via Lietuva": "https://eismoinfo.lt",
+  "Live Traffic": "https://livetraffic.com",
+  "HK Transport Dept": "https://www.td.gov.hk",
+  "ASFINAG": "https://www.asfinag.at",
+  "NZTA": "https://www.journeys.nzta.govt.nz",
+  "Vegagerðin": "https://www.vegagerdin.is"
+};
+
 /**
  * 标准化单个探头对象
  */
@@ -54,13 +91,44 @@ function normalizeCamera(item) {
     }
   }
 
+  // 针对中国台湾各县市交控与高公局 MJPEG 真实连续视频流 (taichung.gov.tw / ttcpb / gov.taipei / freeway / klcg)
+  const isTaiwanMjpeg =
+    (item.country === "中国台湾" || item.country === "台湾") &&
+    (
+      streamType === "mjpeg" ||
+      (item.feed_url && (
+        item.feed_url.includes("taichung.gov.tw") ||
+        item.feed_url.includes("trafficvideo.ttcpb.gov.tw") ||
+        item.feed_url.includes("gov.taipei") ||
+        item.feed_url.includes("cctv.klcg.gov.tw") ||
+        item.feed_url.includes("/abs2mjpg/")
+      )) ||
+      (item.source === "OpenCCTV / taiwan-freeway" && !item.feed_url?.includes("/snapshot"))
+    );
+
+  if (isTaiwanMjpeg) {
+    streamType = "mjpeg";
+    hasLiveVideo = true;
+    if (!streamUrl && item.feed_url) {
+      streamUrl = item.feed_url;
+    }
+  }
+
   const isVideo = Boolean(
     hasLiveVideo ||
     (streamType && ["hls", "mp4", "iframe", "mjpeg"].includes(streamType)) ||
     (streamUrl && (streamUrl.includes(".m3u8") || streamUrl.includes(".mp4")))
   );
 
-  const finalStreamType = streamType || (streamUrl?.includes(".m3u8") ? "hls" : streamUrl?.includes(".mp4") ? "mp4" : "jpg");
+  const finalStreamType =
+    streamType ||
+    (streamUrl?.includes(".m3u8")
+      ? "hls"
+      : streamUrl?.includes(".mp4")
+      ? "mp4"
+      : isTaiwanMjpeg
+      ? "mjpeg"
+      : "jpg");
 
   // 生成代表性的海报图/快照
   let posterUrl = item.feed_url;
@@ -83,7 +151,12 @@ function normalizeCamera(item) {
     category: isVideo ? "24H 实时视频流" : "道路监控快照",
     status: "online",
     source: item.source || "OSIRIS Open CCTV",
-    sourceUrl: item.external_url || item.stream_url || item.feed_url || "https://osirisai.live",
+    sourceUrl:
+      item.external_url ||
+      OFFICIAL_PORTALS[item.source] ||
+      (item.feed_url?.startsWith("http") ? item.feed_url : null) ||
+      (item.stream_url?.startsWith("http") ? item.stream_url : null) ||
+      "https://osirisai.live",
     hasLiveVideo: isVideo,
     media: {
       type: finalStreamType,
@@ -102,7 +175,11 @@ function normalizeCamera(item) {
 }
 
 // 缓存全局探头列表（按照视频流优先、亚洲欧洲优先排序）
-export let ALL_CAMERAS = rawCamerasData.map(normalizeCamera);
+export let ALL_CAMERAS = rawCamerasData.map(normalizeCamera).sort((a, b) => {
+  const aLive = a.hasLiveVideo ? 1 : 0;
+  const bLive = b.hasLiveVideo ? 1 : 0;
+  return bLive - aLive;
+});
 export const RAW_CAMERAS = ALL_CAMERAS;
 
 let isFullDatasetLoaded = false;
@@ -126,7 +203,11 @@ export async function loadFullCamerasData() {
       const res = await fetch(`${baseUrl}/data/camerasData.json`);
       if (res.ok) {
         const fullData = await res.json();
-        ALL_CAMERAS = fullData.map(normalizeCamera);
+        ALL_CAMERAS = fullData.map(normalizeCamera).sort((a, b) => {
+          const aLive = a.hasLiveVideo ? 1 : 0;
+          const bLive = b.hasLiveVideo ? 1 : 0;
+          return bLive - aLive;
+        });
         isFullDatasetLoaded = true;
         return ALL_CAMERAS;
       }

@@ -43,6 +43,9 @@ const COUNTRY_FLAGS = {
   瑞士: "🇨🇭",
   日本: "🇯🇵",
   中国: "🇨🇳",
+  中国香港: "🇭🇰",
+  中国澳门: "🇲🇴",
+  中国台湾: "🇨🇳",
   美国: "🇺🇸",
   加拿大: "🇨🇦",
   澳大利亚: "🇦🇺",
@@ -89,7 +92,7 @@ export default function LiveCamsSidebar({
   // 每个国家已展开显示的探头数量限制（初始 20，支持该国内部分页）
   const [countryLimits, setCountryLimits] = useState({});
 
-  // 1. 按国家对当前经过筛选的摄像头进行结构化分组
+  // 1. 按国家对当前经过筛选的摄像头进行结构化分组，并强制在每个国家内部将实时视频流排在最前面
   const countryGroups = useMemo(() => {
     const map = new Map();
     for (const cam of cameras) {
@@ -107,8 +110,24 @@ export default function LiveCamsSidebar({
         g.liveCount++;
       }
     }
-    // 按照探头总数倒序排列
-    return Array.from(map.values()).sort((a, b) => b.cameras.length - a.cameras.length);
+
+    // 核心保障：在每个国家内部，严格将实时视频流 (hasLiveVideo) 优先排在最前面，快照排在后面
+    for (const g of map.values()) {
+      g.cameras.sort((a, b) => {
+        const aLive = a.hasLiveVideo ? 1 : 0;
+        const bLive = b.hasLiveVideo ? 1 : 0;
+        if (bLive !== aLive) return bLive - aLive;
+        return 0;
+      });
+    }
+
+    // 按照实时视频流数量优先，其次按探头总数倒序排列
+    return Array.from(map.values()).sort((a, b) => {
+      if (b.liveCount !== a.liveCount) {
+        return b.liveCount - a.liveCount;
+      }
+      return b.cameras.length - a.cameras.length;
+    });
   }, [cameras]);
 
   // 2. 搜索关键词触发时，自动展开所有包含搜索结果的国家
