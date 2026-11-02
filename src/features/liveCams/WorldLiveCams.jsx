@@ -26,7 +26,7 @@ import CameraViewer from "./CameraViewer";
 import LiveCamsStatusBar from "./LiveCamsStatusBar";
 import MapThemeModal from "./components/MapThemeModal";
 import { RAW_CAMERAS, filterCameras, loadFullCamerasData } from "./services/cameraCatalog";
-import { getSavedMapTheme, saveMapTheme, DEFAULT_THEME } from "./utils/mapTheme";
+import { getSavedMapTheme, saveMapTheme, DEFAULT_THEME, getLuminance } from "./utils/mapTheme";
 import "./liveCams.css";
 
 export default function WorldLiveCams() {
@@ -95,30 +95,25 @@ export default function WorldLiveCams() {
 
   // 根据底色明暗度与地球缩放大小动态计算自适应外观：
   // 当大框底色设为浅色（如纯白），且地球缩很小时（zoom <= 2.8），外围暴露浅色底，此时面板采用清爽透光亮色；
-  // 当地球放大（zoom > 2.8）暗黑地图铺满全屏时，面板自适应变回暗黑科技风。
+  // 当地球放大（zoom > 2.8）暗黑地图铺满全屏时，面板自适应变回暗黑科技风；
+  // 若陆地底色本身亦为亮色（如象牙素雅），则持续保持高雅明朗。
   const isAdaptiveLight = useMemo(() => {
-    const bg = mapTheme?.bg || "#04040a";
-    let r = 0, g = 0, b = 0;
-    const hex = bg.replace("#", "").trim();
-    if (hex.length === 3) {
-      r = parseInt(hex[0] + hex[0], 16);
-      g = parseInt(hex[1] + hex[1], 16);
-      b = parseInt(hex[2] + hex[2], 16);
-    } else if (hex.length >= 6) {
-      r = parseInt(hex.slice(0, 2), 16);
-      g = parseInt(hex.slice(2, 4), 16);
-      b = parseInt(hex.slice(4, 6), 16);
-    }
-    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    const isBgLight = lum > 0.55;
+    const bg = mapTheme?.bg || "#ffffff";
+    const bgLum = getLuminance(bg);
+    const landLum = getLuminance(mapTheme?.land || "#000000");
+    const isBgLight = bgLum > 0.55;
+    const isLandLight = landLum > 0.55;
 
-    if (!isBgLight) return false;
+    if (!isBgLight && !isLandLight) return false;
+
+    if (isLandLight) return true;
+
     // 3D 模式下，当球体较小 (zoom <= 2.8)，左右露出浅色底
     if (projectionMode === "3d") {
       return currentZoom <= 2.8;
     }
-    return false;
-  }, [mapTheme?.bg, currentZoom, projectionMode]);
+    return true;
+  }, [mapTheme?.bg, mapTheme?.land, currentZoom, projectionMode]);
 
   // 选择摄像头
   const handleSelectCamera = useCallback((camera) => {
@@ -272,7 +267,7 @@ export default function WorldLiveCams() {
           </h2>
           <p className="travel-game-subtitle">
             <Sparkles size={16} className="game-sub-icon" />
-            <span>接入全球 45,000+ 公开探头与 24/7 高清连续视频流，纵览全球晨昏昼夜交替</span>
+            <span>接入全球 45,000+ 公开探头与 24/7 高清连续视频流，纵览全球实时景象</span>
           </p>
         </div>
 

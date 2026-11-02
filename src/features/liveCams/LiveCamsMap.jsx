@@ -32,7 +32,16 @@ import {
 } from "./layers/cameraLayers";
 import { computeSolarTerminatorGeoJSON } from "./utils/solarTerminator";
 import { camerasToGeoJSON } from "./services/cameraCatalog";
-import { applyMapTheme } from "./utils/mapTheme";
+import {
+  applyMapTheme,
+  LAND_LAYERS,
+  OCEAN_LAYERS,
+  BORDER_LAYERS,
+  ROAD_LAYERS,
+  PLACE_LABEL_LAYERS,
+  WATER_LABEL_LAYERS,
+  getLuminance,
+} from "./utils/mapTheme";
 import CctvPreviews from "./components/CctvPreviews";
 
 const SATELLITE_SOURCE_ID = "livecam-satellite-source";
@@ -92,20 +101,37 @@ export default function LiveCamsMap({
 
     // 根据当前选定配色方案预设初始样式
     if (mapTheme) {
+      const isLandLight = getLuminance(mapTheme.land) > 0.55;
+      const placeTextColor = isLandLight ? "#0f172a" : "#cbd5e1";
+      const placeHaloColor = isLandLight ? "rgba(255, 255, 255, 0.95)" : "rgba(0, 0, 0, 0.85)";
+      const isOceanLight = getLuminance(mapTheme.ocean) > 0.55;
+      const oceanTextColor = isOceanLight ? "#0369a1" : "#7dd3fc";
+      const oceanHaloColor = isOceanLight ? "rgba(255, 255, 255, 0.95)" : "rgba(0, 0, 0, 0.8)";
+
       for (const l of baseStyle.layers) {
         if (!l.paint) continue;
         if (l.id === "background" && mapTheme.land) {
           l.paint["background-color"] = mapTheme.land;
-        } else if (["landcover", "landuse_residential", "landuse"].includes(l.id) && mapTheme.land) {
+        } else if (LAND_LAYERS.includes(l.id) && mapTheme.land) {
           l.paint["fill-color"] = mapTheme.land;
-        } else if (l.id === "water" && mapTheme.ocean) {
-          l.paint["fill-color"] = mapTheme.ocean;
-        } else if (l.id === "waterway" && mapTheme.ocean) {
-          l.paint["line-color"] = mapTheme.ocean;
-        } else if (l.id.startsWith("boundary_") && mapTheme.border) {
+        } else if (OCEAN_LAYERS.includes(l.id) && mapTheme.ocean) {
+          if (l.id === "waterway") {
+            l.paint["line-color"] = mapTheme.ocean;
+          } else {
+            l.paint["fill-color"] = mapTheme.ocean;
+          }
+        } else if (BORDER_LAYERS.includes(l.id) && mapTheme.border) {
           l.paint["line-color"] = mapTheme.border;
-        } else if ((l.id.startsWith("road_") || l.id.startsWith("tunnel_") || l.id.startsWith("bridge_")) && l.type === "line" && mapTheme.road) {
+        } else if (ROAD_LAYERS.includes(l.id) && mapTheme.road) {
           l.paint["line-color"] = mapTheme.road;
+        } else if (PLACE_LABEL_LAYERS.includes(l.id)) {
+          l.paint["text-color"] = placeTextColor;
+          l.paint["text-halo-color"] = placeHaloColor;
+          l.paint["text-halo-width"] = 1.2;
+        } else if (WATER_LABEL_LAYERS.includes(l.id)) {
+          l.paint["text-color"] = oceanTextColor;
+          l.paint["text-halo-color"] = oceanHaloColor;
+          l.paint["text-halo-width"] = 1.0;
         }
       }
     }
@@ -318,14 +344,14 @@ export default function LiveCamsMap({
           });
         }
         if (projectionMode === "3d" && typeof map.setSky === "function") {
-          const skyColor = mapTheme?.bg || "#04040A";
+          const skyColor = mapTheme?.bg || "#ffffff";
           map.setSky({
             "sky-color": skyColor,
             "sky-horizon-blend": 0.5,
             "horizon-color": skyColor,
             "horizon-fog-blend": 0.3,
             "fog-color": skyColor,
-            "fog-ground-blend": 0.9,
+            "fog-ground-blend": 0.05,
           });
         }
       } catch (err) {
@@ -468,14 +494,14 @@ export default function LiveCamsMap({
 
     if (projectionMode === "3d") {
       if (typeof map.setSky === "function") {
-        const skyColor = mapTheme?.bg || "#04040A";
+        const skyColor = mapTheme?.bg || "#ffffff";
         map.setSky({
           "sky-color": skyColor,
           "sky-horizon-blend": 0.5,
           "horizon-color": skyColor,
           "horizon-fog-blend": 0.3,
           "fog-color": skyColor,
-          "fog-ground-blend": 0.9,
+          "fog-ground-blend": 0.05,
         });
       }
     } else {
