@@ -23,7 +23,7 @@ const MAX_TILES = 8;
  * 单个悬浮探查卡片组件
  * 全面支持 HLS 60FPS 实时视频流、MP4 实况流、MJPEG 实况流、YouTube 封面及图片快照。
  */
-function PreviewTile({ cam, onOpen }) {
+function PreviewTile({ cam, onOpen, isCurrentSelected }) {
   const [mediaError, setMediaError] = useState(false);
   const [mediaLoaded, setMediaLoaded] = useState(false);
   const videoRef = useRef(null);
@@ -41,8 +41,9 @@ function PreviewTile({ cam, onOpen }) {
     !feedUrl.includes("youtube.com")
   );
 
-  const isHls = !hasImageFeed && (mediaType === "hls" || (streamUrl && streamUrl.includes(".m3u8")));
-  const isMp4 = !hasImageFeed && (mediaType === "mp4" || (streamUrl && streamUrl.includes(".mp4")));
+  // 若该探头已在主播放器中大窗播放，地图悬浮卡片跳过重复解码，避免带宽与硬件解码器争抢
+  const isHls = !isCurrentSelected && !hasImageFeed && (mediaType === "hls" || (streamUrl && streamUrl.includes(".m3u8")));
+  const isMp4 = !isCurrentSelected && !hasImageFeed && (mediaType === "mp4" || (streamUrl && streamUrl.includes(".mp4")));
   const isMjpeg = mediaType === "mjpeg" || (streamUrl && (streamUrl.includes("mjpg") || streamUrl.includes("mjpeg")));
   const isYouTube = !hasImageFeed && streamUrl && (streamUrl.includes("youtube.com") || streamUrl.includes("youtu.be"));
 
@@ -136,8 +137,23 @@ function PreviewTile({ cam, onOpen }) {
 
     return () => {
       if (hlsRef.current) {
-        hlsRef.current.destroy();
+        try {
+          hlsRef.current.stopLoad();
+          hlsRef.current.detachMedia();
+          hlsRef.current.destroy();
+        } catch (e) {}
         hlsRef.current = null;
+      }
+      if (video) {
+        try {
+          const oldSrc = video.src;
+          video.pause();
+          video.removeAttribute("src");
+          video.load();
+          if (oldSrc && oldSrc.startsWith("blob:")) {
+            try { URL.revokeObjectURL(oldSrc); } catch (e) {}
+          }
+        } catch (e) {}
       }
     };
   }, [isHls, streamUrl, cam.name]);
@@ -152,6 +168,16 @@ function PreviewTile({ cam, onOpen }) {
     video.defaultMuted = true;
     video.src = streamUrl;
     video.play().catch(() => {});
+
+    return () => {
+      if (video) {
+        try {
+          video.pause();
+          video.removeAttribute("src");
+          video.load();
+        } catch (e) {}
+      }
+    };
   }, [isMp4, streamUrl]);
 
   return (
@@ -266,7 +292,7 @@ function StemConnector() {
 /**
  * 主预览层组件
  */
-function CctvPreviews({ map: propMap, mapRef, cameras, onSelectCamera }) {
+function CctvPreviews({ map: propMap, mapRef, cameras, selectedCameraId, onSelectCamera }) {
   const [visibleCams, setVisibleCams] = useState([]);
   const tileDomMap = useRef(new Map());
 
@@ -457,7 +483,11 @@ function CctvPreviews({ map: propMap, mapRef, cameras, onSelectCamera }) {
           className="livecam-hud-tile-wrapper"
           style={{ width: TILE_GEOM.width }}
         >
-          <PreviewTile cam={cam} onOpen={onSelectCamera} />
+          <PreviewTile
+            cam={cam}
+            onOpen={onSelectCamera}
+            isCurrentSelected={String(cam.id) === String(selectedCameraId)}
+          />
           <StemConnector />
         </div>
       ))}

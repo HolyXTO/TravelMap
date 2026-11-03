@@ -602,6 +602,7 @@ export default function LiveCamsMap({
         map={mapInstance}
         mapRef={mapRef}
         cameras={cameras}
+        selectedCameraId={selectedCamera?.id}
         onSelectCamera={onSelectCamera}
       />
     </div>

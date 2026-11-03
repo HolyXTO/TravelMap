@@ -78,6 +78,9 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
     const cleanupVideo = () => {
       if (hlsRef.current) {
         try {
+          hlsRef.current.stopLoad();
+        } catch (e) {}
+        try {
           hlsRef.current.detachMedia();
         } catch (e) {}
         try {
@@ -87,33 +90,55 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
       }
       if (videoEl) {
         try {
+          const oldSrc = videoEl.src;
           videoEl.pause();
           videoEl.removeAttribute("src");
           videoEl.load();
+          if (oldSrc && oldSrc.startsWith("blob:")) {
+            try {
+              URL.revokeObjectURL(oldSrc);
+            } catch (err) {}
+          }
         } catch (e) {}
       }
     };
     cleanupVideo();
 
     let mp4Timer = null;
+    let stallWatchdog = null;
 
-    // 2.0 播放器假死保护 (Watchdog)：若 HLS 或 MP4 视频等待 12 秒仍处于 0:00 无法播放，自动降级为封面快照或提示
-    const stallWatchdog = setTimeout(() => {
+    // 2.0 播放器假死保护 (Watchdog)：若 HLS 或 MP4 视频等待 22 秒仍处于 0:00 且未收到数据，先尝试自动恢复，若仍无数据再降级
+    stallWatchdog = setTimeout(() => {
       const v = videoRef.current;
       if (v && v.currentTime === 0 && (v.paused || v.readyState < 2)) {
-        console.warn("[CameraViewer] Stream stalled at 0:00 after 12s timeout");
-        const hasRealFeed = media.feedUrl && !media.feedUrl.includes("unsplash.com");
-        if (hasRealFeed) {
-          setCurrentImgUrl(media.feedUrl);
-          setIsMediaLoading(false);
-        } else {
-          setIsMediaLoading(false);
-          setMediaError(true);
+        console.warn("[CameraViewer] Stream buffering past 22s, attempting auto-recovery...");
+        if (hlsRef.current) {
+          try {
+            hlsRef.current.recoverMediaError();
+            hlsRef.current.startLoad();
+          } catch (e) {}
         }
+        // 给予额外 8 秒进行缓冲恢复
+        stallWatchdog = setTimeout(() => {
+          const v2 = videoRef.current;
+          if (v2 && v2.currentTime === 0 && (v2.paused || v2.readyState < 2)) {
+            console.warn("[CameraViewer] Stream stalled after recovery timeout");
+            const hasRealFeed = media.feedUrl && !media.feedUrl.includes("unsplash.com");
+            if (hasRealFeed) {
+              setCurrentImgUrl(media.feedUrl);
+              setIsMediaLoading(false);
+            } else {
+              setIsMediaLoading(false);
+              setMediaError(true);
+            }
+          }
+        }, 8000);
       }
-    }, 12000);
+    }, 22000);
 
-    const handleClearWatchdog = () => clearTimeout(stallWatchdog);
+    const handleClearWatchdog = () => {
+      if (stallWatchdog) clearTimeout(stallWatchdog);
+    };
     const handleEnterPip = () => setIsPipActive(true);
     const handleLeavePip = () => {
       setIsPipActive(false);
@@ -136,8 +161,18 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
       if (Hls.isSupported() && videoRef.current) {
         const hls = new Hls({
           enableWorker: false, // 提高跨环境兼容性
-          lowLatencyMode: true,
-          backBufferLength: 60,
+          lowLatencyMode: false, // 禁用 LL-HLS 激进切片，支持常规公共监控流平稳缓冲，杜绝切片空窗假死
+          backBufferLength: 30,
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          liveSyncDurationCount: 3, // 保持在直播边缘后 3 个切片处平稳播放，杜绝卡在未生成的实时边缘切片
+          liveMaxLatencyDurationCount: 10,
+          manifestLoadingTimeOut: 15000,
+          manifestLoadingMaxRetry: 5,
+          levelLoadingTimeOut: 15000,
+          levelLoadingMaxRetry: 5,
+          fragLoadingTimeOut: 20000,
+          fragLoadingMaxRetry: 6,
         });
         hlsRef.current = hls;
 
@@ -153,12 +188,42 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
           }
         });
 
+        // 当成功接收并缓冲音视频分片时，表示流媒体通道活跃连通，立即解除假死超时报警
+        hls.on(Hls.Events.FRAG_BUFFERED, () => {
+          setIsMediaLoading(false);
+          handleClearWatchdog();
+        });
+
+        let fatalRetryCount = 0;
+        const handleFatalFallback = () => {
+          const hasRealFeed = media.feedUrl && !media.feedUrl.includes("unsplash.com");
+          if (hasRealFeed) {
+            setCurrentImgUrl(media.feedUrl);
+            setIsMediaLoading(false);
+            setMediaError(false);
+          } else {
+            setIsMediaLoading(false);
+            setMediaError(true);
+          }
+          if (hlsRef.current) {
+            try { hlsRef.current.destroy(); } catch (e) {}
+            hlsRef.current = null;
+          }
+        };
+
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 console.warn("[CameraViewer HLS Network Error] Attempting recovery...", data);
-                hls.startLoad();
+                if (fatalRetryCount < 3) {
+                  fatalRetryCount++;
+                  setTimeout(() => {
+                    if (hlsRef.current) hlsRef.current.startLoad();
+                  }, 1200);
+                } else {
+                  handleFatalFallback();
+                }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                 console.warn("[CameraViewer HLS Media Error] Attempting recovery...", data);
@@ -166,17 +231,7 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
                 break;
               default:
                 console.warn("[CameraViewer HLS Fatal Error]", data);
-                // 若真实交通快照图存在，平滑降级为展示快照；无真实快照则展示故障保护与下一个按钮
-                const hasRealFeed = media.feedUrl && !media.feedUrl.includes("unsplash.com");
-                if (hasRealFeed) {
-                  setCurrentImgUrl(media.feedUrl);
-                  setIsMediaLoading(false);
-                  setMediaError(false);
-                } else {
-                  setIsMediaLoading(false);
-                  setMediaError(true);
-                }
-                hls.destroy();
+                handleFatalFallback();
                 break;
             }
           }
@@ -420,7 +475,17 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
             <div className="livecam-fallback-sub">
               可直接访问官方原始广播站进行高清观看，或一键切换下一个探头
             </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", justifyContent: "center" }}>
+              <button
+                type="button"
+                className="livecam-action-btn primary"
+                onClick={handleManualRefresh}
+                style={{ background: "#0284c7", borderColor: "#0284c7", color: "#ffffff" }}
+                title="重新发起连线重试"
+              >
+                <RefreshCw size={13} />
+                <span>重新连接通道</span>
+              </button>
               {camera.sourceUrl && (
                 <a
                   href={camera.sourceUrl}
@@ -428,18 +493,18 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
                   rel="noopener noreferrer"
                   className="livecam-action-btn secondary"
                 >
-                  <ExternalLink size={14} />
+                  <ExternalLink size={13} />
                   <span>访问原站</span>
                 </a>
               )}
               {onNextCamera && (
                 <button
                   type="button"
-                  className="livecam-action-btn primary"
+                  className="livecam-action-btn next"
                   onClick={onNextCamera}
                 >
-                  <SkipForward size={14} />
-                  <span>下一个探头</span>
+                  <SkipForward size={13} />
+                  <span>下一个</span>
                 </button>
               )}
             </div>
