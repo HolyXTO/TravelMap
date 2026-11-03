@@ -11,6 +11,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { Maximize2, Radio } from "lucide-react";
+import Hls from "hls.js";
 import { TILE_GEOM, getTileHeight, layoutTile, tilesOverlap } from "../utils/mapTileLayout";
 import { CAMERAS_DOTS_LAYER_ID } from "../layers/cameraLayers";
 
@@ -20,41 +21,138 @@ const MAX_TILES = 8;
 
 /**
  * 单个悬浮探查卡片组件
+ * 全面支持 HLS 60FPS 实时视频流、MP4 实况流、MJPEG 实况流、YouTube 封面及图片快照。
  */
 function PreviewTile({ cam, onOpen }) {
-  const [imgError, setImgError] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
 
-  const rawUrl = cam.media?.feedUrl || cam.media?.streamUrl || cam.media?.url;
+  const streamUrl = cam.media?.streamUrl || cam.stream_url || "";
+  const feedUrl = cam.media?.feedUrl || cam.feed_url || "";
+  const mediaType = cam.media?.type || cam.stream_type || "";
+
+  // 判断是否具备图片快照（排除 .m3u8 与 .mp4 假快照地址）
+  const hasImageFeed = Boolean(
+    feedUrl &&
+    !feedUrl.includes(".m3u8") &&
+    !feedUrl.includes(".mp4") &&
+    !feedUrl.includes("youtube.com")
+  );
+
+  const isHls = !hasImageFeed && (mediaType === "hls" || (streamUrl && streamUrl.includes(".m3u8")));
+  const isMp4 = !hasImageFeed && (mediaType === "mp4" || (streamUrl && streamUrl.includes(".mp4")));
+  const isMjpeg = mediaType === "mjpeg" || (streamUrl && (streamUrl.includes("mjpg") || streamUrl.includes("mjpeg")));
+  const isYouTube = !hasImageFeed && streamUrl && (streamUrl.includes("youtube.com") || streamUrl.includes("youtu.be"));
+
+  // 1. YouTube 缩略图快速提取
+  let youtubeThumb = null;
+  if (isYouTube) {
+    const ytMatch = streamUrl.match(/(?:embed\/|v=|vi\/|youtu\.be\/|\/v\/)([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) {
+      youtubeThumb = `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg`;
+    }
+  }
+
+  // 2. 静态图片 / MJPEG / YouTube 封面处理
+  const rawImageUrl = hasImageFeed ? feedUrl : (youtubeThumb || (isMjpeg ? streamUrl : null));
   const [imgSrc, setImgSrc] = useState(() => {
-    if (!rawUrl) return null;
-    const sep = rawUrl.includes("?") ? "&" : "?";
-    return `${rawUrl}${sep}_t=${Date.now()}`;
+    if (!rawImageUrl) return null;
+    if (isMjpeg || isYouTube) return rawImageUrl;
+    const sep = rawImageUrl.includes("?") ? "&" : "?";
+    return `${rawImageUrl}${sep}_t=${Date.now()}`;
   });
 
   useEffect(() => {
-    if (!rawUrl) {
-      setImgError(true);
+    if (!rawImageUrl) return;
+    setMediaError(false);
+    setMediaLoaded(false);
+
+    if (isMjpeg || isYouTube) {
+      setImgSrc(rawImageUrl);
       return;
     }
 
-    setImgError(false);
-    setImgLoaded(false);
-
     const getFreshUrl = () => {
-      const sep = rawUrl.includes("?") ? "&" : "?";
-      return `${rawUrl}${sep}_t=${Date.now()}`;
+      const sep = rawImageUrl.includes("?") ? "&" : "?";
+      return `${rawImageUrl}${sep}_t=${Date.now()}`;
     };
 
     setImgSrc(getFreshUrl());
-
-    // 每 15 秒自动更新一次快照
     const timer = setInterval(() => {
       setImgSrc(getFreshUrl());
     }, 15000 + Math.random() * 3000);
 
     return () => clearInterval(timer);
-  }, [rawUrl]);
+  }, [rawImageUrl, isMjpeg, isYouTube]);
+
+  // 3. HLS 迷你实况流自动轻量解码 (解决 DelDOT 等无 feed_url 探头地图卡片报错)
+  useEffect(() => {
+    if (!isHls || !streamUrl || !videoRef.current) return;
+    setMediaError(false);
+    setMediaLoaded(false);
+
+    const video = videoRef.current;
+    video.muted = true;
+    video.defaultMuted = true;
+
+    let hls = null;
+    if (Hls.isSupported()) {
+      hls = new Hls({
+        enableWorker: false,
+        lowLatencyMode: true,
+        backBufferLength: 4,
+        maxBufferLength: 6,
+        maxMaxBufferLength: 8,
+      });
+      hlsRef.current = hls;
+      hls.loadSource(streamUrl);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(() => {});
+        setMediaLoaded(true);
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          console.warn("[PreviewTile HLS Fatal]", cam.name, data.details);
+          setMediaError(true);
+          hls.destroy();
+        }
+      });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = streamUrl;
+      const onLoaded = () => {
+        video.play().catch(() => {});
+        setMediaLoaded(true);
+      };
+      video.addEventListener("loadedmetadata", onLoaded);
+      video.addEventListener("error", () => setMediaError(true));
+    } else {
+      setMediaError(true);
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [isHls, streamUrl, cam.name]);
+
+  // 4. MP4 连续实况视频
+  useEffect(() => {
+    if (!isMp4 || !streamUrl || !videoRef.current) return;
+    setMediaError(false);
+    setMediaLoaded(false);
+    const video = videoRef.current;
+    video.muted = true;
+    video.defaultMuted = true;
+    video.src = streamUrl;
+    video.play().catch(() => {});
+  }, [isMp4, streamUrl]);
 
   return (
     <button
@@ -69,7 +167,7 @@ function PreviewTile({ cam, onOpen }) {
         className="livecam-hud-viewport"
         style={{ height: TILE_GEOM.imageHeight }}
       >
-        {imgError || !imgSrc ? (
+        {mediaError || (!isHls && !isMp4 && !imgSrc) ? (
           /* OSIRIS 标志性 Temporarily Unavailable 战术条纹备选屏 */
           <div className="livecam-hud-unavailable">
             <div className="livecam-hud-scanlines-pattern" />
@@ -77,15 +175,27 @@ function PreviewTile({ cam, onOpen }) {
               Temporarily<br />Unavailable
             </div>
           </div>
+        ) : isHls || isMp4 ? (
+          /* 真实连续视频流解码画面 (DelDOT / MDOT / INDOT / TfL) */
+          <video
+            ref={videoRef}
+            className={`livecam-hud-img ${mediaLoaded ? "is-loaded" : ""}`}
+            autoPlay
+            loop
+            muted
+            playsInline
+            onLoadedData={() => setMediaLoaded(true)}
+            onError={() => setMediaError(true)}
+          />
         ) : (
-          /* 真实实时快照图像 */
+          /* 真实实时快照图像 / MJPEG 连续图像 / YouTube 封面 */
           <img
             src={imgSrc}
             alt={cam.name}
-            className={`livecam-hud-img ${imgLoaded ? "is-loaded" : ""}`}
+            className={`livecam-hud-img ${mediaLoaded ? "is-loaded" : ""}`}
             referrerPolicy="no-referrer"
-            onLoad={() => setImgLoaded(true)}
-            onError={() => setImgError(true)}
+            onLoad={() => setMediaLoaded(true)}
+            onError={() => setMediaError(true)}
             draggable={false}
           />
         )}
@@ -112,7 +222,7 @@ function PreviewTile({ cam, onOpen }) {
         </div>
 
         {/* 加载中的扫描动效 */}
-        {!imgLoaded && !imgError && (
+        {!mediaLoaded && !mediaError && (
           <div className="livecam-hud-loading">
             <div className="livecam-hud-sweep-line" />
             <span>LINKING...</span>

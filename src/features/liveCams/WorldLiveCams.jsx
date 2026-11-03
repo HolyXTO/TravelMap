@@ -48,7 +48,7 @@ export default function WorldLiveCams() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [resetTrigger, setResetTrigger] = useState(0);
   const [mapInstance, setMapInstance] = useState(null);
-  const [currentZoom, setCurrentZoom] = useState(1.8);
+  const [currentZoom, setCurrentZoom] = useState(2.3);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [mapTheme, setMapTheme] = useState(getSavedMapTheme);
 
@@ -99,26 +99,28 @@ export default function WorldLiveCams() {
   }, [allCameras, selectedContinent, streamFilter, searchQuery]);
 
   // 根据底色明暗度与地球缩放大小动态计算自适应外观：
-  // 当大框底色设为浅色（如纯白），且地球缩很小时（zoom <= 2.8），外围暴露浅色底，此时面板采用清爽透光亮色；
-  // 当地球放大（zoom > 2.8）暗黑地图铺满全屏时，面板自适应变回暗黑科技风；
+  // 当大框底色设为浅色（如纯白），且地球缩很小时（zoom <= 2.8），外围暴露浅色底衬，此时面板采用清爽透光亮色；
+  // 当地球放大（zoom > 2.8）暗黑地图铺满全屏时，面板自适应变回深色科技风；
   // 若陆地底色本身亦为亮色（如象牙素雅），则持续保持高雅明朗。
   const isAdaptiveLight = useMemo(() => {
     const bg = mapTheme?.bg || "#ffffff";
     const bgLum = getLuminance(bg);
     const landLum = getLuminance(mapTheme?.land || "#000000");
     const isBgLight = bgLum > 0.55;
-    const isLandLight = landLum > 0.55;
+    const isLandLight = baseMapType === "sat" ? false : landLum > 0.55;
 
     if (!isBgLight && !isLandLight) return false;
 
     if (isLandLight) return true;
 
-    // 3D 模式下，当球体较小 (zoom <= 2.8)，左右露出浅色底
+    // 3D 模式下，当球体较小 (zoom <= 2.8)，左右露出浅色底衬，面板采用明亮色；
+    // 当球体放大 (zoom > 2.8)，深色地球铺满全屏，两侧面板自适应变回深色科技风
     if (projectionMode === "3d") {
       return currentZoom <= 2.8;
     }
-    return true;
-  }, [mapTheme?.bg, mapTheme?.land, currentZoom, projectionMode]);
+    // 2D 平面投影下，底图完全铺满整个视口，若陆地为深色则面板自适应为深色科技风
+    return isLandLight;
+  }, [mapTheme?.bg, mapTheme?.land, currentZoom, projectionMode, baseMapType]);
 
   // 选择摄像头
   const handleSelectCamera = useCallback((camera) => {
@@ -341,6 +343,7 @@ export default function WorldLiveCams() {
         {/* 右侧播放器抽屉 */}
         {selectedCamera && (
           <CameraViewer
+            key={selectedCamera.id}
             camera={selectedCamera}
             onClose={() => setSelectedCamera(null)}
             onNextCamera={handleNextCamera}

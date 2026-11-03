@@ -22,8 +22,10 @@ import {
   ShieldAlert,
   Sparkles,
   SkipForward,
+  PictureInPicture2,
 } from "lucide-react";
 import Hls from "hls.js";
+import { getCameraTimezone, formatCameraLocalTime } from "./utils/cameraTimezone";
 
 // 格式化地理坐标，附加 N/S 与 E/W 经纬度方位指向
 const formatCoordWithDirection = (lat, lng) => {
@@ -41,21 +43,23 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
   const [liveTime, setLiveTime] = useState("");
   const [isMediaLoading, setIsMediaLoading] = useState(true);
   const [mediaError, setMediaError] = useState(false);
+  const [isPipActive, setIsPipActive] = useState(false);
 
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
   const pendingUpdateUrlRef = useRef(null);
 
-  // 1. 本地时钟与 UTC 时间戳更新
+  // 1. 本地时钟与当地时区时间戳实时更新 (根据探头所在国家及经纬度呈现当地真实时间)
   useEffect(() => {
+    if (!camera) return;
+    const tz = getCameraTimezone(camera);
     const updateTime = () => {
-      const now = new Date();
-      setLiveTime(now.toUTCString().replace("GMT", "UTC"));
+      setLiveTime(formatCameraLocalTime(new Date(), tz));
     };
     updateTime();
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [camera]);
 
   // 2. 媒体流与生命周期管理
   useEffect(() => {
@@ -68,33 +72,58 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
     const mediaType = media.type || "jpg";
     const videoSourceUrl = media.streamUrl || media.url;
 
-    // 清理旧 Hls 实例
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
+    const videoEl = videoRef.current;
+
+    // 清理旧 Hls 实例与媒体源，避免复用引发 MediaSource 报错与假死
+    const cleanupVideo = () => {
+      if (hlsRef.current) {
+        try {
+          hlsRef.current.detachMedia();
+        } catch (e) {}
+        try {
+          hlsRef.current.destroy();
+        } catch (e) {}
+        hlsRef.current = null;
+      }
+      if (videoEl) {
+        try {
+          videoEl.pause();
+          videoEl.removeAttribute("src");
+          videoEl.load();
+        } catch (e) {}
+      }
+    };
+    cleanupVideo();
 
     let mp4Timer = null;
 
-    // 2.0 播放器假死保护 (Watchdog)：若 HLS 或 MP4 视频等待 7 秒仍处于 0:00 无法播放，自动降级为封面快照或提示
+    // 2.0 播放器假死保护 (Watchdog)：若 HLS 或 MP4 视频等待 12 秒仍处于 0:00 无法播放，自动降级为封面快照或提示
     const stallWatchdog = setTimeout(() => {
       const v = videoRef.current;
       if (v && v.currentTime === 0 && (v.paused || v.readyState < 2)) {
-        console.warn("[CameraViewer] Stream stalled at 0:00 after 7s timeout");
-        if (media.posterUrl && media.posterUrl !== currentImgUrl) {
-          setCurrentImgUrl(media.posterUrl);
+        console.warn("[CameraViewer] Stream stalled at 0:00 after 12s timeout");
+        const hasRealFeed = media.feedUrl && !media.feedUrl.includes("unsplash.com");
+        if (hasRealFeed) {
+          setCurrentImgUrl(media.feedUrl);
           setIsMediaLoading(false);
         } else {
           setIsMediaLoading(false);
           setMediaError(true);
         }
       }
-    }, 7000);
+    }, 12000);
 
     const handleClearWatchdog = () => clearTimeout(stallWatchdog);
-    if (videoRef.current) {
-      videoRef.current.addEventListener("playing", handleClearWatchdog);
-      videoRef.current.addEventListener("timeupdate", handleClearWatchdog);
+    const handleEnterPip = () => setIsPipActive(true);
+    const handleLeavePip = () => {
+      setIsPipActive(false);
+      if (videoEl) videoEl.disablePictureInPicture = true;
+    };
+    if (videoEl) {
+      videoEl.addEventListener("playing", handleClearWatchdog);
+      videoEl.addEventListener("timeupdate", handleClearWatchdog);
+      videoEl.addEventListener("enterpictureinpicture", handleEnterPip);
+      videoEl.addEventListener("leavepictureinpicture", handleLeavePip);
     }
 
     // 2.1 HLS 实时视频流
@@ -137,9 +166,10 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
                 break;
               default:
                 console.warn("[CameraViewer HLS Fatal Error]", data);
-                // 若备用快照图存在，平滑降级为展示快照，避免直接展示红盾阻断
-                if (media.feedUrl || media.posterUrl) {
-                  setCurrentImgUrl(media.feedUrl || media.posterUrl);
+                // 若真实交通快照图存在，平滑降级为展示快照；无真实快照则展示故障保护与下一个按钮
+                const hasRealFeed = media.feedUrl && !media.feedUrl.includes("unsplash.com");
+                if (hasRealFeed) {
+                  setCurrentImgUrl(media.feedUrl);
                   setIsMediaLoading(false);
                   setMediaError(false);
                 } else {
@@ -235,10 +265,11 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
         return () => {
           clearTimeout(stallWatchdog);
           clearInterval(imgTimer);
-          if (hlsRef.current) {
-            hlsRef.current.destroy();
-            hlsRef.current = null;
+          if (videoEl) {
+            videoEl.removeEventListener("playing", handleClearWatchdog);
+            videoEl.removeEventListener("timeupdate", handleClearWatchdog);
           }
+          cleanupVideo();
         };
       }
     }
@@ -254,11 +285,14 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
 
     return () => {
       clearTimeout(stallWatchdog);
-      if (mp4Timer) clearInterval(mp4Timer);
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
+      if (videoEl) {
+        videoEl.removeEventListener("playing", handleClearWatchdog);
+        videoEl.removeEventListener("timeupdate", handleClearWatchdog);
+        videoEl.removeEventListener("enterpictureinpicture", handleEnterPip);
+        videoEl.removeEventListener("leavepictureinpicture", handleLeavePip);
       }
+      if (mp4Timer) clearInterval(mp4Timer);
+      cleanupVideo();
     };
   }, [camera]);
 
@@ -307,6 +341,24 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
     }
   };
 
+  // 画中画 (PiP) 模式受控切换
+  const handleTogglePip = async () => {
+    const v = videoRef.current;
+    if (!v) return;
+    try {
+      if (document.pictureInPictureElement === v) {
+        await document.exitPictureInPicture();
+        setIsPipActive(false);
+      } else {
+        v.disablePictureInPicture = false;
+        await v.requestPictureInPicture();
+        setIsPipActive(true);
+      }
+    } catch (e) {
+      console.warn("[CameraViewer] PiP error:", e);
+    }
+  };
+
   return (
     <div className="livecam-viewer-drawer">
       {/* 顶部标题控制栏 */}
@@ -336,14 +388,27 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
             )}
           </div>
         </div>
-        <button
-          type="button"
-          className="livecam-icon-btn"
-          onClick={onClose}
-          title="关闭监控窗口"
-        >
-          <X size={18} />
-        </button>
+
+        <div className="livecam-viewer-header-actions" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {(mediaType === "hls" || mediaType === "mp4") && (
+            <button
+              type="button"
+              className={`livecam-icon-btn ${isPipActive ? "is-active" : ""}`}
+              onClick={handleTogglePip}
+              title={isPipActive ? "退出画中画" : "画中画悬浮播放"}
+            >
+              <PictureInPicture2 size={16} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="livecam-icon-btn"
+            onClick={onClose}
+            title="关闭监控窗口"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* 视频/图像播放主视口 */}
@@ -381,26 +446,30 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
           </div>
         ) : mediaType === "hls" ? (
           <video
+            key={`hls-${camera.id}`}
             ref={videoRef}
             className="livecam-media-element"
             poster={media.posterUrl || media.feedUrl}
             controls
             autoPlay
             muted
-            defaultMuted
             playsInline
+            disablePictureInPicture={true}
+            controlsList="nodownload noplaybackrate"
           />
         ) : mediaType === "mp4" ? (
           <video
+            key={`mp4-${camera.id}`}
             ref={videoRef}
             className="livecam-media-element"
             poster={media.posterUrl || media.feedUrl}
             controls
             autoPlay
             muted
-            defaultMuted
             playsInline
             loop
+            disablePictureInPicture={true}
+            controlsList="nodownload noplaybackrate"
           />
         ) : mediaType === "iframe" ? (
           <iframe
@@ -438,9 +507,22 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
           <span>{isHlsOrLive ? "LIVE 60FPS" : isMp4Clip ? "DYNAMIC CLIP" : "LIVE SYNC"}</span>
         </div>
 
+        {/* 画中画快捷悬浮徽章按钮 (仅视频流有效，放置在播放视口右上角) */}
+        {(mediaType === "hls" || mediaType === "mp4") && (
+          <button
+            type="button"
+            className={`livecam-media-pip-badge ${isPipActive ? "is-active" : ""}`}
+            onClick={handleTogglePip}
+            title={isPipActive ? "退出画中画" : "开启画中画悬浮播放"}
+          >
+            <PictureInPicture2 size={12} />
+            <span>{isPipActive ? "退出画中画" : "画中画"}</span>
+          </button>
+        )}
+
         {/* 画面右下角时间戳 */}
         <div className="livecam-media-timestamp">
-          {liveTime || "UTC TIME SYNC"}
+          {liveTime || "LOCAL TIME SYNC"}
         </div>
       </div>
 

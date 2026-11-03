@@ -273,11 +273,16 @@ export default function LiveCamsMap({
       },
     });
 
+    baseStyle.projection = {
+      type: projectionMode === "3d" ? "globe" : "mercator",
+    };
+
     const baseOptions = {
       container,
       style: baseStyle,
-      center: [facingLng, 0],
-      zoom: 1.8,
+      projection: { type: projectionMode === "3d" ? "globe" : "mercator" },
+      center: [33.21, 18.21],
+      zoom: 2.3,
       minZoom: 1.2,
       maxZoom: 18,
       pitch: 0,
@@ -549,16 +554,15 @@ export default function LiveCamsMap({
     }
   }, [mapTheme]);
 
-  // 7. 重置全球视角
+  // 7. 重置全球视角 (复位至初始完美地球姿态)
   useEffect(() => {
     if (!resetTrigger) return;
     const map = mapRef.current;
     if (!map || !isLoadedRef.current) return;
 
-    const facingLng = Math.max(-180, Math.min(180, -new Date().getTimezoneOffset() / 4));
     map.flyTo({
-      center: [facingLng, 0],
-      zoom: 1.8,
+      center: [33.21, 18.21],
+      zoom: 2.3,
       pitch: 0,
       bearing: 0,
       padding: { top: 0, bottom: 34, left: 0, right: 0 },
