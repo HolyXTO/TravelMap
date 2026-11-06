@@ -2723,6 +2723,32 @@ function App() {
   }, [mapTileSource]);
 
   const [activeGameTab, setActiveGameTab] = useState("guess");
+  const [activeLiveTab, setActiveLiveTab] = useState(() => {
+    try {
+      const h = (typeof window !== "undefined" ? window.location.hash : "").toLowerCase();
+      if (h === "#live-flights" || h === "#live-aviation" || h === "#aviation") {
+        return "aviation";
+      }
+    } catch {}
+    return "cameras";
+  });
+
+  // 监听 URL Hash 快速深链定位 (支持 #live-flights / #live-aviation 直达全球实时航班)
+  useEffect(() => {
+    const handleHashNav = () => {
+      const hash = (window.location.hash || "").toLowerCase();
+      if (hash === "#live-flights" || hash === "#live-aviation" || hash === "#aviation") {
+        setActiveLiveTab("aviation");
+        scrollToPageSection("live-cams-section");
+      } else if (hash === "#live-cams" || hash === "#live-cams-section" || hash === "#cameras") {
+        setActiveLiveTab("cameras");
+        scrollToPageSection("live-cams-section");
+      }
+    };
+    handleHashNav();
+    window.addEventListener("hashchange", handleHashNav);
+    return () => window.removeEventListener("hashchange", handleHashNav);
+  }, []);
 
   const [appProfiles, setAppProfiles] = useState(() => normalizeProfilesForDisplay(profiles));
   const [visits, setVisits] = useState(() => {
@@ -3913,7 +3939,10 @@ function App() {
     }
   }
 
-  function scrollToPageSection(sectionId) {
+  function scrollToPageSection(rawSectionId) {
+    const sectionId =
+      rawSectionId === "live-flights-section" ? "live-cams-section" : rawSectionId;
+
     const isVisualSection =
       sectionId === "travel-notes-section" ||
       sectionId === "visual-journey-section" ||
@@ -4001,6 +4030,8 @@ function App() {
         profiles={appProfiles}
         activeGameTab={activeGameTab}
         setActiveGameTab={setActiveGameTab}
+        activeLiveTab={activeLiveTab}
+        setActiveLiveTab={setActiveLiveTab}
       />
       <header className="topbar">
         <div className="prophet-brand">
@@ -4532,9 +4563,12 @@ function App() {
         )}
       </section>
 
-      {/* 全球实时摄像头 · Live World */}
+      {/* 全球实时摄像头与航班 · Live World */}
       <section id="live-cams-section" className="live-cams-section">
-        <WorldLiveCams />
+        <WorldLiveCams
+          activeTab={activeLiveTab}
+          onTabChange={setActiveLiveTab}
+        />
       </section>
       {editingPlace && (
         <VisitEditDialog

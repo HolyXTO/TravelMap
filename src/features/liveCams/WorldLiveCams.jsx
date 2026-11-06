@@ -23,9 +23,12 @@ import {
 import LiveCamsMap from "./LiveCamsMap";
 import LiveCamsSidebar from "./LiveCamsSidebar";
 import CameraViewer from "./CameraViewer";
+import AviationSidebar from "./aviation/AviationSidebar";
+import FlightViewer from "./aviation/FlightViewer";
 import LiveCamsStatusBar from "./LiveCamsStatusBar";
 import MapThemeModal from "./components/MapThemeModal";
 import { RAW_CAMERAS, filterCameras, loadFullCamerasData } from "./services/cameraCatalog";
+import { fetchFlightsData, fetchFlightRoute } from "./services/flightService";
 import { getSavedMapTheme, saveMapTheme, DEFAULT_THEME, getLuminance } from "./utils/mapTheme";
 import "./liveCams.css";
 
@@ -34,8 +37,22 @@ const INITIAL_CAMERA =
   RAW_CAMERAS[0] ||
   null;
 
-export default function WorldLiveCams() {
-  const [activeModuleTab, setActiveModuleTab] = useState("cameras");
+export default function WorldLiveCams({
+  activeTab: propActiveTab,
+  onTabChange: propOnTabChange,
+}) {
+  const [internalActiveTab, setInternalActiveTab] = useState("cameras");
+  const activeModuleTab = propActiveTab !== undefined ? propActiveTab : internalActiveTab;
+
+  const setActiveModuleTab = useCallback(
+    (nextTab) => {
+      setInternalActiveTab(nextTab);
+      if (propOnTabChange) {
+        propOnTabChange(nextTab);
+      }
+    },
+    [propOnTabChange]
+  );
   const [allCameras, setAllCameras] = useState(RAW_CAMERAS);
   const [projectionMode, setProjectionMode] = useState("3d");
   const [baseMapType, setBaseMapType] = useState("dark");
@@ -51,6 +68,143 @@ export default function WorldLiveCams() {
   const [currentZoom, setCurrentZoom] = useState(2.3);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [mapTheme, setMapTheme] = useState(getSavedMapTheme);
+
+  // ── 航班模块状态 (Aviation States) ──
+  const [flightsData, setFlightsData] = useState({
+    all: [],
+    commercial: [],
+    privateFlights: [],
+    jets: [],
+    military: [],
+    total: 0,
+    counts: { total: 0, commercial: 0, private: 0, jets: 0, military: 0 },
+    source: "live",
+    timestamp: "",
+  });
+  const [selectedFlight, setSelectedFlight] = useState(null);
+  const [selectedFlightCategory, setSelectedFlightCategory] = useState("all");
+  const [flightSearchQuery, setFlightSearchQuery] = useState("");
+  const [flightRouteData, setFlightRouteData] = useState(null);
+  const [flightRouteLoading, setFlightRouteLoading] = useState(false);
+  const [isFlightsLoading, setIsFlightsLoading] = useState(false);
+
+  // 异步加载全球实时航班
+  const loadFlights = useCallback(async () => {
+    setIsFlightsLoading(true);
+    try {
+      const data = await fetchFlightsData();
+      if (data && data.all && data.all.length > 0) {
+        setFlightsData(data);
+      }
+    } catch (e) {
+      console.warn("[WorldLiveCams] Flights load notice:", e);
+    } finally {
+      setIsFlightsLoading(false);
+    }
+  }, []);
+
+  // 当切换到航班选项卡或初始装载时加载航班数据，并配置 60 秒静默定时轮询
+  useEffect(() => {
+    loadFlights();
+    const interval = setInterval(loadFlights, 60000);
+    return () => clearInterval(interval);
+  }, [loadFlights]);
+
+  // 当选中某架飞机时，自动解析其起降大圆航线 (确保只在 callsign/icao24 改变时触发，避免位置微动打断航线)
+  useEffect(() => {
+    if (!selectedFlight) {
+      setFlightRouteData(null);
+      setFlightRouteLoading(false);
+      return;
+    }
+    const cs = (selectedFlight.callsign || "").trim().toUpperCase();
+    const hex = (selectedFlight.icao24 || "").trim().toLowerCase();
+    setFlightRouteLoading(true);
+    let cancelled = false;
+    fetchFlightRoute(cs, hex, selectedFlight.lat, selectedFlight.lng)
+      .then((res) => {
+        if (!cancelled) {
+          setFlightRouteData(res);
+          setFlightRouteLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFlightRouteLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFlight?.callsign, selectedFlight?.icao24]);
+
+  // 选择指定飞机
+  const handleSelectFlight = useCallback((flight) => {
+    setSelectedFlight(flight);
+    if (mapInstance && flight && Number.isFinite(flight.lat) && Number.isFinite(flight.lng)) {
+      const curZoom = mapInstance.getZoom();
+      // 如果当前缩放过大（如之前查看过探头处于 12+ 街景级别），智能收回至 5.8 广域航线视角，确保能看清飞机与大圆航线弧线
+      const targetZoom = curZoom > 8 ? 5.8 : Math.max(curZoom, 5.5);
+      mapInstance.flyTo({
+        center: [flight.lng, flight.lat],
+        zoom: targetZoom,
+        duration: 900,
+        essential: true,
+      });
+    }
+  }, [mapInstance]);
+
+  // 定位对齐飞机视角
+  const handleLocateFlight = useCallback((lat, lng) => {
+    if (mapInstance && Number.isFinite(lat) && Number.isFinite(lng)) {
+      mapInstance.flyTo({
+        center: [lng, lat],
+        zoom: Math.max(mapInstance.getZoom(), 7),
+        duration: 800,
+        essential: true,
+      });
+    }
+  }, [mapInstance]);
+
+  // 聚焦全航线视角 (将起降机场与大圆航线完整框选在屏幕可视区内)
+  const handleFitFlightRoute = useCallback(() => {
+    if (!mapInstance || !flightRouteData || !flightRouteData.found) return;
+    const { origin, destination } = flightRouteData;
+    if (!origin || !destination) return;
+    try {
+      const minLng = Math.min(origin.lng, destination.lng);
+      const maxLng = Math.max(origin.lng, destination.lng);
+      const minLat = Math.min(origin.lat, destination.lat);
+      const maxLat = Math.max(origin.lat, destination.lat);
+      mapInstance.fitBounds(
+        [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ],
+        {
+          padding: { top: 90, bottom: 90, left: 340, right: 380 },
+          maxZoom: 6.5,
+          duration: 1100,
+          essential: true,
+        }
+      );
+    } catch (err) {
+      console.warn("[WorldLiveCams] fitBounds notice:", err);
+    }
+  }, [mapInstance, flightRouteData]);
+
+  // 切换下一个航班
+  const handleNextFlight = useCallback(() => {
+    const list = flightsData?.all || [];
+    if (!list.length) return;
+    const curIdx = list.findIndex((f) => f.icao24 === selectedFlight?.icao24);
+    if (curIdx === -1) {
+      handleSelectFlight(list[0]);
+    } else {
+      const nextIdx = (curIdx + 1) % list.length;
+      handleSelectFlight(list[nextIdx]);
+    }
+  }, [flightsData, selectedFlight, handleSelectFlight]);
 
   // 异步加载全球 45,000+ 全量摄像头网络
   useEffect(() => {
@@ -236,7 +390,7 @@ export default function WorldLiveCams() {
 
   return (
     <div className="liveworld-master-wrapper">
-      {/* 1. 顶部子功能切换选项卡 (对齐游戏模块：实景图寻 地图盲填 实时对战) */}
+      {/* 1. 顶部子功能切换选项卡 (全球实时摄像头 vs 全球实时航班) */}
       <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
         <div className="travel-games-tab-switcher">
           <button
@@ -249,46 +403,36 @@ export default function WorldLiveCams() {
           </button>
           <button
             type="button"
-            className="game-nav-tab-btn is-disabled"
-            disabled
-            title="全球实时航班功能正在对接 ADS-B 航空数据，敬请期待！"
-            style={{
-              cursor: "not-allowed",
-              opacity: 0.65,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
+            className={`game-nav-tab-btn ${activeModuleTab === "aviation" ? "is-active" : ""}`}
+            onClick={() => setActiveModuleTab("aviation")}
           >
             <Plane size={16} />
             <span>全球实时航班</span>
-            <span
-              style={{
-                fontSize: "10px",
-                fontWeight: "800",
-                padding: "2px 6px",
-                borderRadius: "999px",
-                background: "rgba(100, 116, 139, 0.18)",
-                color: "#64748b",
-              }}
-            >
-              待上线
-            </span>
           </button>
         </div>
       </div>
 
-      {/* 2. 标题区与右侧控制栏 (完全在下方的地球框外，对齐 GEO GUESS PK 与区域分类) */}
+      {/* 2. 标题区与右侧控制栏 */}
       <div className="travel-game-header-row">
         <div className="travel-game-title-group">
           <h2 className="notes-hero-title">
-            <RadioTower className="notes-hero-icon" size={24} color="#0284c7" />
+            {activeModuleTab === "aviation" ? (
+              <Plane className="notes-hero-icon" size={24} color="#00E5FF" />
+            ) : (
+              <RadioTower className="notes-hero-icon" size={24} color="#0284c7" />
+            )}
             <span className="game-hero-brand-text">LIVE WORLD</span>
-            <span className="notes-title-sub">全球实时摄像头</span>
+            <span className="notes-title-sub">
+              {activeModuleTab === "aviation" ? "全球实时航班" : "全球实时摄像头"}
+            </span>
           </h2>
           <p className="travel-game-subtitle">
             <Sparkles size={16} className="game-sub-icon" />
-            <span>接入全球 45,000+ 公开探头与 24/7 高清连续视频流，纵览全球实时景象</span>
+            <span>
+              {activeModuleTab === "aviation"
+                ? `接入全球多源 ADS-B 航空网络，实时雷达监测 ${(flightsData.total || 8300).toLocaleString()}+ 架在航空器与航线`
+                : "接入全球 45,000+ 公开探头与 24/7 高清连续视频流，纵览全球实时景象"}
+            </span>
           </p>
         </div>
 
@@ -306,28 +450,44 @@ export default function WorldLiveCams() {
           backgroundColor: mapTheme.bg || "#04040a",
         }}
       >
-        {/* 全屏状态下的顶部悬浮功能栏（包含 3D地球、暗黑MAP、配色、晨昏线、重置、退出全屏） */}
+        {/* 全屏状态下的顶部悬浮功能栏 */}
         {isFullscreen && renderControlsToolbar(true)}
 
-        {/* 左侧多维筛选与探索侧栏 */}
-        <LiveCamsSidebar
-          cameras={displayedCameras}
-          selectedContinent={selectedContinent}
-          onSelectContinent={setSelectedContinent}
-          streamFilter={streamFilter}
-          onSelectStreamFilter={setStreamFilter}
-          totalCount={continentCameras.length}
-          liveCount={liveCount}
-          snapshotCount={snapshotCount}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          selectedCameraId={selectedCamera?.id}
-          onSelectCamera={handleSelectCamera}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
-        />
+        {/* 左侧多维筛选与探索侧栏 (根据当前功能选项卡动态切换) */}
+        {activeModuleTab === "cameras" ? (
+          <LiveCamsSidebar
+            cameras={displayedCameras}
+            selectedContinent={selectedContinent}
+            onSelectContinent={setSelectedContinent}
+            streamFilter={streamFilter}
+            onSelectStreamFilter={setStreamFilter}
+            totalCount={continentCameras.length}
+            liveCount={liveCount}
+            snapshotCount={snapshotCount}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            selectedCameraId={selectedCamera?.id}
+            onSelectCamera={handleSelectCamera}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
+          />
+        ) : (
+          <AviationSidebar
+            flightsData={flightsData}
+            selectedCategory={selectedFlightCategory}
+            onSelectCategory={setSelectedFlightCategory}
+            searchQuery={flightSearchQuery}
+            onSearchChange={setFlightSearchQuery}
+            selectedFlight={selectedFlight}
+            onSelectFlight={handleSelectFlight}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
+            onRefresh={loadFlights}
+            isLoading={isFlightsLoading}
+          />
+        )}
 
-        {/* MapLibre 核心地图画布 */}
+        {/* MapLibre 核心共用地图画布 */}
         <LiveCamsMap
           cameras={displayedCameras}
           projectionMode={projectionMode}
@@ -338,10 +498,15 @@ export default function WorldLiveCams() {
           onMapReady={setMapInstance}
           resetTrigger={resetTrigger}
           mapTheme={mapTheme}
+          activeModuleTab={activeModuleTab}
+          flights={flightsData.all}
+          selectedFlight={selectedFlight}
+          flightRouteData={flightRouteData}
+          onSelectFlight={handleSelectFlight}
         />
 
-        {/* 右侧播放器抽屉 */}
-        {selectedCamera && (
+        {/* 右侧抽屉 (摄像头播放器 / 航班战术详情面板) */}
+        {activeModuleTab === "cameras" && selectedCamera && (
           <CameraViewer
             key={selectedCamera.id}
             camera={selectedCamera}
@@ -350,11 +515,26 @@ export default function WorldLiveCams() {
           />
         )}
 
+        {activeModuleTab === "aviation" && selectedFlight && (
+          <FlightViewer
+            key={selectedFlight.icao24}
+            flight={selectedFlight}
+            routeData={flightRouteData}
+            isRouteLoading={flightRouteLoading}
+            onClose={() => setSelectedFlight(null)}
+            onLocate={handleLocateFlight}
+            onFitRoute={handleFitFlightRoute}
+            onNextFlight={handleNextFlight}
+          />
+        )}
+
         {/* 底部信息状态栏 */}
         <LiveCamsStatusBar
           map={mapInstance}
           projectionMode={projectionMode}
           baseMapType={baseMapType}
+          activeModuleTab={activeModuleTab}
+          flightCount={flightsData.total}
         />
       </div>
 

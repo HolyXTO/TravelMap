@@ -14,6 +14,8 @@ export default function LiveCamsStatusBar({
   zoom = 1.8,
   projectionMode = "3d",
   baseMapType = "dark",
+  activeModuleTab = "cameras",
+  flightCount = 0,
 }) {
   const [coords, setCoords] = useState(centerCoords);
   const [currentZoom, setCurrentZoom] = useState(zoom);
@@ -75,6 +77,12 @@ export default function LiveCamsStatusBar({
           <Layers size={13} color="#00e676" />
           <span>{projectionMode.toUpperCase()} · {baseMapType.toUpperCase()}</span>
         </div>
+        {activeModuleTab === "aviation" && flightCount > 0 && (
+          <div className="livecam-status-item" style={{ color: "#00E5FF" }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#00E5FF", display: "inline-block", marginRight: 4 }} />
+            <span>RADAR: {flightCount.toLocaleString()} AIRCRAFT IN AIRSPACE</span>
+          </div>
+        )}
       </div>
 
       <div className="livecam-status-right">

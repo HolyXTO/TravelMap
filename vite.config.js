@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { handleFlightApi } from "./tools/flightServerMiddleware.mjs";
 
 export default defineConfig({
   base: "/TravelMap/",
@@ -13,9 +14,18 @@ export default defineConfig({
   },
   plugins: [
     {
-      name: "cctv-proxy-middleware",
+      name: "aviation-and-cctv-proxy-middleware",
       configureServer(server) {
         server.middlewares.use(async (req, res, next) => {
+          // 1. 航班 API 处理器 (/api/flights, /api/aircraft, /api/flight-route)
+          try {
+            const handled = await handleFlightApi(req, res);
+            if (handled) return;
+          } catch (err) {
+            console.error("[Vite Flight Proxy Error]", err);
+          }
+
+          // 2. 德州 CCTV 图像代理
           if (req.url && req.url.startsWith("/api/cctv/texas/snapshot")) {
             try {
               const u = new URL(req.url, "http://127.0.0.1");

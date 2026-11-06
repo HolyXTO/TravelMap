@@ -834,7 +834,7 @@
   top: 16px;
   right: 16px;
   bottom: 42px;
-  width: 395px;
+  width: 340px;
   max-width: calc(100vw - 32px);
   z-index: 30;
   background: var(--livecam-panel);
@@ -2190,4 +2190,363 @@
   color: #0284c7;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
+
+/* =========================================================================
+   全球实时航班 (Aviation) 战术面板与详情卡片规范
+   ========================================================================= */
+.livecam-flight-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  width: 100%;
+}
+
+.livecam-flight-cat-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 2px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--livecam-text-muted);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: center;
+  user-select: none;
+  min-height: 44px;
+}
+
+.livecam-flight-cat-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--livecam-text);
+  transform: translateY(-1px);
+}
+
+.livecam-flight-cat-btn.is-active {
+  background: rgba(0, 229, 255, 0.14);
+  border-color: var(--livecam-cyan);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+}
+
+.livecam-flight-cat-label {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.livecam-flight-cat-count {
+  font-size: 11px;
+  font-weight: 900;
+  margin-top: 2px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 实时航班侧栏滚动列表 (支持鼠标滚轮流畅滚动) */
+.livecam-sidebar-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 14px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.livecam-sidebar-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.livecam-sidebar-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.livecam-sidebar-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+.livecam-sidebar-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.4);
+}
+
+.livecam-shell.is-light-theme .livecam-sidebar-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.livecam-flight-callsign {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--livecam-text);
+  letter-spacing: 0.4px;
+}
+
+.livecam-flight-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--livecam-text-muted);
+  margin-top: 3px;
+}
+
+.livecam-flight-meta-hex {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.livecam-flight-route-card {
+  background: var(--livecam-card-bg);
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+  transition: all 0.2s ease;
+}
+
+.livecam-flight-route-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.livecam-flight-route-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--livecam-text-muted);
+  letter-spacing: 1px;
+}
+
+.livecam-flight-airline-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--livecam-cyan);
+}
+
+.livecam-flight-airport-code {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--livecam-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.livecam-flight-airport-city {
+  font-size: 11px;
+  color: var(--livecam-text-muted);
+  margin-top: 2px;
+  max-width: 95px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livecam-flight-route-track {
+  width: 100%;
+  height: 3px;
+  background: rgba(125, 125, 125, 0.25);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.livecam-flight-route-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--livecam-cyan), #38bdf8);
+  border-radius: 2px;
+}
+
+.livecam-flight-distance {
+  font-size: 10px;
+  color: var(--livecam-text-muted);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.livecam-flight-telemetry-title,
+.livecam-flight-identity-title,
+.livecam-flight-intel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--livecam-text-muted);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.livecam-flight-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.livecam-flight-telemetry-cell {
+  background: var(--livecam-card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.livecam-flight-telemetry-label {
+  font-size: 10px;
+  color: var(--livecam-text-muted);
+  font-weight: 600;
+}
+
+.livecam-flight-telemetry-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--livecam-cyan);
+  margin-top: 3px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.livecam-flight-telemetry-val.neutral {
+  color: var(--livecam-text);
+}
+
+.livecam-flight-telemetry-sub {
+  font-size: 10px;
+  color: var(--livecam-text-muted);
+  margin-top: 2px;
+  opacity: 0.85;
+}
+
+.livecam-flight-identity-card {
+  background: var(--livecam-card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.livecam-flight-identity-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.livecam-flight-identity-label {
+  color: var(--livecam-text-muted);
+}
+
+.livecam-flight-identity-val {
+  color: var(--livecam-text);
+  font-weight: 600;
+}
+
+.livecam-flight-identity-val.accent {
+  color: var(--livecam-cyan);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.livecam-flight-intel-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.livecam-flight-intel-btn {
+  flex: 1;
+  min-width: 80px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 8px;
+  background: var(--livecam-card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--livecam-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.livecam-flight-intel-btn:hover {
+  background: var(--livecam-card-hover);
+  color: var(--livecam-cyan);
+  border-color: var(--livecam-cyan);
+}
+
+/* =========================================================================
+   Aviation 针对明亮主题 (.is-light-theme) 的专门高对比度适配
+   ========================================================================= */
+.livecam-shell.is-light-theme .livecam-flight-cat-btn {
+  background: rgba(241, 245, 249, 0.85);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #475569;
+}
+
+.livecam-shell.is-light-theme .livecam-flight-cat-btn:hover {
+  background: rgba(226, 232, 240, 0.95);
+  color: #0f172a;
+}
+
+.livecam-shell.is-light-theme .livecam-flight-cat-btn.is-active {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: #0284c7;
+  color: #0284c7;
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.2);
+}
+
+.livecam-shell.is-light-theme .livecam-flight-cat-btn.is-active .livecam-flight-cat-count {
+  color: #0284c7 !important;
+}
+
+.livecam-shell.is-light-theme .livecam-flight-route-card {
+  background: rgba(241, 245, 249, 0.92);
+  border-color: rgba(2, 132, 199, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.livecam-shell.is-light-theme .livecam-flight-telemetry-cell,
+.livecam-shell.is-light-theme .livecam-flight-identity-card {
+  background: rgba(241, 245, 249, 0.88);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.livecam-shell.is-light-theme .livecam-flight-intel-btn {
+  background: rgba(241, 245, 249, 0.88);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #475569;
+}
+
+.livecam-shell.is-light-theme .livecam-flight-intel-btn:hover {
+  background: #ffffff;
+  color: #0284c7;
+  border-color: #0284c7;
+}
+
+.livecam-shell.is-light-theme .livecam-flight-airport-city,
+.livecam-shell.is-light-theme .livecam-flight-telemetry-sub,
+.livecam-shell.is-light-theme .livecam-flight-identity-label,
+.livecam-shell.is-light-theme .livecam-flight-route-title,
+.livecam-shell.is-light-theme .livecam-flight-telemetry-title,
+.livecam-shell.is-light-theme .livecam-flight-identity-title {
+  color: #64748b;
+}
+
+.livecam-shell.is-light-theme .livecam-flight-callsign,
+.livecam-shell.is-light-theme .livecam-flight-airport-code,
+.livecam-shell.is-light-theme .livecam-flight-identity-val {
+  color: #0f172a;
+}
+
 

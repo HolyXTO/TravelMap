@@ -22,6 +22,8 @@ export default function LeftSidebarNav({
   scrollToPageSection,
   activeGameTab = "fill",
   setActiveGameTab,
+  activeLiveTab = "cameras",
+  setActiveLiveTab,
 }) {
   const [isPinned, setIsPinned] = useState(() => {
     try {
@@ -223,11 +225,27 @@ export default function LeftSidebarNav({
     {
       id: "live-cams",
       title: "全球实时摄像头",
-      enTitle: "Live World",
+      enTitle: "Live Cameras",
       icon: RadioTower,
       accentColor: "#00b8d9",
       bgColor: "#e6faff",
-      action: () => scrollToPageSection("live-cams-section"),
+      action: () => {
+        if (setActiveLiveTab) setActiveLiveTab("cameras");
+        scrollToPageSection("live-cams-section");
+      },
+      submenus: null,
+    },
+    {
+      id: "live-flights",
+      title: "全球实时航班",
+      enTitle: "Live Aviation",
+      icon: Plane,
+      accentColor: "#0284c7",
+      bgColor: "#e0f2fe",
+      action: () => {
+        if (setActiveLiveTab) setActiveLiveTab("aviation");
+        scrollToPageSection("live-cams-section");
+      },
       submenus: null,
     },
   ];

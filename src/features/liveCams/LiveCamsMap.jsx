@@ -43,6 +43,13 @@ import {
   getLuminance,
 } from "./utils/mapTheme";
 import CctvPreviews from "./components/CctvPreviews";
+import {
+  initFlightIcons,
+  initFlightLayers,
+  updateFlightsSource,
+  updateSelectedFlight,
+  setFlightLayersVisibility,
+} from "./layers/flightLayers";
 
 const SATELLITE_SOURCE_ID = "livecam-satellite-source";
 const SATELLITE_LAYER_ID = "livecam-satellite-layer";
@@ -57,6 +64,12 @@ export default function LiveCamsMap({
   onMapReady,
   resetTrigger,
   mapTheme,
+  // ── 航班模块专属新属性 ──
+  activeModuleTab = "cameras", // 'cameras' | 'aviation'
+  flights = [],
+  selectedFlight = null,
+  flightRouteData = null,
+  onSelectFlight,
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -64,9 +77,29 @@ export default function LiveCamsMap({
   const isLoadedRef = useRef(false);
   const camerasMapRef = useRef(new Map());
   const camerasRef = useRef(cameras);
+  const flightsRef = useRef(flights);
+  const flightsMapRef = useRef(new Map());
+  const activeModuleTabRef = useRef(activeModuleTab);
+  const onSelectCameraRef = useRef(onSelectCamera);
+  const onSelectFlightRef = useRef(onSelectFlight);
 
-  // 同步最新 cameras 列表引用，规避异步闭包陈旧
+  // 同步最新引用
+  activeModuleTabRef.current = activeModuleTab;
+  onSelectCameraRef.current = onSelectCamera;
+  onSelectFlightRef.current = onSelectFlight;
   camerasRef.current = cameras;
+  flightsRef.current = flights;
+
+  // 维护快速 O(1) 航班检索表
+  useEffect(() => {
+    const fm = new Map();
+    if (flights) {
+      for (const f of flights) {
+        if (f.icao24) fm.set(String(f.icao24).toLowerCase(), f);
+      }
+    }
+    flightsMapRef.current = fm;
+  }, [flights]);
 
   // 维护快速 O(1) ID 探查映射表
   useEffect(() => {
@@ -208,11 +241,16 @@ export default function LiveCamsMap({
       baseStyle.layers.push(...dayNightLayers);
     }
 
+    const initialCamVis = activeModuleTab === "aviation" ? "none" : "visible";
+
     // 探头外层阴影圈 (OSIRIS cctv-glow: 黑色柔和底衬)
     baseStyle.layers.push({
       id: CAMERAS_GLOW_LAYER_ID,
       type: "circle",
       source: CAMERAS_SOURCE_ID,
+      layout: {
+        visibility: initialCamVis,
+      },
       paint: {
         "circle-radius": [
           "interpolate",
@@ -234,6 +272,9 @@ export default function LiveCamsMap({
       id: CAMERAS_DOTS_LAYER_ID,
       type: "circle",
       source: CAMERAS_SOURCE_ID,
+      layout: {
+        visibility: initialCamVis,
+      },
       paint: {
         "circle-radius": [
           "interpolate",
@@ -259,6 +300,7 @@ export default function LiveCamsMap({
       source: CAMERAS_SOURCE_ID,
       minzoom: 10,
       layout: {
+        visibility: initialCamVis,
         "text-field": ["get", "name"],
         "text-size": 9.5,
         "text-offset": [0, 1.8],
@@ -372,6 +414,7 @@ export default function LiveCamsMap({
       });
 
       const handleMouseEnter = (e) => {
+        if (activeModuleTabRef.current !== "cameras") return;
         map.getCanvas().style.cursor = "pointer";
         const features = map.queryRenderedFeatures(e.point, {
           layers: [CAMERAS_DOTS_LAYER_ID, CAMERAS_GLOW_LAYER_ID, CAMERAS_LABEL_LAYER_ID],
@@ -413,6 +456,7 @@ export default function LiveCamsMap({
 
       // 1.3 绑定单探头点击事件 (无论在任何缩放层级，点击任意散点都能立即选中、打开抽屉并飞入)
       const handleSingleCamClick = (e) => {
+        if (activeModuleTabRef.current !== "cameras") return;
         const features = map.queryRenderedFeatures(e.point, {
           layers: [CAMERAS_DOTS_LAYER_ID, CAMERAS_GLOW_LAYER_ID, CAMERAS_LABEL_LAYER_ID],
         });
@@ -421,7 +465,7 @@ export default function LiveCamsMap({
           const targetCam = camerasMapRef.current.get(String(camId));
           if (targetCam) {
             hoverPopup.remove();
-            onSelectCamera(targetCam);
+            onSelectCameraRef.current?.(targetCam);
             map.flyTo({
               center: [targetCam.lng, targetCam.lat],
               zoom: Math.max(map.getZoom(), 12.5),
@@ -435,6 +479,102 @@ export default function LiveCamsMap({
       map.on("click", CAMERAS_GLOW_LAYER_ID, handleSingleCamClick);
       map.on("click", CAMERAS_LABEL_LAYER_ID, handleSingleCamClick);
 
+      // 1.4 初始化并挂载全球实时航班 WebGL 图层系统
+      try {
+        initFlightIcons(map);
+        initFlightLayers(map);
+
+        const FLIGHT_INTERACTION_LAYERS = [
+          "fl-commercial",
+          "fl-private",
+          "fl-jets",
+          "fl-military",
+          "flight-selected-dot",
+          "flight-selected-glow",
+          "fl-callsign-label",
+        ];
+        FLIGHT_INTERACTION_LAYERS.forEach((layerId) => {
+          map.on("mouseenter", layerId, (e) => {
+            if (activeModuleTabRef.current !== "aviation") return;
+            map.getCanvas().style.cursor = "pointer";
+            const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+            if (features && features.length > 0) {
+              const p = features[0].properties;
+              const coords = features[0].geometry?.coordinates?.slice() || [e.lngLat.lng, e.lngLat.lat];
+              const altM = Math.round(p.alt || 0);
+              const altFt = Math.round(altM * 3.28084);
+              const catColor =
+                p.category === "military"
+                  ? "#FF3D00"
+                  : p.category === "jet"
+                  ? "#FF4081"
+                  : p.category === "private"
+                  ? "#00E676"
+                  : "#00E5FF";
+
+              hoverPopup
+                .setLngLat(coords)
+                .setHTML(
+                  `<div class="livecam-tip-content">
+                    <div class="livecam-tip-header">
+                      <span class="livecam-tip-badge is-video" style="border-color:${catColor};color:${catColor};">✈️ ${p.callsign || "FLIGHT"}</span>
+                      <span class="livecam-tip-city">${p.model || "AIRCRAFT"} · ${p.country || ""}</span>
+                    </div>
+                    <div class="livecam-tip-name" style="font-family:monospace;font-size:11px;color:#38bdf8;margin-top:2px;">
+                      ALT: ${altM}m (${altFt.toLocaleString()}ft) · SPD: ${Math.round(p.speed_knots || 0)}kt · HDG: ${Math.round(p.heading || 0)}°
+                    </div>
+                  </div>`
+                )
+                .addTo(map);
+            }
+          });
+
+          map.on("mouseleave", layerId, () => {
+            map.getCanvas().style.cursor = "";
+            hoverPopup.remove();
+          });
+
+          map.on("click", layerId, (e) => {
+            if (activeModuleTabRef.current !== "aviation") return;
+            const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+            if (features && features.length > 0) {
+              const p = features[0].properties;
+              const icao24 = p?.icao24;
+              let targetFlight = icao24 ? flightsMapRef.current.get(String(icao24).toLowerCase()) : null;
+              if (!targetFlight && p?.callsign) {
+                targetFlight = flightsRef.current.find((f) => f.callsign === p.callsign);
+              }
+              if (targetFlight) {
+                hoverPopup.remove();
+                onSelectFlightRef.current?.(targetFlight);
+                const curZoom = map.getZoom();
+                const targetZoom = curZoom > 8 ? 5.8 : Math.max(curZoom, 5.5);
+                map.flyTo({
+                  center: [targetFlight.lng, targetFlight.lat],
+                  zoom: targetZoom,
+                  duration: 900,
+                });
+              }
+            }
+          });
+        });
+
+        // 刷新初始航班数据
+        if (flightsRef.current && flightsRef.current.length > 0) {
+          updateFlightsSource(map, flightsRef.current);
+        }
+
+        // 根据当前最新 activeModuleTabRef 设置图层可见性
+        const isAviation = activeModuleTabRef.current === "aviation";
+        setFlightLayersVisibility(map, isAviation);
+        const camVis = isAviation ? "none" : "visible";
+        [CAMERAS_DOTS_LAYER_ID, CAMERAS_GLOW_LAYER_ID, CAMERAS_LABEL_LAYER_ID].forEach((cid) => {
+          if (map.getLayer(cid)) map.setLayoutProperty(cid, "visibility", camVis);
+        });
+      } catch (err) {
+        console.warn("[LiveCamsMap] Flight layers init notice:", err);
+      }
+
       // 无论首屏加载先后，确保最新探头数据全量灌注进 WebGL 渲染管线
       if (camerasRef.current && camerasRef.current.length > 0) {
         updateCameraData(map, camerasRef.current);
@@ -446,9 +586,10 @@ export default function LiveCamsMap({
       setTimeout(() => map.resize(), 300);
     };
 
-    if (map.loaded()) {
+    if (map.isStyleLoaded() || map.loaded()) {
       setupInteractions();
     } else {
+      map.once("style.load", setupInteractions);
       map.once("load", setupInteractions);
     }
 
@@ -591,6 +732,54 @@ export default function LiveCamsMap({
     });
   }, [selectedCamera]);
 
+  // 8. 实时子功能选项卡切换：探头图层 vs 航班图层显隐协同切换
+  useEffect(() => {
+    activeModuleTabRef.current = activeModuleTab;
+    const map = mapRef.current;
+    if (!map) return;
+
+    const applyVisibility = () => {
+      const isAviation = activeModuleTab === "aviation";
+      setFlightLayersVisibility(map, isAviation);
+
+      const camVis = isAviation ? "none" : "visible";
+      [CAMERAS_DOTS_LAYER_ID, CAMERAS_GLOW_LAYER_ID, CAMERAS_LABEL_LAYER_ID].forEach((cid) => {
+        if (map.getLayer(cid)) {
+          map.setLayoutProperty(cid, "visibility", camVis);
+        }
+      });
+
+      // 切换选项卡时立即清除遗留的悬浮提示弹窗
+      const popups = document.querySelectorAll(".livecam-hover-popup");
+      popups.forEach((p) => p.remove());
+    };
+
+    if (isLoadedRef.current || map.isStyleLoaded()) {
+      applyVisibility();
+    } else {
+      map.once("styledata", applyVisibility);
+    }
+  }, [activeModuleTab]);
+
+  // 9. 航班数据更新推送进 WebGL 渲染管线
+  useEffect(() => {
+    flightsRef.current = flights;
+    const map = mapRef.current;
+    if (!map) return;
+    if (isLoadedRef.current || map.isStyleLoaded()) {
+      updateFlightsSource(map, flights);
+    }
+  }, [flights]);
+
+  // 10. 选中航班高亮与其起降大圆航线弧线更新
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (isLoadedRef.current || map.isStyleLoaded()) {
+      updateSelectedFlight(map, selectedFlight, flightRouteData);
+    }
+  }, [selectedFlight, flightRouteData]);
+
   return (
     <div className="livecam-map-wrapper" style={{ position: "relative", width: "100%", height: "100%" }}>
       <div
@@ -598,13 +787,15 @@ export default function LiveCamsMap({
         className="livecam-map-canvas"
         style={{ backgroundColor: mapTheme?.bg || "#04040a" }}
       />
-      <CctvPreviews
-        map={mapInstance}
-        mapRef={mapRef}
-        cameras={cameras}
-        selectedCameraId={selectedCamera?.id}
-        onSelectCamera={onSelectCamera}
-      />
+      {activeModuleTab === "cameras" && (
+        <CctvPreviews
+          map={mapInstance}
+          mapRef={mapRef}
+          cameras={cameras}
+          selectedCameraId={selectedCamera?.id}
+          onSelectCamera={onSelectCamera}
+        />
+      )}
     </div>
   );
 }
