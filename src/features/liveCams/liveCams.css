@@ -22,6 +22,7 @@
 .livecam-shell {
   --livecam-bg: #04040a;
   --livecam-panel: rgba(10, 13, 24, 0.88);
+  --livecam-panel-gradient: linear-gradient(160deg, rgba(14, 20, 38, 0.94) 0%, rgba(9, 13, 26, 0.90) 50%, rgba(4, 6, 16, 0.86) 100%);
   --livecam-panel-border: rgba(212, 175, 55, 0.22);
   --livecam-panel-border-cyan: rgba(0, 229, 255, 0.28);
   --livecam-cyan: #00e5ff;
@@ -29,6 +30,7 @@
   --livecam-gold: #d4af37;
   --livecam-red: #ff3d3d;
   --livecam-card-bg: rgba(18, 22, 40, 0.75);
+  --livecam-card-gradient: linear-gradient(145deg, rgba(22, 28, 52, 0.82) 0%, rgba(14, 18, 36, 0.76) 100%);
   --livecam-card-hover: rgba(30, 36, 64, 0.85);
   --livecam-text: #e8e6e0;
   --livecam-text-muted: #8e95a5;
@@ -277,28 +279,55 @@
   transform: translateY(-1px);
 }
 
-/* 全屏沉浸模式下顶部悬浮控制栏（集成 3D地球、暗黑MAP、配色、晨昏线、重置与退出全屏） */
+/* 全屏沉浸模式下顶部悬浮控制栏（居中显示，杜绝与右侧/左侧抽屉冲突） */
 .liveworld-fullscreen-toolbar {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 50;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
+  z-index: 60;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(10, 13, 24, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  padding: 6px 10px;
+  background: rgba(10, 13, 24, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 8px 14px;
   border-radius: 999px;
   backdrop-filter: blur(24px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
   pointer-events: auto;
+  white-space: nowrap;
+}
+
+.liveworld-fullscreen-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.liveworld-toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.16);
+  margin: 0 2px;
+  flex-shrink: 0;
 }
 
 .liveworld-fullscreen-toolbar .liveworld-nav-pill {
   color: #cbd5e1;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.liveworld-fullscreen-mode-switch .liveworld-nav-pill {
+  background: transparent;
+  border-color: transparent;
 }
 
 .liveworld-fullscreen-toolbar .liveworld-nav-pill:hover {
@@ -327,12 +356,18 @@
   background: var(--livecam-panel);
   border: 1px solid var(--livecam-panel-border);
   border-radius: 20px;
-  backdrop-filter: blur(24px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow: var(--livecam-panel-shadow, 0 16px 45px rgba(0, 0, 0, 0.6));
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.3s ease,
+              background 0.12s ease,
+              border-color 0.12s ease,
+              box-shadow 0.12s ease,
+              color 0.12s ease;
   pointer-events: auto;
 }
 
@@ -429,12 +464,42 @@
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  padding: 9px 12px 9px 34px;
+  padding: 8px 30px 8px 34px;
   color: #ffffff;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   outline: none;
   transition: all 0.2s ease;
   box-sizing: border-box;
+}
+
+.livecam-search-input::placeholder {
+  color: var(--livecam-text-muted);
+  font-size: 0.80rem;
+  opacity: 0.85;
+}
+
+.livecam-search-clear-btn {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  border-radius: 50%;
+  width: 19px;
+  height: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--livecam-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.livecam-search-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
 }
 
 .livecam-search-input:focus {
@@ -618,6 +683,164 @@
   background: rgba(0, 229, 255, 0.12);
 }
 
+/* 航班国家分组折叠面板 (Aviation Country Accordion) */
+.livecam-group-summary-bar {
+  padding: 4px 14px 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.livecam-group-summary-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--livecam-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.livecam-country-group-item {
+  flex-shrink: 0;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s ease;
+}
+
+.livecam-country-group-item:hover {
+  border-color: rgba(0, 229, 255, 0.2);
+}
+
+.livecam-country-group-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  text-align: left;
+  font-family: inherit;
+}
+
+.livecam-country-group-header:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.livecam-country-group-header.is-expanded {
+  background: rgba(0, 229, 255, 0.08);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+}
+
+.livecam-country-group-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.livecam-country-group-title .livecam-country-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  background: rgba(0, 0, 0, 0.08);
+  line-height: 1;
+}
+
+.livecam-country-group-title .livecam-country-flag.is-globe {
+  background: rgba(14, 165, 233, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: none;
+}
+
+.livecam-country-globe-fallback {
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.livecam-country-globe-icon {
+  color: #38bdf8;
+  display: block;
+}
+
+.livecam-shell.is-light-theme .livecam-country-group-title .livecam-country-flag.is-globe {
+  background: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.25);
+}
+
+.livecam-shell.is-light-theme .livecam-country-globe-icon {
+  color: #0284c7;
+}
+
+.livecam-country-flag-rect {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.livecam-country-name-zh {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--livecam-text);
+  white-space: nowrap;
+}
+
+.livecam-country-name-en {
+  font-size: 11px;
+  color: var(--livecam-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livecam-country-group-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.livecam-country-count-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--livecam-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.livecam-country-arrow {
+  color: var(--livecam-text-muted);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.livecam-country-arrow.is-open {
+  transform: rotate(180deg);
+  color: var(--livecam-cyan);
+}
+
+.livecam-country-group-flights {
+  padding: 6px 8px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
 /* 按国家折叠/展开分组 (Country Accordion) */
 .livecam-country-group {
   flex-shrink: 0;
@@ -750,6 +973,33 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+.livecam-list-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.livecam-list-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.livecam-list-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+
+.livecam-list-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.42);
+}
+
+.livecam-shell.is-light-theme .livecam-list-body {
+  scrollbar-color: rgba(15, 23, 42, 0.18) transparent;
+}
+
+.livecam-shell.is-light-theme .livecam-list-body::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
 }
 
 .livecam-card-item {
@@ -841,13 +1091,17 @@
   border: 1px solid var(--livecam-panel-border-cyan);
   border-radius: 20px;
   backdrop-filter: blur(28px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75), 0 0 24px rgba(0, 229, 255, 0.15);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow: var(--livecam-panel-shadow, 0 16px 48px rgba(0, 0, 0, 0.7));
   display: flex;
   flex-direction: column;
   overflow: hidden;
   pointer-events: auto;
   animation: livecam-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: background 0.12s ease,
+              border-color 0.12s ease,
+              box-shadow 0.12s ease,
+              color 0.12s ease;
 }
 
 @keyframes livecam-slide-in {
@@ -861,6 +1115,52 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.livecam-header-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--livecam-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.livecam-header-action-btn:hover {
+  background: rgba(0, 229, 255, 0.16);
+  border-color: rgba(0, 229, 255, 0.45);
+  color: #ffffff;
+}
+
+.livecam-header-action-btn.close:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #f87171;
+}
+
+.livecam-shell.is-light-theme .livecam-header-action-btn {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #475569;
+}
+
+.livecam-shell.is-light-theme .livecam-header-action-btn:hover {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: rgba(2, 132, 199, 0.4);
+  color: #0284c7;
+}
+
+.livecam-shell.is-light-theme .livecam-header-action-btn.close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #dc2626;
 }
 
 .livecam-viewer-title-group {
@@ -868,6 +1168,8 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1;
+  margin-right: 8px;
 }
 
 .livecam-viewer-title {
@@ -884,7 +1186,23 @@
   color: var(--livecam-cyan);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
+}
+
+.livecam-meta-location {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livecam-meta-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* 核心画面播放容器 */
@@ -897,6 +1215,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .livecam-media-element {
@@ -988,29 +1307,66 @@
   z-index: 10;
 }
 
-/* 详情信息体 */
+/* 详情信息体 (卡片组件本身等比舒展填充，始终紧凑统一无大段空白与滚动条) */
 .livecam-viewer-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  padding: 16px 18px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  justify-content: flex-start;
+  gap: 9px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.livecam-viewer-body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .livecam-desc-box {
+  flex: 1 1 auto;
+  min-height: 76px;
   font-size: 0.82rem;
   line-height: 1.6;
   color: #cbd5e1;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 12px;
+  padding: 12px 14px;
   border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.livecam-desc-title,
+.livecam-data-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--livecam-text-muted);
+  letter-spacing: 0.8px;
+}
+
+.livecam-desc-text {
+  color: inherit;
+}
+
+.livecam-data-section {
+  flex: 1.15 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .livecam-data-grid {
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
   gap: 8px;
 }
 
@@ -1018,40 +1374,55 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 9px 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .livecam-data-label {
   font-size: 0.68rem;
   color: var(--livecam-text-muted);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .livecam-data-val {
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 /* 底部操作按钮 */
-.livecam-viewer-actions {
-  padding: 12px 14px;
+.livecam-viewer-actions,
+.livecam-viewer-footer {
+  padding: 10px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .livecam-action-btn {
-  flex: 1;
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 8px 8px;
+  padding: 8px 4px;
   border-radius: 9px;
   font-size: 0.78rem;
   font-weight: 700;
@@ -1060,6 +1431,7 @@
   font-family: inherit;
   text-decoration: none;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .livecam-action-btn.primary {
@@ -1090,6 +1462,35 @@
 .livecam-action-btn.next:hover {
   background: rgba(0, 230, 118, 0.28);
   box-shadow: 0 0 14px rgba(0, 230, 118, 0.3);
+}
+
+.livecam-action-btn.explore {
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid var(--livecam-gold, #d4af37);
+  color: var(--livecam-gold, #d4af37);
+}
+.livecam-action-btn.explore:hover {
+  background: rgba(212, 175, 55, 0.28);
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.3);
+}
+
+.livecam-action-btn.disabled,
+.livecam-action-btn:disabled {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.livecam-shell.is-light-theme .livecam-action-btn.disabled,
+.livecam-shell.is-light-theme .livecam-action-btn:disabled {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: rgba(15, 23, 42, 0.45) !important;
+  cursor: not-allowed !important;
 }
 
 /* =========================================================================
@@ -1963,10 +2364,12 @@
    自适应明亮主题 (当功能块底色设为浅色/白色，且地球缩很小露出浅色底时自适应激活)
    ========================================================================= */
 .livecam-shell.is-light-theme {
-  --livecam-panel: rgba(255, 255, 255, 0.92);
-  --livecam-panel-border: rgba(0, 0, 0, 0.12);
+  --livecam-panel: rgba(255, 255, 255, 0.94);
+  --livecam-panel-gradient: linear-gradient(160deg, rgba(255, 255, 255, 0.96) 0%, rgba(246, 249, 253, 0.92) 50%, rgba(238, 243, 249, 0.88) 100%);
+  --livecam-panel-border: rgba(0, 0, 0, 0.08);
   --livecam-panel-border-cyan: rgba(2, 132, 199, 0.35);
   --livecam-card-bg: rgba(241, 245, 249, 0.9);
+  --livecam-card-gradient: linear-gradient(145deg, rgba(245, 248, 252, 0.95) 0%, rgba(238, 243, 249, 0.90) 100%);
   --livecam-card-hover: rgba(226, 232, 240, 0.96);
   --livecam-text: #0f172a;
   --livecam-text-muted: #64748b;
@@ -1976,8 +2379,9 @@
 }
 
 .livecam-shell.is-light-theme .livecam-sidebar {
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--livecam-panel);
+  box-shadow: var(--livecam-panel-shadow, 0 16px 45px rgba(15, 23, 42, 0.12));
+  border: 1px solid var(--livecam-panel-border, rgba(0, 0, 0, 0.08));
 }
 
 .livecam-shell.is-light-theme .livecam-sidebar-header {
@@ -1985,8 +2389,9 @@
 }
 
 .livecam-shell.is-light-theme .livecam-viewer-drawer {
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.16);
-  border: 1px solid rgba(2, 132, 199, 0.28);
+  background: var(--livecam-panel);
+  box-shadow: var(--livecam-panel-shadow, 0 18px 48px rgba(15, 23, 42, 0.15));
+  border: 1px solid var(--livecam-panel-border-cyan, rgba(2, 132, 199, 0.25));
 }
 
 .livecam-shell.is-light-theme .livecam-sidebar-title,
@@ -2161,16 +2566,71 @@
   background: rgba(16, 185, 129, 0.22);
 }
 
+.livecam-shell.is-light-theme .livecam-action-btn.explore {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(217, 119, 6, 0.35);
+  color: #b45309;
+}
+
+.livecam-shell.is-light-theme .livecam-action-btn.explore:hover {
+  background: rgba(217, 119, 6, 0.22);
+}
+
+.livecam-shell.is-light-theme .livecam-country-group-item {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.livecam-shell.is-light-theme .livecam-country-group-header {
+  background: rgba(241, 245, 249, 0.85);
+}
+
+.livecam-shell.is-light-theme .livecam-country-group-header:hover {
+  background: rgba(226, 232, 240, 0.95);
+}
+
+.livecam-shell.is-light-theme .livecam-country-group-header.is-expanded {
+  background: rgba(2, 132, 199, 0.08);
+  border-bottom-color: rgba(2, 132, 199, 0.15);
+}
+
+.livecam-shell.is-light-theme .livecam-country-group-flights {
+  background: rgba(248, 250, 252, 0.6);
+}
+
+.livecam-shell.is-light-theme .livecam-country-name-zh {
+  color: #0f172a;
+}
+
+.livecam-shell.is-light-theme .livecam-country-count-tag {
+  background: rgba(0, 0, 0, 0.06);
+  color: #475569;
+}
+
 .livecam-shell.is-light-theme .liveworld-fullscreen-toolbar {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.14);
+}
+
+.livecam-shell.is-light-theme .liveworld-fullscreen-mode-switch {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.livecam-shell.is-light-theme .liveworld-toolbar-divider {
+  background: rgba(15, 23, 42, 0.14);
 }
 
 .livecam-shell.is-light-theme .liveworld-fullscreen-toolbar .liveworld-nav-pill {
   color: #475569;
   background: rgba(0, 0, 0, 0.04);
   border-color: rgba(0, 0, 0, 0.08);
+}
+
+.livecam-shell.is-light-theme .liveworld-fullscreen-mode-switch .liveworld-nav-pill {
+  background: transparent;
+  border-color: transparent;
 }
 
 .livecam-shell.is-light-theme .liveworld-fullscreen-toolbar .liveworld-nav-pill:hover {
@@ -2303,11 +2763,15 @@
 }
 
 .livecam-flight-route-card {
-  background: var(--livecam-card-bg);
+  flex: 0.85 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--livecam-card-gradient, var(--livecam-card-bg));
   border: 1px solid rgba(0, 229, 255, 0.22);
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 14px;
+  border-radius: 10px;
+  padding: 9px 12px;
+  margin-bottom: 0;
   transition: all 0.2s ease;
 }
 
@@ -2315,35 +2779,35 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .livecam-flight-route-title {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--livecam-text-muted);
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
 }
 
 .livecam-flight-airline-name {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--livecam-cyan);
 }
 
 .livecam-flight-airport-code {
-  font-size: 1.25rem;
+  font-size: 1.18rem;
   font-weight: 800;
   color: var(--livecam-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   letter-spacing: 0.5px;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .livecam-flight-airport-city {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--livecam-text-muted);
-  margin-top: 2px;
+  margin-top: 1px;
   max-width: 95px;
   white-space: nowrap;
   overflow: hidden;
@@ -2365,50 +2829,63 @@
 }
 
 .livecam-flight-distance {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--livecam-text-muted);
-  margin-top: 4px;
+  margin-top: 3px;
   font-weight: 600;
+}
+
+.livecam-flight-telemetry-section {
+  flex: 1.3 1 auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .livecam-flight-telemetry-title,
 .livecam-flight-identity-title,
 .livecam-flight-intel-title {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--livecam-text-muted);
-  margin-bottom: 8px;
-  letter-spacing: 1px;
+  margin-bottom: 5px;
+  letter-spacing: 0.8px;
+  flex-shrink: 0;
 }
 
 .livecam-flight-telemetry-grid {
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 14px;
+  grid-auto-rows: 1fr;
+  gap: 6px;
+  margin-bottom: 0;
 }
 
 .livecam-flight-telemetry-cell {
-  background: var(--livecam-card-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--livecam-card-gradient, var(--livecam-card-bg));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 10px;
-  border-radius: 8px;
+  padding: 7px 10px;
+  border-radius: 9px;
   transition: all 0.2s ease;
 }
 
 .livecam-flight-telemetry-label {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--livecam-text-muted);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .livecam-flight-telemetry-val {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 800;
   color: var(--livecam-cyan);
-  margin-top: 3px;
+  margin-top: 2px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .livecam-flight-telemetry-val.neutral {
@@ -2416,35 +2893,53 @@
 }
 
 .livecam-flight-telemetry-sub {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--livecam-text-muted);
   margin-top: 2px;
   opacity: 0.85;
 }
 
 .livecam-flight-identity-card {
-  background: var(--livecam-card-bg);
+  flex: 1.15 1 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--livecam-card-gradient, var(--livecam-card-bg));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 12px;
-  margin-bottom: 14px;
+  border-radius: 9px;
+  padding: 9px 12px;
+  margin-bottom: 0;
+}
+
+.livecam-flight-identity-list {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 2px;
+  font-size: 11px;
 }
 
 .livecam-flight-identity-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
-  padding: 3px 0;
+  font-size: 11.5px;
+  padding: 2.5px 0;
+  gap: 8px;
 }
 
 .livecam-flight-identity-label {
   color: var(--livecam-text-muted);
+  flex-shrink: 0;
 }
 
 .livecam-flight-identity-val {
   color: var(--livecam-text);
   font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .livecam-flight-identity-val.accent {
@@ -2454,21 +2949,29 @@
   font-weight: 700;
 }
 
-.livecam-flight-intel-links {
+.livecam-flight-intel-section {
+  flex: 0.72 1 auto;
   display: flex;
+  flex-direction: column;
+}
+
+.livecam-flight-intel-links {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 1fr;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
 .livecam-flight-intel-btn {
-  flex: 1;
-  min-width: 80px;
+  width: 100%;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 7px 8px;
-  background: var(--livecam-card-bg);
+  padding: 6px 8px;
+  background: var(--livecam-card-gradient, var(--livecam-card-bg));
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: var(--livecam-text-muted);
@@ -2485,24 +2988,24 @@
 }
 
 /* =========================================================================
-   Aviation 针对明亮主题 (.is-light-theme) 的专门高对比度适配
+   Aviation 针对明亮主题 (.is-light-theme) 的专门高对比度适配 (WCAG AAA)
    ========================================================================= */
 .livecam-shell.is-light-theme .livecam-flight-cat-btn {
-  background: rgba(241, 245, 249, 0.85);
-  border-color: rgba(0, 0, 0, 0.08);
-  color: #475569;
+  background: rgba(241, 245, 249, 0.92);
+  border-color: rgba(0, 0, 0, 0.10);
+  color: #334155;
 }
 
 .livecam-shell.is-light-theme .livecam-flight-cat-btn:hover {
-  background: rgba(226, 232, 240, 0.95);
+  background: rgba(226, 232, 240, 0.98);
   color: #0f172a;
 }
 
 .livecam-shell.is-light-theme .livecam-flight-cat-btn.is-active {
-  background: rgba(2, 132, 199, 0.12);
+  background: rgba(2, 132, 199, 0.15);
   border-color: #0284c7;
   color: #0284c7;
-  box-shadow: 0 0 10px rgba(2, 132, 199, 0.2);
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.25);
 }
 
 .livecam-shell.is-light-theme .livecam-flight-cat-btn.is-active .livecam-flight-cat-count {
@@ -2510,22 +3013,23 @@
 }
 
 .livecam-shell.is-light-theme .livecam-flight-route-card {
-  background: rgba(241, 245, 249, 0.92);
-  border-color: rgba(2, 132, 199, 0.25);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  background: var(--livecam-card-gradient, rgba(241, 245, 249, 0.94));
+  border-color: rgba(2, 132, 199, 0.30);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
 }
 
 .livecam-shell.is-light-theme .livecam-flight-telemetry-cell,
 .livecam-shell.is-light-theme .livecam-flight-identity-card {
-  background: rgba(241, 245, 249, 0.88);
-  border-color: rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  background: var(--livecam-card-gradient, rgba(241, 245, 249, 0.92));
+  border-color: rgba(0, 0, 0, 0.10);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .livecam-shell.is-light-theme .livecam-flight-intel-btn {
-  background: rgba(241, 245, 249, 0.88);
-  border-color: rgba(0, 0, 0, 0.1);
-  color: #475569;
+  background: var(--livecam-card-gradient, rgba(241, 245, 249, 0.92));
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #334155;
+  font-weight: 700;
 }
 
 .livecam-shell.is-light-theme .livecam-flight-intel-btn:hover {
@@ -2536,17 +3040,725 @@
 
 .livecam-shell.is-light-theme .livecam-flight-airport-city,
 .livecam-shell.is-light-theme .livecam-flight-telemetry-sub,
+.livecam-shell.is-light-theme .livecam-flight-telemetry-label,
 .livecam-shell.is-light-theme .livecam-flight-identity-label,
 .livecam-shell.is-light-theme .livecam-flight-route-title,
 .livecam-shell.is-light-theme .livecam-flight-telemetry-title,
-.livecam-shell.is-light-theme .livecam-flight-identity-title {
-  color: #64748b;
+.livecam-shell.is-light-theme .livecam-flight-identity-title,
+.livecam-shell.is-light-theme .livecam-flight-intel-title,
+.livecam-shell.is-light-theme .livecam-flight-distance,
+.livecam-shell.is-light-theme .livecam-flight-meta,
+.livecam-shell.is-light-theme .livecam-country-name-en {
+  color: #475569 !important;
 }
 
 .livecam-shell.is-light-theme .livecam-flight-callsign,
 .livecam-shell.is-light-theme .livecam-flight-airport-code,
 .livecam-shell.is-light-theme .livecam-flight-identity-val {
+  color: #0f172a !important;
+}
+
+.livecam-shell.is-light-theme .livecam-flight-telemetry-val {
+  color: #0284c7 !important;
+}
+
+.livecam-shell.is-light-theme .livecam-flight-telemetry-val.neutral {
+  color: #0f172a !important;
+}
+
+.livecam-shell.is-light-theme .livecam-search-clear-btn {
+  background: rgba(0, 0, 0, 0.08);
+  color: #475569;
+}
+
+.livecam-shell.is-light-theme .livecam-search-clear-btn:hover {
+  background: rgba(0, 0, 0, 0.15);
   color: #0f172a;
+}
+
+/* =========================================================================
+   平滑颜色转换与渐变缓动过渡 (Smooth Transitions for Zoom Breathing)
+   ========================================================================= */
+.livecam-sidebar,
+.livecam-viewer-drawer,
+.livecam-card-item,
+.livecam-flight-route-card,
+.livecam-flight-telemetry-cell,
+.livecam-flight-identity-card,
+.livecam-flight-intel-btn,
+.livecam-search-input,
+.livecam-flight-cat-btn,
+.livecam-stream-type-btn,
+.livecam-cont-pill,
+.liveworld-fullscreen-toolbar {
+  transition: background 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.35s ease,
+              border-color 0.35s ease,
+              box-shadow 0.45s ease !important;
+}
+
+/* =========================================================================
+   全屏沉浸模式专属比例自适应系统 (Fullscreen Layout & Typography Scaling)
+   ========================================================================= */
+/* 1. 左右侧栏及抽屉尺寸扩展：与视口比例自适应同步，饱满大气且左右绝对等高 */
+.livecam-shell.is-fullscreen .livecam-sidebar {
+  top: 20px;
+  left: 20px;
+  bottom: 46px;
+  width: clamp(330px, 21.5vw, 415px);
+  max-width: none;
+  border-radius: 20px;
+}
+
+.livecam-shell.is-fullscreen .livecam-viewer-drawer {
+  top: 20px;
+  right: 20px;
+  bottom: 46px;
+  width: clamp(345px, 22.8vw, 430px);
+  max-width: none;
+  border-radius: 20px;
+}
+
+/* 2. 顶部悬浮控制栏居中升级（支持模式直切，桌面宽屏大尺寸易读且防两侧碰撞） */
+.livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
+  z-index: 60;
+  padding: 9px 16px;
+  gap: 9px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.72);
+}
+
+.livecam-shell.is-fullscreen .liveworld-fullscreen-mode-switch {
+  gap: 5px;
+  padding: 3px;
+}
+
+.livecam-shell.is-fullscreen .liveworld-toolbar-divider {
+  height: 24px;
+  margin: 0 4px;
+}
+
+.livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar .liveworld-nav-pill {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 7px;
+}
+
+/* 3. 左侧栏内部字号与尺寸填充 (摄像头 & 航班) */
+.livecam-shell.is-fullscreen .livecam-sidebar-header {
+  padding: 18px 22px;
+}
+
+.livecam-shell.is-fullscreen .livecam-sidebar-title {
+  font-size: 1.25rem;
+  white-space: nowrap;
+}
+
+.livecam-shell.is-fullscreen .livecam-sidebar-count-badge {
+  font-size: 12px;
+  padding: 3px 9px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.livecam-shell.is-fullscreen .livecam-viewer-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livecam-shell.is-fullscreen .livecam-search-box {
+  padding: 8px 20px 10px 20px;
+}
+
+.livecam-shell.is-fullscreen .livecam-search-input {
+  font-size: 0.95rem;
+  padding: 11px 36px 11px 44px;
+  border-radius: 14px;
+}
+
+.livecam-shell.is-fullscreen .livecam-search-icon {
+  left: 34px;
+  width: 17px;
+  height: 17px;
+}
+
+.livecam-shell.is-fullscreen .livecam-search-clear-btn {
+  right: 32px;
+  width: 22px;
+  height: 22px;
+}
+
+.livecam-shell.is-fullscreen .livecam-filter-panel {
+  padding: 0 20px 14px 20px;
+  gap: 12px;
+}
+
+.livecam-shell.is-fullscreen .livecam-stream-type-btn,
+.livecam-shell.is-fullscreen .livecam-flight-cat-btn {
+  padding: 9px 10px;
+  font-size: 12.5px;
+  border-radius: 10px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-cat-count {
+  font-size: 14px;
+}
+
+.livecam-shell.is-fullscreen .livecam-cont-pill {
+  padding: 6px 13px;
+  font-size: 12.5px;
+}
+
+.livecam-shell.is-fullscreen .livecam-group-summary-bar {
+  padding: 10px 20px;
+  font-size: 12.5px;
+}
+
+.livecam-shell.is-fullscreen .livecam-country-header {
+  padding: 11px 16px;
+  font-size: 13.5px;
+}
+
+.livecam-shell.is-fullscreen .livecam-country-group-header {
+  padding: 11px 14px;
+}
+
+.livecam-shell.is-fullscreen .livecam-country-group-title .livecam-country-flag {
+  width: 28px;
+  height: 20px;
+}
+
+.livecam-shell.is-fullscreen .livecam-country-name-zh {
+  font-size: 13.5px;
+}
+
+.livecam-shell.is-fullscreen .livecam-country-name-en {
+  font-size: 12px;
+}
+
+.livecam-shell.is-fullscreen .livecam-country-count-tag {
+  font-size: 12px;
+  padding: 3px 8px;
+}
+
+/* 列表卡片在全屏下的填充与放大 */
+.livecam-shell.is-fullscreen .livecam-card-item {
+  padding: 11px 14px;
+  margin-bottom: 8px;
+  gap: 12px;
+  border-radius: 12px;
+}
+
+.livecam-shell.is-fullscreen .livecam-card-thumb-wrap {
+  width: 66px;
+  height: 50px;
+}
+
+.livecam-shell.is-fullscreen .livecam-card-name {
+  font-size: 1.02rem;
+  line-height: 1.35;
+}
+
+.livecam-shell.is-fullscreen .livecam-card-sub {
+  font-size: 12.5px;
+  margin-top: 3px;
+}
+
+/* 4. 右侧抽屉内部字号与卡片本身舒展填充 (统一紧致间距，消除卡片间大片黑洞空隙) */
+.livecam-shell.is-fullscreen .livecam-viewer-header {
+  padding: 18px 22px;
+}
+
+.livecam-shell.is-fullscreen .livecam-header-action-btn,
+.livecam-shell.is-fullscreen .livecam-viewer-header .livecam-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.livecam-shell.is-fullscreen .livecam-viewer-title {
+  font-size: 1.15rem;
+}
+
+.livecam-shell.is-fullscreen .livecam-viewer-meta {
+  font-size: 0.84rem;
+  margin-top: 4px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-callsign {
+  font-size: 1.55rem;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-meta {
+  font-size: 13px;
+  margin-top: 4px;
+  gap: 8px;
+}
+
+.livecam-shell.is-fullscreen .livecam-viewer-body {
+  padding: 16px 20px;
+  gap: 14px;
+  justify-content: flex-start;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-route-card {
+  flex: 0.9 1 auto;
+  padding: 15px 18px;
+  border-radius: 14px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-route-header {
+  margin-bottom: 10px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-route-title {
+  font-size: 11.5px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-airline-name {
+  font-size: 13px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-airport-code {
+  font-size: 1.65rem;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-airport-city {
+  font-size: 12.5px;
+  max-width: 120px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-route-track {
+  height: 4px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-distance {
+  font-size: 11.5px;
+  margin-top: 6px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-telemetry-title,
+.livecam-shell.is-fullscreen .livecam-flight-identity-title,
+.livecam-shell.is-fullscreen .livecam-flight-intel-title,
+.livecam-shell.is-fullscreen .livecam-desc-title,
+.livecam-shell.is-fullscreen .livecam-data-section-title {
+  font-size: 11.5px;
+  margin-bottom: 7px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-telemetry-section {
+  flex: 1.35 1 auto;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-telemetry-grid {
+  gap: 10px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-telemetry-cell {
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-telemetry-label {
+  font-size: 11px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-telemetry-val {
+  font-size: 18px;
+  margin-top: 4px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-telemetry-sub {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-identity-card {
+  flex: 1.2 1 auto;
+  padding: 14px 18px;
+  border-radius: 14px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-identity-row {
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-intel-section {
+  flex: 0.78 1 auto;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-intel-links {
+  gap: 10px;
+}
+
+.livecam-shell.is-fullscreen .livecam-flight-intel-btn {
+  padding: 10px 12px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+.livecam-shell.is-fullscreen .livecam-viewer-actions {
+  padding: 14px 20px;
+  gap: 10px;
+}
+
+.livecam-shell.is-fullscreen .livecam-action-btn {
+  height: 44px;
+  font-size: 13.5px;
+  border-radius: 11px;
+}
+
+/* 5. 右侧抽屉内部字号与尺寸填充 (CameraViewer 影院级全屏自适应) */
+.livecam-shell.is-fullscreen .livecam-media-container {
+  height: clamp(235px, 31vh, 330px);
+  aspect-ratio: auto;
+}
+
+.livecam-shell.is-fullscreen .livecam-desc-box {
+  flex: 0.9 1 auto;
+  font-size: 0.95rem;
+  line-height: 1.72;
+  padding: 16px 18px;
+  border-radius: 14px;
+}
+
+.livecam-shell.is-fullscreen .livecam-desc-title {
+  margin-bottom: 2px;
+}
+
+.livecam-shell.is-fullscreen .livecam-data-section {
+  flex: 1.15 1 auto;
+  gap: 8px;
+}
+
+.livecam-shell.is-fullscreen .livecam-data-grid {
+  gap: 12px;
+}
+
+.livecam-shell.is-fullscreen .livecam-data-pill {
+  padding: 13px 14px;
+  border-radius: 12px;
+  gap: 5px;
+}
+
+.livecam-shell.is-fullscreen .livecam-data-label {
+  font-size: 11px;
+}
+
+.livecam-shell.is-fullscreen .livecam-data-val {
+  font-size: 13.5px;
+}
+
+.livecam-shell.is-fullscreen .livecam-statusbar {
+  height: 36px;
+  padding: 0 24px;
+  font-size: 0.78rem;
+}
+
+/* 6. 全屏模式下针对中小笔记本视口的防拥挤、防折行自适应 */
+@media (max-width: 1680px) {
+  .livecam-shell.is-fullscreen .livecam-sidebar {
+    width: clamp(310px, 21.2vw, 355px);
+  }
+
+  .livecam-shell.is-fullscreen .livecam-viewer-drawer {
+    width: clamp(325px, 22.2vw, 370px);
+  }
+
+  .livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar {
+    padding: 6px 10px;
+    gap: 5px;
+  }
+
+  .livecam-shell.is-fullscreen .liveworld-toolbar-divider {
+    height: 18px;
+    margin: 0 2px;
+  }
+
+  .livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar .liveworld-nav-pill {
+    padding: 7px 10px;
+    font-size: 12.5px;
+    gap: 4px;
+  }
+
+  .livecam-shell.is-fullscreen .livecam-sidebar-header {
+    padding: 15px 18px;
+  }
+
+  .livecam-shell.is-fullscreen .livecam-sidebar-title {
+    font-size: 1.05rem;
+  }
+
+  .livecam-shell.is-fullscreen .livecam-sidebar-count-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+  }
+
+  .livecam-shell.is-fullscreen .livecam-viewer-meta {
+    font-size: 0.76rem;
+    gap: 6px;
+  }
+
+  .livecam-shell.is-fullscreen .livecam-data-pill {
+    padding: 11px 12px;
+  }
+
+  .livecam-shell.is-fullscreen .livecam-data-val {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 1320px) {
+  .livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar {
+    max-width: calc(100vw - 680px);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* =========================================================================
+   7. 航班雷达初始化加载态 (Radar Sweep + Shimmer Skeleton) 与居中空态
+   ========================================================================= */
+.livecam-flight-cat-count.is-loading {
+  opacity: 0.55;
+  animation: livecam-dot-pulse 1.4s ease-in-out infinite;
+}
+
+.livecam-radar-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--livecam-cyan, #00e5ff);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.7);
+  flex-shrink: 0;
+  animation: livecam-dot-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes livecam-dot-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.livecam-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 8px 10px 8px;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.livecam-radar-loader {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.livecam-radar-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 229, 255, 0.45);
+  animation: livecam-radar-pulse 2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.livecam-radar-ring.is-ring-2 {
+  animation-delay: 0.9s;
+}
+
+@keyframes livecam-radar-pulse {
+  0% { transform: scale(0.55); opacity: 0.85; }
+  100% { transform: scale(1.22); opacity: 0; }
+}
+
+.livecam-radar-core {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 229, 255, 0.14);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  color: var(--livecam-cyan, #00e5ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.22);
+}
+
+.livecam-loading-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--livecam-text);
+  letter-spacing: 0.02em;
+}
+
+.livecam-loading-desc {
+  font-size: 11.5px;
+  color: var(--livecam-text-muted);
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.livecam-skeleton-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.livecam-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.livecam-skeleton-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: livecam-shimmer 1.6s infinite;
+}
+
+@keyframes livecam-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.livecam-skeleton-flag {
+  width: 24px;
+  height: 17px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.livecam-skeleton-name {
+  height: 11px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.livecam-skeleton-badge {
+  margin-left: auto;
+  width: 38px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+/* 居中空搜索结果提示 */
+.livecam-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 230px;
+  padding: 28px 18px;
+  gap: 8px;
+}
+
+.livecam-empty-badge {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.24);
+  color: var(--livecam-cyan, #00e5ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.livecam-empty-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--livecam-text);
+}
+
+.livecam-empty-desc {
+  font-size: 11.5px;
+  color: var(--livecam-text-muted);
+  line-height: 1.5;
+}
+
+.livecam-empty-reset-btn {
+  margin-top: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--livecam-cyan, #00e5ff);
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.livecam-empty-reset-btn:hover {
+  background: rgba(0, 229, 255, 0.22);
+}
+
+/* 明亮主题下的加载态与空态适配 */
+.livecam-shell.is-light-theme .livecam-radar-ring {
+  border-color: rgba(2, 132, 199, 0.38);
+}
+
+.livecam-shell.is-light-theme .livecam-radar-core,
+.livecam-shell.is-light-theme .livecam-empty-badge {
+  background: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.25);
+  color: #0284c7;
+  box-shadow: none;
+}
+
+.livecam-shell.is-light-theme .livecam-radar-status-dot {
+  background: #0284c7;
+  box-shadow: 0 0 6px rgba(2, 132, 199, 0.45);
+}
+
+.livecam-shell.is-light-theme .livecam-skeleton-row {
+  background: rgba(241, 245, 249, 0.85);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.livecam-shell.is-light-theme .livecam-skeleton-row::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+}
+
+.livecam-shell.is-light-theme .livecam-skeleton-flag,
+.livecam-shell.is-light-theme .livecam-skeleton-name,
+.livecam-shell.is-light-theme .livecam-skeleton-badge {
+  background: rgba(15, 23, 42, 0.09);
+}
+
+.livecam-shell.is-light-theme .livecam-empty-reset-btn {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.3);
 }
 
 

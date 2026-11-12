@@ -22,10 +22,12 @@ import {
   Briefcase,
   User,
   Radio,
-  SkipForward,
+  Shuffle,
+  Maximize2,
   Loader2,
 } from "lucide-react";
 import { fetchAircraftDetail, fetchFlightRoute } from "../services/flightService";
+import { getCountryDisplayName } from "../utils/airports";
 
 export default function FlightViewer({
   flight,
@@ -34,7 +36,7 @@ export default function FlightViewer({
   onClose,
   onLocate,
   onFitRoute,
-  onNextFlight,
+  onRandomFlight,
 }) {
   const [internalRouteData, setInternalRouteData] = useState(null);
   const [internalRouteLoading, setInternalRouteLoading] = useState(false);
@@ -116,6 +118,11 @@ export default function FlightViewer({
 
   const altitudeFt = flight.alt ? Math.round(flight.alt * 3.28084) : 0;
   const speedKmh = flight.speed_knots ? Math.round(flight.speed_knots * 1.852) : 0;
+  const countryDisplay = getCountryDisplayName(flight.country);
+  const countryLabel =
+    countryDisplay.zh && countryDisplay.zh !== countryDisplay.en
+      ? `${countryDisplay.zh} · ${countryDisplay.en}`
+      : countryDisplay.zh || flight.country || "其他地区";
 
   // 判断是否为本场起降 / 闭环巡航任务 (如急救救援、警务巡逻、飞行训练等，起飞地与目的地相同)
   const isLocalLoop = Boolean(
@@ -157,7 +164,7 @@ export default function FlightViewer({
               ICAO24: {hex.toUpperCase()}
             </span>
             <span style={{ opacity: 0.3 }}>|</span>
-            <span>{flight.country || "国际航线"}</span>
+            <span>{countryDisplay.zh || "其他地区"}</span>
           </div>
         </div>
 
@@ -181,8 +188,8 @@ export default function FlightViewer({
         </div>
       </div>
 
-      {/* 抽屉滚动内容 */}
-      <div className="livecam-viewer-body" style={{ padding: "16px", overflowY: "auto", flex: 1 }}>
+      {/* 抽屉内容区 (自适应舒展排版，恰到好处无多余留白) */}
+      <div className="livecam-viewer-body">
         {/* 1. 起降航线进度卡片 */}
         <div
           className="livecam-flight-route-card"
@@ -196,45 +203,17 @@ export default function FlightViewer({
             <span className="livecam-flight-route-title">
               FLIGHT ROUTE · 预定航线
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {routeData?.found && onFitRoute && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFitRoute();
-                  }}
-                  title="在地球上居中呈现整条航线大圆弧线"
-                  style={{
-                    background: "rgba(0, 229, 255, 0.12)",
-                    border: "1px solid rgba(0, 229, 255, 0.35)",
-                    color: "var(--livecam-cyan)",
-                    borderRadius: "4px",
-                    fontSize: "11px",
-                    padding: "2px 7px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    fontWeight: 700,
-                  }}
-                >
-                  <Crosshair size={11} />
-                  <span>聚焦全航线</span>
-                </button>
-              )}
-              {routeData?.airline && (
-                <span className="livecam-flight-airline-name">
-                  {routeData.airline}
-                </span>
-              )}
-            </div>
+            {routeData?.airline && (
+              <span className="livecam-flight-airline-name">
+                {routeData.airline}
+              </span>
+            )}
           </div>
 
           {isRouteLoading ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "16px 0", color: "var(--livecam-cyan)" }}>
-              <Loader2 size={16} className="animate-spin" />
-              <span style={{ fontSize: "12px", color: "var(--livecam-text-muted)" }}>正在查询航线与起降机场...</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "6px 0", color: "var(--livecam-cyan)" }}>
+              <Loader2 size={13} className="animate-spin" />
+              <span style={{ fontSize: "10.5px", color: "var(--livecam-text-muted)" }}>正在查询航线与起降机场...</span>
             </div>
           ) : routeData && routeData.found && routeData.origin && routeData.destination ? (
             <div>
@@ -248,13 +227,13 @@ export default function FlightViewer({
                   </div>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, padding: "0 12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, padding: "0 8px" }}>
                   <Plane
-                    size={16}
+                    size={14}
                     style={{
                       color: "var(--livecam-cyan)",
                       transform: "rotate(45deg)",
-                      marginBottom: "4px",
+                      marginBottom: "2px",
                     }}
                   />
                   <div className="livecam-flight-route-track">
@@ -284,22 +263,35 @@ export default function FlightViewer({
                 </div>
               </div>
             </div>
-          ) : (
-            <div style={{ textAlign: "center", padding: "10px 0" }}>
-              <div style={{ fontSize: "12px", color: "var(--livecam-text)", opacity: 0.85 }}>
-                {flight.category === "military"
-                  ? "战术巡航任务 / 军用空域飞行 (无公开商业计划)"
-                  : "非定期航线 / 区域空域巡航中"}
+          ) : routeData?.isMismatched ? (
+            <div style={{ textAlign: "center", padding: "4px 2px" }}>
+              <div style={{ fontSize: "10.5px", color: "var(--livecam-gold, #f59e0b)", fontWeight: 700 }}>
+                {routeData.mismatchReason === "previous_leg_finished"
+                  ? "前序经停航段已到达 · 当前执行后续航段"
+                  : "公务包机 / 独立空域巡航中"}
               </div>
-              <div style={{ fontSize: "11px", color: "var(--livecam-text-muted)", marginTop: "4px" }}>
-                已在地图上标注当前经纬度与航向矢量
+              <div style={{ fontSize: "10px", color: "var(--livecam-text-muted)", marginTop: "2px", lineHeight: 1.35 }}>
+                {routeData.mismatchReason === "previous_leg_finished"
+                  ? `历史时刻为 ${routeData.staleRoute?.origin?.city || routeData.staleRoute?.origin?.iata} → ${routeData.staleRoute?.destination?.city || routeData.staleRoute?.destination?.iata}，机身已飞越目的地`
+                  : "ADS-B 开放数据库暂无本次临时航段信息，请点击下方直连查看"}
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "3px 0" }}>
+              <div style={{ fontSize: "10.5px", color: "var(--livecam-text)", opacity: 0.85, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                <Plane size={11} style={{ transform: "rotate(45deg)", color: "var(--livecam-cyan)" }} />
+                <span>
+                  {flight.category === "military"
+                    ? "战术巡航任务 · 无公开商业计划"
+                    : "非定期航线 · 实时坐标与航向已锁定"}
+                </span>
               </div>
             </div>
           )}
         </div>
 
         {/* 2. 实时遥测指标矩阵 (4-cell 仪表网格) */}
-        <div style={{ marginBottom: "14px" }}>
+        <div className="livecam-flight-telemetry-section">
           <div className="livecam-flight-telemetry-title">
             TELEMETRY MATRIX · 飞行遥测
           </div>
@@ -329,8 +321,8 @@ export default function FlightViewer({
             {/* 航向 */}
             <div className="livecam-flight-telemetry-cell">
               <div className="livecam-flight-telemetry-label">航向 TRACK / HDG</div>
-              <div className="livecam-flight-telemetry-val neutral" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Compass size={14} style={{ transform: `rotate(${flight.heading || 0}deg)`, color: "var(--livecam-cyan)" }} />
+              <div className="livecam-flight-telemetry-val neutral" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <Compass size={13} style={{ transform: `rotate(${flight.heading || 0}deg)`, color: "var(--livecam-cyan)" }} />
                 <span>{Math.round(flight.heading || 0)}°</span>
               </div>
               <div className="livecam-flight-telemetry-sub">
@@ -357,7 +349,7 @@ export default function FlightViewer({
             AIRCRAFT IDENTITY · 机身档案
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
+          <div className="livecam-flight-identity-list">
             <div className="livecam-flight-identity-row">
               <span className="livecam-flight-identity-label">机型型号:</span>
               <span className="livecam-flight-identity-val">
@@ -377,6 +369,12 @@ export default function FlightViewer({
               </span>
             </div>
             <div className="livecam-flight-identity-row">
+              <span className="livecam-flight-identity-label">机身注册国:</span>
+              <span className="livecam-flight-identity-val" title="民航应答机注册国籍 (ICAO Code)">
+                {countryLabel}
+              </span>
+            </div>
+            <div className="livecam-flight-identity-row">
               <span className="livecam-flight-identity-label">当前坐标:</span>
               <span className="livecam-flight-identity-val" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, opacity: 0.85 }}>
                 {flight.lat?.toFixed(4)}, {flight.lng?.toFixed(4)}
@@ -385,18 +383,32 @@ export default function FlightViewer({
           </div>
         </div>
 
-        {/* 4. 国际航空情报外部直链 (OSINT Links) */}
-        <div>
+        {/* 4. 国际航空情报外部直链 (OSINT Links - 2x2 网格) */}
+        <div className="livecam-flight-intel-section">
           <div className="livecam-flight-intel-title">
             INTELLIGENCE RADAR · 情报直连
           </div>
           <div className="livecam-flight-intel-links">
             {cs && (
               <a
+                href={`https://www.flightradar24.com/${encodeURIComponent(cs)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="livecam-flight-intel-btn"
+                title="在 Flightradar24 查看该航班实时雷达"
+              >
+                <span>Flightradar24</span>
+                <ExternalLink size={10} />
+              </a>
+            )}
+
+            {cs && (
+              <a
                 href={`https://www.flightaware.com/live/flight/${encodeURIComponent(cs)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="livecam-flight-intel-btn"
+                title="在 FlightAware 查看民航计划与前序航段"
               >
                 <span>FlightAware</span>
                 <ExternalLink size={10} />
@@ -409,6 +421,7 @@ export default function FlightViewer({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="livecam-flight-intel-btn"
+                title="在 ADS-B Exchange 查看原始应答机数据"
               >
                 <span>ADS-B Ex</span>
                 <ExternalLink size={10} />
@@ -421,6 +434,7 @@ export default function FlightViewer({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="livecam-flight-intel-btn"
+                title="在 AirNav RadarBox 查看航迹"
               >
                 <span>RadarBox</span>
                 <ExternalLink size={10} />
@@ -430,25 +444,40 @@ export default function FlightViewer({
         </div>
       </div>
 
-      {/* 底部操作栏 */}
-      <div className="livecam-viewer-footer">
+      {/* 底部操作栏 (100% 占满该行) */}
+      <div className="livecam-viewer-actions">
         <button
           type="button"
           className="livecam-action-btn secondary"
           onClick={() => onLocate?.(flight.lat, flight.lng)}
+          title="居中对齐当前飞机位置"
         >
           <Crosshair size={13} />
           <span>定位锁定</span>
         </button>
 
-        {onNextFlight && (
+        <button
+          type="button"
+          className={`livecam-action-btn ${routeData?.found ? "primary" : "disabled"}`}
+          onClick={() => {
+            if (routeData?.found && onFitRoute) onFitRoute();
+          }}
+          disabled={!routeData?.found}
+          title={routeData?.found ? "在地球上居中呈现整条起降大圆航线" : "当前航班暂无完整起降计划"}
+        >
+          <Maximize2 size={13} />
+          <span>聚焦全航线</span>
+        </button>
+
+        {onRandomFlight && (
           <button
             type="button"
-            className="livecam-action-btn next"
-            onClick={onNextFlight}
+            className="livecam-action-btn explore"
+            onClick={onRandomFlight}
+            title="随机漫游探索一架在空航班"
           >
-            <SkipForward size={13} />
-            <span>下一个航班</span>
+            <Shuffle size={13} />
+            <span>随机探索</span>
           </button>
         )}
       </div>

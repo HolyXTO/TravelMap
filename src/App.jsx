@@ -2723,6 +2723,7 @@ function App() {
   }, [mapTileSource]);
 
   const [activeGameTab, setActiveGameTab] = useState("guess");
+  const hashScrollCleanupRef = useRef(null);
   const [activeLiveTab, setActiveLiveTab] = useState(() => {
     try {
       const h = (typeof window !== "undefined" ? window.location.hash : "").toLowerCase();
@@ -2735,19 +2736,32 @@ function App() {
 
   // 监听 URL Hash 快速深链定位 (支持 #live-flights / #live-aviation 直达全球实时航班)
   useEffect(() => {
-    const handleHashNav = () => {
+    const handleHashNav = (isInitial = false) => {
       const hash = (window.location.hash || "").toLowerCase();
       if (hash === "#live-flights" || hash === "#live-aviation" || hash === "#aviation") {
+        if (isInitial && "scrollRestoration" in window.history) {
+          window.history.scrollRestoration = "manual";
+        }
         setActiveLiveTab("aviation");
-        scrollToPageSection("live-cams-section");
+        scrollToPageSection("live-cams-section", { instant: isInitial });
       } else if (hash === "#live-cams" || hash === "#live-cams-section" || hash === "#cameras") {
+        if (isInitial && "scrollRestoration" in window.history) {
+          window.history.scrollRestoration = "manual";
+        }
         setActiveLiveTab("cameras");
-        scrollToPageSection("live-cams-section");
+        scrollToPageSection("live-cams-section", { instant: isInitial });
       }
     };
-    handleHashNav();
-    window.addEventListener("hashchange", handleHashNav);
-    return () => window.removeEventListener("hashchange", handleHashNav);
+    handleHashNav(true);
+    const onHashChange = () => handleHashNav(false);
+    window.addEventListener("hashchange", onHashChange);
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      if (hashScrollCleanupRef.current) {
+        hashScrollCleanupRef.current();
+        hashScrollCleanupRef.current = null;
+      }
+    };
   }, []);
 
   const [appProfiles, setAppProfiles] = useState(() => normalizeProfilesForDisplay(profiles));
@@ -3403,7 +3417,28 @@ function App() {
     [mapPlaces.country],
   );
   const [journeyVisualGateRef, isJourneyVisualsNear] = useNearViewport("900px");
-  const [journeyVisualsLoaded, setJourneyVisualsLoaded] = useState(false);
+  const [journeyVisualsLoaded, setJourneyVisualsLoaded] = useState(() => {
+    try {
+      const h = (typeof window !== "undefined" ? window.location.hash : "").toLowerCase();
+      return [
+        "#live-flights",
+        "#live-aviation",
+        "#aviation",
+        "#live-cams",
+        "#live-cams-section",
+        "#cameras",
+        "#visual-journey-section",
+        "#spherical-globe-section",
+        "#dot-matrix-section",
+        "#journey-timeline-section",
+        "#travel-notes-section",
+        "#travel-ratings-section",
+        "#travel-game-section",
+      ].includes(h);
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     if (isJourneyVisualsNear) {
@@ -3939,9 +3974,20 @@ function App() {
     }
   }
 
-  function scrollToPageSection(rawSectionId) {
+  function scrollToPageSection(rawSectionId, options = {}) {
+    const { instant = false } = options || {};
     const sectionId =
       rawSectionId === "live-flights-section" ? "live-cams-section" : rawSectionId;
+
+    if (hashScrollCleanupRef.current) {
+      hashScrollCleanupRef.current();
+      hashScrollCleanupRef.current = null;
+    }
+
+    if (sectionId === "map-section") {
+      window.scrollTo({ top: 0, behavior: instant ? "auto" : "smooth" });
+      return;
+    }
 
     const isVisualSection =
       sectionId === "travel-notes-section" ||
@@ -3953,28 +3999,84 @@ function App() {
       sectionId === "travel-game-section" ||
       sectionId === "live-cams-section";
 
-    if (isVisualSection && !journeyVisualsLoaded) {
+    const didTriggerLazyVisuals = Boolean(isVisualSection && !journeyVisualsLoaded);
+    if (didTriggerLazyVisuals) {
       setJourneyVisualsLoaded(true);
-      setTimeout(() => {
-        const target = document.getElementById(sectionId);
-        if (!target) return;
-        const offset = 102;
-        const top = target.getBoundingClientRect().top + window.scrollY - offset;
-        window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-      }, 350);
-      return;
     }
 
-    if (sectionId === "map-section") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
-    const target = document.getElementById(sectionId);
-    if (!target) return;
     const offset = 102;
-    const top = target.getBoundingClientRect().top + window.scrollY - offset;
-    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    let cancelled = false;
+    let initialScrollTimer = null;
+    let initialRaf = null;
+    let intervalId = null;
+    let expireTimer = null;
+    let resizeObserver = null;
+    const startTime = Date.now();
+    // 平滑滚动期间避免与原生滚动动画抢控制权，初始定位或动画完成后遇到异步高度变化（如游记/图片/图表撑开）则立刻纠正锁定
+    const settleStartAfter = instant ? 0 : (didTriggerLazyVisuals ? 850 : 650);
+
+    const alignTarget = (behavior = "auto") => {
+      if (cancelled) return;
+      const target = document.getElementById(sectionId);
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      if (behavior === "auto" && Math.abs(rect.top - offset) <= 5) return;
+      const top = Math.max(0, rect.top + window.scrollY - offset);
+      window.scrollTo({ top, behavior });
+    };
+
+    const cleanup = () => {
+      if (cancelled) return;
+      cancelled = true;
+      if (initialRaf) cancelAnimationFrame(initialRaf);
+      if (initialScrollTimer) clearTimeout(initialScrollTimer);
+      if (intervalId) clearInterval(intervalId);
+      if (expireTimer) clearTimeout(expireTimer);
+      if (resizeObserver) resizeObserver.disconnect();
+      window.removeEventListener("wheel", onUserInteract);
+      window.removeEventListener("touchstart", onUserInteract);
+      window.removeEventListener("keydown", onKeyInteract);
+      if (hashScrollCleanupRef.current === cleanup) {
+        hashScrollCleanupRef.current = null;
+      }
+    };
+
+    const onUserInteract = () => cleanup();
+    const onKeyInteract = (e) => {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) {
+        cleanup();
+      }
+    };
+
+    window.addEventListener("wheel", onUserInteract, { passive: true });
+    window.addEventListener("touchstart", onUserInteract, { passive: true });
+    window.addEventListener("keydown", onKeyInteract);
+
+    const initialDelay = didTriggerLazyVisuals ? 140 : 0;
+    initialScrollTimer = setTimeout(() => {
+      if (cancelled) return;
+      initialRaf = requestAnimationFrame(() => {
+        alignTarget(instant ? "auto" : "smooth");
+      });
+    }, initialDelay);
+
+    if (typeof ResizeObserver !== "undefined" && document.body) {
+      resizeObserver = new ResizeObserver(() => {
+        if (cancelled) return;
+        if (Date.now() - startTime < settleStartAfter) return;
+        alignTarget("auto");
+      });
+      resizeObserver.observe(document.body);
+    }
+
+    intervalId = setInterval(() => {
+      if (cancelled) return;
+      if (Date.now() - startTime < settleStartAfter) return;
+      alignTarget("auto");
+    }, 180);
+
+    expireTimer = setTimeout(cleanup, 3000);
+    hashScrollCleanupRef.current = cleanup;
   }
 
   function getProfileAccentColor(profile) {

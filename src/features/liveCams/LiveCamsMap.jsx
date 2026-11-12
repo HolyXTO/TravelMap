@@ -79,6 +79,8 @@ export default function LiveCamsMap({
   const camerasRef = useRef(cameras);
   const flightsRef = useRef(flights);
   const flightsMapRef = useRef(new Map());
+  const selectedFlightRef = useRef(selectedFlight);
+  const flightRouteDataRef = useRef(flightRouteData);
   const activeModuleTabRef = useRef(activeModuleTab);
   const onSelectCameraRef = useRef(onSelectCamera);
   const onSelectFlightRef = useRef(onSelectFlight);
@@ -567,6 +569,12 @@ export default function LiveCamsMap({
         // 根据当前最新 activeModuleTabRef 设置图层可见性
         const isAviation = activeModuleTabRef.current === "aviation";
         setFlightLayersVisibility(map, isAviation);
+        updateSelectedFlight(
+          map,
+          isAviation ? selectedFlightRef.current : null,
+          isAviation ? flightRouteDataRef.current : null,
+          isAviation
+        );
         const camVis = isAviation ? "none" : "visible";
         [CAMERAS_DOTS_LAYER_ID, CAMERAS_GLOW_LAYER_ID, CAMERAS_LABEL_LAYER_ID].forEach((cid) => {
           if (map.getLayer(cid)) map.setLayoutProperty(cid, "visibility", camVis);
@@ -741,6 +749,12 @@ export default function LiveCamsMap({
     const applyVisibility = () => {
       const isAviation = activeModuleTab === "aviation";
       setFlightLayersVisibility(map, isAviation);
+      updateSelectedFlight(
+        map,
+        isAviation ? selectedFlightRef.current : null,
+        isAviation ? flightRouteDataRef.current : null,
+        isAviation
+      );
 
       const camVis = isAviation ? "none" : "visible";
       [CAMERAS_DOTS_LAYER_ID, CAMERAS_GLOW_LAYER_ID, CAMERAS_LABEL_LAYER_ID].forEach((cid) => {
@@ -773,12 +787,20 @@ export default function LiveCamsMap({
 
   // 10. 选中航班高亮与其起降大圆航线弧线更新
   useEffect(() => {
+    selectedFlightRef.current = selectedFlight;
+    flightRouteDataRef.current = flightRouteData;
     const map = mapRef.current;
     if (!map) return;
+    const isAviation = activeModuleTab === "aviation";
     if (isLoadedRef.current || map.isStyleLoaded()) {
-      updateSelectedFlight(map, selectedFlight, flightRouteData);
+      updateSelectedFlight(
+        map,
+        isAviation ? selectedFlight : null,
+        isAviation ? flightRouteData : null,
+        isAviation
+      );
     }
-  }, [selectedFlight, flightRouteData]);
+  }, [selectedFlight, flightRouteData, activeModuleTab]);
 
   return (
     <div className="livecam-map-wrapper" style={{ position: "relative", width: "100%", height: "100%" }}>

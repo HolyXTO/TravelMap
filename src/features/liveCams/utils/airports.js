@@ -202,6 +202,373 @@ export function greatCirclePoints(lat1, lng1, lat2, lng2, n = 64) {
 }
 
 /**
+ * 跨越国际日期变更线 (180° Antimeridian) 切分函数
+ * 彻底解决跨太平洋航线 (如上海 PVG -> 洛杉矶 LAX) 在球体与平面上跨经度反向环球绕极的问题
+ * 返回切分后的线段数组，跨界时返回 MultiLineString 格式坐标
+ */
+export function splitAtAntimeridian(pts) {
+  if (!Array.isArray(pts) || pts.length < 2) return [pts || []];
+
+  const segments = [];
+  let currentSegment = [];
+
+  for (let i = 0; i < pts.length; i++) {
+    const pt = pts[i];
+    if (currentSegment.length === 0) {
+      currentSegment.push(pt);
+      continue;
+    }
+
+    const prev = currentSegment[currentSegment.length - 1];
+    const diff = pt[0] - prev[0];
+
+    // 当连续两点经度差绝对值超过 180° 时，说明航线横穿了日界线
+    if (Math.abs(diff) > 180) {
+      const sign = diff > 0 ? -1 : 1;
+      const prevLng = prev[0];
+      const nextLng = pt[0] + (sign > 0 ? 360 : -360);
+      const frac = ((sign > 0 ? 180 : -180) - prevLng) / (nextLng - prevLng);
+      const crossLat = prev[1] + (pt[1] - prev[1]) * Math.max(0, Math.min(1, frac));
+
+      currentSegment.push([sign > 0 ? 180 : -180, crossLat]);
+      segments.push(currentSegment);
+      currentSegment = [[sign > 0 ? -180 : 180, crossLat], pt];
+    } else {
+      currentSegment.push(pt);
+    }
+  }
+
+  if (currentSegment.length > 0) {
+    segments.push(currentSegment);
+  }
+
+  return segments;
+}
+
+/**
+ * 国家中英对照与国旗映射表 (覆盖全球 ~245 个 ISO 国家/地区及 OpenSky/ICAO 别名)
+ * 格式: [isoA2, 中文名, ...英文名及常见别名]
+ */
+const COUNTRY_DEFINITIONS = [
+  ["af", "阿富汗", "Afghanistan", "Islamic Republic of Afghanistan"],
+  ["al", "阿尔巴尼亚", "Albania"],
+  ["dz", "阿尔及利亚", "Algeria"],
+  ["as", "美属萨摩亚", "American Samoa"],
+  ["ad", "安道尔", "Andorra"],
+  ["ao", "安哥拉", "Angola"],
+  ["ai", "安圭拉", "Anguilla"],
+  ["aq", "南极洲", "Antarctica"],
+  ["ag", "安提瓜和巴布达", "Antigua and Barbuda"],
+  ["ar", "阿根廷", "Argentina"],
+  ["am", "亚美尼亚", "Armenia"],
+  ["aw", "阿鲁巴", "Aruba"],
+  ["au", "澳大利亚", "Australia"],
+  ["at", "奥地利", "Austria"],
+  ["az", "阿塞拜疆", "Azerbaijan"],
+  ["bs", "巴哈马", "Bahamas", "The Bahamas"],
+  ["bh", "巴林", "Bahrain", "Kingdom of Bahrain"],
+  ["bd", "孟加拉国", "Bangladesh"],
+  ["bb", "巴巴多斯", "Barbados"],
+  ["by", "白俄罗斯", "Belarus"],
+  ["be", "比利时", "Belgium"],
+  ["bz", "伯利兹", "Belize"],
+  ["bj", "贝宁", "Benin"],
+  ["bm", "百慕大", "Bermuda"],
+  ["bt", "不丹", "Bhutan"],
+  ["bo", "玻利维亚", "Bolivia", "Bolivia, Plurinational State of", "Plurinational State of Bolivia"],
+  ["bq", "荷属加勒比区", "Bonaire, Sint Eustatius and Saba", "Caribbean Netherlands"],
+  ["ba", "波黑", "Bosnia and Herzegovina", "Bosnia"],
+  ["bw", "博茨瓦纳", "Botswana"],
+  ["br", "巴西", "Brazil"],
+  ["io", "英属印度洋领地", "British Indian Ocean Territory"],
+  ["bn", "文莱", "Brunei", "Brunei Darussalam"],
+  ["bg", "保加利亚", "Bulgaria"],
+  ["bf", "布基纳法索", "Burkina Faso"],
+  ["bi", "布隆迪", "Burundi"],
+  ["cv", "佛得角", "Cabo Verde", "Cape Verde"],
+  ["kh", "柬埔寨", "Cambodia"],
+  ["cm", "喀麦隆", "Cameroon"],
+  ["ca", "加拿大", "Canada"],
+  ["ky", "开曼群岛", "Cayman Islands"],
+  ["cf", "中非共和国", "Central African Republic"],
+  ["td", "乍得", "Chad"],
+  ["cl", "智利", "Chile"],
+  ["cn", "中国", "China", "People's Republic of China", "PRC"],
+  ["cx", "圣诞岛", "Christmas Island"],
+  ["cc", "科科斯群岛", "Cocos (Keeling) Islands"],
+  ["co", "哥伦比亚", "Colombia"],
+  ["km", "科摩罗", "Comoros"],
+  ["cg", "刚果(布)", "Congo", "Republic of the Congo", "Congo-Brazzaville"],
+  ["cd", "刚果(金)", "Democratic Republic of the Congo", "Congo, The Democratic Republic of the", "DR Congo", "DRC"],
+  ["ck", "库克群岛", "Cook Islands"],
+  ["cr", "哥斯达黎加", "Costa Rica"],
+  ["ci", "科特迪瓦", "Côte d'Ivoire", "Cote d'Ivoire", "Ivory Coast"],
+  ["hr", "克罗地亚", "Croatia"],
+  ["cu", "古巴", "Cuba"],
+  ["cw", "库拉索", "Curaçao", "Curacao"],
+  ["cy", "塞浦路斯", "Cyprus"],
+  ["cz", "捷克", "Czech Republic", "Czechia"],
+  ["dk", "丹麦", "Denmark"],
+  ["dj", "吉布提", "Djibouti"],
+  ["dm", "多米尼克", "Dominica"],
+  ["do", "多米尼加", "Dominican Republic"],
+  ["ec", "厄瓜多尔", "Ecuador"],
+  ["eg", "埃及", "Egypt"],
+  ["sv", "萨尔瓦多", "El Salvador"],
+  ["gq", "赤道几内亚", "Equatorial Guinea"],
+  ["er", "厄立特里亚", "Eritrea"],
+  ["ee", "爱沙尼亚", "Estonia"],
+  ["sz", "斯威士兰", "Eswatini", "Swaziland"],
+  ["et", "埃塞俄比亚", "Ethiopia"],
+  ["fk", "福克兰群岛", "Falkland Islands", "Falkland Islands (Malvinas)"],
+  ["fo", "法罗群岛", "Faroe Islands"],
+  ["fj", "斐济", "Fiji"],
+  ["fi", "芬兰", "Finland"],
+  ["fr", "法国", "France"],
+  ["gf", "法属圭亚那", "French Guiana"],
+  ["pf", "法属波利尼西亚", "French Polynesia"],
+  ["ga", "加蓬", "Gabon"],
+  ["gm", "冈比亚", "Gambia", "The Gambia"],
+  ["ge", "格鲁吉亚", "Georgia"],
+  ["de", "德国", "Germany"],
+  ["gh", "加纳", "Ghana"],
+  ["gi", "直布罗陀", "Gibraltar"],
+  ["gr", "希腊", "Greece"],
+  ["gl", "格陵兰", "Greenland"],
+  ["gd", "格林纳达", "Grenada"],
+  ["gp", "瓜德罗普", "Guadeloupe"],
+  ["gu", "关岛", "Guam"],
+  ["gt", "危地马拉", "Guatemala"],
+  ["gg", "根西岛", "Guernsey"],
+  ["gn", "几内亚", "Guinea"],
+  ["gw", "几内亚比绍", "Guinea-Bissau"],
+  ["gy", "圭亚那", "Guyana"],
+  ["ht", "海地", "Haiti"],
+  ["va", "梵蒂冈", "Holy See", "Vatican City", "Holy See (Vatican City State)"],
+  ["hn", "洪都拉斯", "Honduras"],
+  ["hk", "中国香港", "Hong Kong", "Hong Kong SAR China"],
+  ["hu", "匈牙利", "Hungary"],
+  ["is", "冰岛", "Iceland"],
+  ["in", "印度", "India"],
+  ["id", "印度尼西亚", "Indonesia"],
+  ["ir", "伊朗", "Iran", "Islamic Republic of Iran", "Iran, Islamic Republic of"],
+  ["iq", "伊拉克", "Iraq"],
+  ["ie", "爱尔兰", "Ireland"],
+  ["im", "马恩岛", "Isle of Man"],
+  ["il", "以色列", "Israel"],
+  ["it", "意大利", "Italy"],
+  ["jm", "牙买加", "Jamaica"],
+  ["jp", "日本", "Japan"],
+  ["je", "泽西岛", "Jersey"],
+  ["jo", "约旦", "Jordan"],
+  ["kz", "哈萨克斯坦", "Kazakhstan"],
+  ["ke", "肯尼亚", "Kenya"],
+  ["ki", "基里巴斯", "Kiribati"],
+  ["kp", "朝鲜", "North Korea", "Democratic People's Republic of Korea", "Korea, Democratic People's Republic of"],
+  ["kr", "韩国", "South Korea", "Republic of Korea", "Korea, Republic of"],
+  ["xk", "科索沃", "Kosovo"],
+  ["kw", "科威特", "Kuwait"],
+  ["kg", "吉尔吉斯斯坦", "Kyrgyzstan"],
+  ["la", "老挝", "Laos", "Lao People's Democratic Republic"],
+  ["lv", "拉脱维亚", "Latvia"],
+  ["lb", "黎巴嫩", "Lebanon"],
+  ["ls", "莱索托", "Lesotho"],
+  ["lr", "利比里亚", "Liberia"],
+  ["ly", "利比亚", "Libya", "Libyan Arab Jamahiriya"],
+  ["li", "列支敦士登", "Liechtenstein"],
+  ["lt", "立陶宛", "Lithuania"],
+  ["lu", "卢森堡", "Luxembourg"],
+  ["mo", "中国澳门", "Macao", "Macau", "Macao SAR China"],
+  ["mg", "马达加斯加", "Madagascar"],
+  ["mw", "马拉维", "Malawi"],
+  ["my", "马来西亚", "Malaysia"],
+  ["mv", "马尔代夫", "Maldives"],
+  ["ml", "马里", "Mali"],
+  ["mt", "马耳他", "Malta"],
+  ["mh", "马绍尔群岛", "Marshall Islands"],
+  ["mq", "马提尼克", "Martinique"],
+  ["mr", "毛里塔尼亚", "Mauritania"],
+  ["mu", "毛里求斯", "Mauritius"],
+  ["yt", "马约特", "Mayotte"],
+  ["mx", "墨西哥", "Mexico"],
+  ["fm", "密克罗尼西亚", "Micronesia", "Micronesia, Federated States of", "Federated States of Micronesia"],
+  ["md", "摩尔多瓦", "Moldova", "Republic of Moldova", "Moldova, Republic of"],
+  ["mc", "摩纳哥", "Monaco"],
+  ["mn", "蒙古", "Mongolia"],
+  ["me", "黑山", "Montenegro"],
+  ["ms", "蒙特塞拉特", "Montserrat"],
+  ["ma", "摩洛哥", "Morocco"],
+  ["mz", "莫桑比克", "Mozambique"],
+  ["mm", "缅甸", "Myanmar", "Burma"],
+  ["na", "纳米比亚", "Namibia"],
+  ["nr", "瑙鲁", "Nauru"],
+  ["np", "尼泊尔", "Nepal"],
+  ["nl", "荷兰", "Netherlands", "Kingdom of the Netherlands", "The Netherlands"],
+  ["nc", "新喀里多尼亚", "New Caledonia"],
+  ["nz", "新西兰", "New Zealand"],
+  ["ni", "尼加拉瓜", "Nicaragua"],
+  ["ne", "尼日尔", "Niger"],
+  ["ng", "尼日利亚", "Nigeria"],
+  ["nu", "纽埃", "Niue"],
+  ["mk", "北马其顿", "North Macedonia", "Macedonia", "Macedonia, the Former Yugoslav Republic of", "Republic of North Macedonia"],
+  ["mp", "北马里亚纳群岛", "Northern Mariana Islands"],
+  ["no", "挪威", "Norway"],
+  ["om", "阿曼", "Oman"],
+  ["pk", "巴基斯坦", "Pakistan"],
+  ["pw", "帕劳", "Palau"],
+  ["ps", "巴勒斯坦", "Palestine", "Palestine, State of", "Palestinian Territory, Occupied", "State of Palestine"],
+  ["pa", "巴拿马", "Panama"],
+  ["pg", "巴布亚新几内亚", "Papua New Guinea"],
+  ["py", "巴拉圭", "Paraguay"],
+  ["pe", "秘鲁", "Peru"],
+  ["ph", "菲律宾", "Philippines"],
+  ["pl", "波兰", "Poland"],
+  ["pt", "葡萄牙", "Portugal"],
+  ["pr", "波多黎各", "Puerto Rico"],
+  ["qa", "卡塔尔", "Qatar"],
+  ["re", "留尼汪", "Réunion", "Reunion"],
+  ["ro", "罗马尼亚", "Romania"],
+  ["ru", "俄罗斯", "Russia", "Russian Federation"],
+  ["rw", "卢旺达", "Rwanda"],
+  ["bl", "圣巴泰勒米", "Saint Barthélemy", "Saint Barthelemy"],
+  ["kn", "圣基茨和尼维斯", "Saint Kitts and Nevis"],
+  ["lc", "圣卢西亚", "Saint Lucia"],
+  ["mf", "法属圣马丁", "Saint Martin", "Saint Martin (French part)"],
+  ["pm", "圣皮埃尔和密克隆", "Saint Pierre and Miquelon"],
+  ["vc", "圣文森特和格林纳丁斯", "Saint Vincent and the Grenadines"],
+  ["ws", "萨摩亚", "Samoa"],
+  ["sm", "圣马力诺", "San Marino"],
+  ["st", "圣多美和普林西比", "Sao Tome and Principe", "São Tomé and Príncipe"],
+  ["sa", "沙特阿拉伯", "Saudi Arabia"],
+  ["sn", "塞内加尔", "Senegal"],
+  ["rs", "塞尔维亚", "Serbia"],
+  ["sc", "塞舌尔", "Seychelles"],
+  ["sl", "塞拉利昂", "Sierra Leone"],
+  ["sg", "新加坡", "Singapore"],
+  ["sx", "荷属圣马丁", "Sint Maarten", "Sint Maarten (Dutch part)"],
+  ["sk", "斯洛伐克", "Slovakia"],
+  ["si", "斯洛文尼亚", "Slovenia"],
+  ["sb", "所罗门群岛", "Solomon Islands"],
+  ["so", "索马里", "Somalia"],
+  ["za", "南非", "South Africa"],
+  ["ss", "南苏丹", "South Sudan"],
+  ["es", "西班牙", "Spain"],
+  ["lk", "斯里兰卡", "Sri Lanka"],
+  ["sd", "苏丹", "Sudan"],
+  ["sr", "苏里南", "Suriname"],
+  ["se", "瑞典", "Sweden"],
+  ["ch", "瑞士", "Switzerland"],
+  ["sy", "叙利亚", "Syria", "Syrian Arab Republic"],
+  ["cn", "中国台湾", "Taiwan", "Taiwan, Province of China", "Chinese Taipei"],
+  ["tj", "塔吉克斯坦", "Tajikistan"],
+  ["tz", "坦桑尼亚", "Tanzania", "United Republic of Tanzania", "Tanzania, United Republic of"],
+  ["th", "泰国", "Thailand"],
+  ["tl", "东帝汶", "Timor-Leste", "East Timor"],
+  ["tg", "多哥", "Togo"],
+  ["to", "汤加", "Tonga"],
+  ["tt", "特立尼达和多巴哥", "Trinidad and Tobago"],
+  ["tn", "突尼斯", "Tunisia"],
+  ["tr", "土耳其", "Turkey", "Türkiye", "Turkiye"],
+  ["tm", "土库曼斯坦", "Turkmenistan"],
+  ["tc", "特克斯和凯科斯群岛", "Turks and Caicos Islands"],
+  ["tv", "图瓦卢", "Tuvalu"],
+  ["ug", "乌干达", "Uganda"],
+  ["ua", "乌克兰", "Ukraine"],
+  ["ae", "阿联酋", "United Arab Emirates", "UAE"],
+  ["gb", "英国", "United Kingdom", "UK", "Great Britain"],
+  ["us", "美国", "United States", "United States of America", "USA"],
+  ["uy", "乌拉圭", "Uruguay"],
+  ["uz", "乌兹别克斯坦", "Uzbekistan"],
+  ["vu", "瓦努阿图", "Vanuatu"],
+  ["ve", "委内瑞拉", "Venezuela", "Venezuela, Bolivarian Republic of", "Bolivarian Republic of Venezuela"],
+  ["vn", "越南", "Vietnam", "Viet Nam"],
+  ["vg", "英属维尔京群岛", "Virgin Islands, British", "British Virgin Islands"],
+  ["vi", "美属维尔京群岛", "Virgin Islands, U.S.", "U.S. Virgin Islands"],
+  ["eh", "西撒哈拉", "Western Sahara"],
+  ["ye", "也门", "Yemen"],
+  ["zm", "赞比亚", "Zambia"],
+  ["zw", "津巴布韦", "Zimbabwe"],
+];
+
+function isoToEmojiFlag(code) {
+  if (!code || code.length !== 2) return "🌐";
+  return code
+    .toUpperCase()
+    .split("")
+    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+    .join("");
+}
+
+function normalizeCountryKey(name) {
+  return String(name || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, " ")
+    .trim();
+}
+
+export const COUNTRY_META = {};
+const COUNTRY_META_NORMALIZED = new Map();
+
+for (const [code, zh, ...names] of COUNTRY_DEFINITIONS) {
+  const entry = { zh, code, flag: isoToEmojiFlag(code) };
+  for (const name of names) {
+    COUNTRY_META[name] = entry;
+    COUNTRY_META_NORMALIZED.set(normalizeCountryKey(name), { ...entry, canonicalEn: names[0] });
+  }
+}
+
+const OTHER_COUNTRY_DISPLAY = {
+  zh: "其他地区",
+  en: "Other",
+  code: null,
+  isGlobe: true,
+  flag: "🌐",
+  flagUrl: null,
+  fallbackFlagUrl: null,
+};
+
+export function getCountryDisplayName(countryName) {
+  const raw = String(countryName || "").trim();
+  const normalized = normalizeCountryKey(raw);
+  if (
+    !raw ||
+    normalized === "other" ||
+    normalized === "others" ||
+    normalized === "unknown" ||
+    normalized === "international" ||
+    normalized === "unregistered"
+  ) {
+    return OTHER_COUNTRY_DISPLAY;
+  }
+
+  const meta = COUNTRY_META[raw] || COUNTRY_META_NORMALIZED.get(normalized);
+  if (meta) {
+    const code = meta.code.toLowerCase();
+    return {
+      zh: meta.zh,
+      en: raw,
+      code,
+      isGlobe: false,
+      flag: meta.flag || isoToEmojiFlag(code),
+      flagUrl: `https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/${code}.svg`,
+      fallbackFlagUrl: `https://flagcdn.com/w40/${code}.png`,
+    };
+  }
+
+  return {
+    zh: raw,
+    en: raw,
+    code: null,
+    isGlobe: true,
+    flag: "🌐",
+    flagUrl: null,
+    fallbackFlagUrl: null,
+  };
+}
+
+/**
  * 计算两点间球面距离 (公里)
  */
 export function haversineKm(lat1, lng1, lat2, lng2) {

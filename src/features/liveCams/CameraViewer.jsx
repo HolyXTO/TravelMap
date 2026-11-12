@@ -28,13 +28,13 @@ import Hls from "hls.js";
 import { getCameraTimezone, formatCameraLocalTime } from "./utils/cameraTimezone";
 
 // 格式化地理坐标，附加 N/S 与 E/W 经纬度方位指向
-const formatCoordWithDirection = (lat, lng) => {
+const formatCoordWithDirection = (lat, lng, decimals = 2) => {
   if (typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)) {
     return "-";
   }
   const latDir = lat >= 0 ? "N" : "S";
   const lngDir = lng >= 0 ? "E" : "W";
-  return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lng).toFixed(4)}° ${lngDir}`;
+  return `${Math.abs(lat).toFixed(decimals)}°${latDir}, ${Math.abs(lng).toFixed(decimals)}°${lngDir}`;
 };
 
 export default function CameraViewer({ camera, onClose, onNextCamera }) {
@@ -423,21 +423,23 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
             {camera.name}
           </div>
           <div className="livecam-viewer-meta">
-            <MapPin size={12} />
-            <span>{camera.country} · {camera.city}</span>
-            <span style={{ color: "rgba(255,255,255,0.2)" }}>|</span>
+            <MapPin size={12} style={{ flexShrink: 0 }} />
+            <span className="livecam-meta-location" title={`${camera.country} · ${camera.city}`}>
+              {camera.country} · {camera.city}
+            </span>
+            <span className="livecam-meta-sep" style={{ opacity: 0.28, flexShrink: 0 }}>|</span>
             {isHlsOrLive ? (
-              <span style={{ color: "#00e676", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span className="livecam-meta-status" style={{ color: "#00e676" }}>
                 <span className="livecam-live-indicator-dot" />
                 24H 实时视频流
               </span>
             ) : isMp4Clip ? (
-              <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span className="livecam-meta-status" style={{ color: "#38bdf8" }}>
                 <span className="livecam-clip-indicator-dot" />
                 实况动态切片
               </span>
             ) : (
-              <span style={{ color: "#00e5ff", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span className="livecam-meta-status" style={{ color: "#00e5ff" }}>
                 ● 实况快照节点
               </span>
             )}
@@ -594,46 +596,56 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
       {/* 详细信息与元数据 */}
       <div className="livecam-viewer-body">
         <div className="livecam-desc-box">
-          {camera.description}
+          <div className="livecam-desc-title">VIEWPOINT BRIEF · 实况简介</div>
+          <div className="livecam-desc-text">
+            {camera.description || `${camera.country} · ${camera.city} 公开实况视角，接入全球实时监控矩阵。`}
+          </div>
         </div>
 
-        <div className="livecam-data-grid">
-          <div className="livecam-data-pill">
-            <span className="livecam-data-label">地理坐标</span>
-            <span className="livecam-data-val">
-              {formatCoordWithDirection(camera.lat, camera.lng)}
-            </span>
-          </div>
+        <div className="livecam-data-section">
+          <div className="livecam-data-section-title">STREAM TELEMETRY · 信号遥测</div>
+          <div className="livecam-data-grid">
+            <div className="livecam-data-pill">
+              <span className="livecam-data-label">地理坐标</span>
+              <span
+                className="livecam-data-val"
+                title={formatCoordWithDirection(camera.lat, camera.lng, 4)}
+              >
+                {formatCoordWithDirection(camera.lat, camera.lng, 2)}
+              </span>
+            </div>
 
-          <div className="livecam-data-pill">
-            <span className="livecam-data-label">流媒体格式</span>
-            <span
-              className="livecam-data-val"
-              style={{
-                color: isHlsOrLive ? "#00e676" : isMp4Clip ? "#38bdf8" : "#00e5ff",
-              }}
-            >
-              {mediaType.toUpperCase()}{" "}
-              {isHlsOrLive
-                ? "· 实时视频流"
-                : isMp4Clip
-                ? "· 实况动态切片"
-                : "· 道路实况快照"}
-            </span>
-          </div>
+            <div className="livecam-data-pill">
+              <span className="livecam-data-label">流媒体格式</span>
+              <span
+                className="livecam-data-val"
+                title={`${mediaType.toUpperCase()} ${isHlsOrLive ? "· 实时视频流" : isMp4Clip ? "· 实况动态切片" : "· 道路实况快照"}`}
+                style={{
+                  color: isHlsOrLive ? "#00e676" : isMp4Clip ? "#38bdf8" : "#00e5ff",
+                }}
+              >
+                {mediaType.toUpperCase()}{" "}
+                {isHlsOrLive
+                  ? "· 实时视频流"
+                  : isMp4Clip
+                  ? "· 实况动态切片"
+                  : "· 道路实况快照"}
+              </span>
+            </div>
 
-          <div className="livecam-data-pill">
-            <span className="livecam-data-label">广播源机构</span>
-            <span className="livecam-data-val" title={camera.source}>
-              {camera.source || "OSIRIS Global"}
-            </span>
-          </div>
+            <div className="livecam-data-pill">
+              <span className="livecam-data-label">广播源机构</span>
+              <span className="livecam-data-val" title={camera.source}>
+                {camera.source || "OSIRIS Global"}
+              </span>
+            </div>
 
-          <div className="livecam-data-pill">
-            <span className="livecam-data-label">所属大洲 / 地区</span>
-            <span className="livecam-data-val">
-              {camera.continent}
-            </span>
+            <div className="livecam-data-pill">
+              <span className="livecam-data-label">所属大洲 / 地区</span>
+              <span className="livecam-data-val">
+                {camera.continent}
+              </span>
+            </div>
           </div>
         </div>
       </div>

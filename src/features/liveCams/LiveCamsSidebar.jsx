@@ -12,6 +12,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Search,
+  X,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -234,14 +235,24 @@ export default function LiveCamsSidebar({
 
         {/* 关键词搜索 */}
         <div className="livecam-search-box">
-          <Search size={15} className="livecam-search-icon" />
+          <Search size={14} className="livecam-search-icon" />
           <input
             type="text"
             className="livecam-search-input"
-            placeholder="搜索全球城市、国家或探头名称..."
+            placeholder="搜索城市、国家、探头名称..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="livecam-search-clear-btn"
+              onClick={() => onSearchChange("")}
+              title="清空搜索"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
 
         {/* 多维复合筛选栏 */}
@@ -347,14 +358,26 @@ export default function LiveCamsSidebar({
                         {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </span>
                       <span className="livecam-country-flag">
-                        <img
-                          src={`${import.meta.env.BASE_URL}flags/circle-195/${encodeURIComponent(g.country)}.png`}
-                          alt={g.country}
-                          className="livecam-country-flag-img"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
+                        {g.country === "其他地区" || g.country === "Other" ? (
+                          <Globe size={15} className="livecam-country-globe-icon" />
+                        ) : (
+                          <>
+                            <img
+                              src={`${import.meta.env.BASE_URL}flags/circle-195/${encodeURIComponent(g.country)}.png`}
+                              alt={g.country}
+                              className="livecam-country-flag-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                if (e.currentTarget.nextSibling) {
+                                  e.currentTarget.nextSibling.style.display = "inline-flex";
+                                }
+                              }}
+                            />
+                            <span style={{ display: "none" }} className="livecam-country-globe-fallback">
+                              <Globe size={15} className="livecam-country-globe-icon" />
+                            </span>
+                          </>
+                        )}
                       </span>
                       <span className="livecam-country-name">{g.country}</span>
                     </div>

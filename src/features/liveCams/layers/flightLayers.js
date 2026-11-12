@@ -3,6 +3,8 @@
  * 采用 WebGL Symbol Layer 硬件级加速渲染万架航班，支持 3D 地球与 2D 平面自适应航向旋转。
  */
 
+import { splitAtAntimeridian } from "../utils/airports";
+
 const EMPTY_FC = { type: "FeatureCollection", features: [] };
 
 export const FLIGHT_LAYER_IDS = [
@@ -330,13 +332,15 @@ export function updateFlightsSource(map, flights) {
 /**
  * 更新选中飞机的战术高亮与起降航线
  */
-export function updateSelectedFlight(map, selectedFlight, routeData) {
+export function updateSelectedFlight(map, selectedFlight, routeData, isVisible = true) {
   if (!map) return;
+
+  const visVal = isVisible ? "visible" : "none";
 
   // 1. 选中飞机高亮
   const selSrc = map.getSource("flight-selected-source");
   if (selSrc) {
-    if (selectedFlight && Number.isFinite(selectedFlight.lat) && Number.isFinite(selectedFlight.lng)) {
+    if (isVisible && selectedFlight && Number.isFinite(selectedFlight.lat) && Number.isFinite(selectedFlight.lng)) {
       selSrc.setData({
         type: "FeatureCollection",
         features: [
@@ -353,41 +357,44 @@ export function updateSelectedFlight(map, selectedFlight, routeData) {
           },
         ],
       });
-      if (map.getLayer("flight-selected-glow")) map.setLayoutProperty("flight-selected-glow", "visibility", "visible");
-      if (map.getLayer("flight-selected-dot")) map.setLayoutProperty("flight-selected-dot", "visibility", "visible");
     } else {
       selSrc.setData(EMPTY_FC);
     }
   }
+  if (map.getLayer("flight-selected-glow")) map.setLayoutProperty("flight-selected-glow", "visibility", visVal);
+  if (map.getLayer("flight-selected-dot")) map.setLayoutProperty("flight-selected-dot", "visibility", visVal);
 
-  // 2. 航线弧线
+  // 2. 航线弧线 (支持跨越 180° 日界线切分，杜绝环球绕极巨环)
   const routeSrc = map.getSource("flight-route-source");
   if (routeSrc) {
-    if (routeData && routeData.found && Array.isArray(routeData.geodesicPoints) && routeData.geodesicPoints.length > 1) {
+    if (isVisible && routeData && routeData.found && Array.isArray(routeData.geodesicPoints) && routeData.geodesicPoints.length > 1) {
+      const segments = splitAtAntimeridian(routeData.geodesicPoints);
+      const geometry =
+        segments.length > 1
+          ? { type: "MultiLineString", coordinates: segments }
+          : { type: "LineString", coordinates: segments[0] || routeData.geodesicPoints };
+
       routeSrc.setData({
         type: "FeatureCollection",
         features: [
           {
             type: "Feature",
             properties: { callsign: routeData.callsign },
-            geometry: {
-              type: "LineString",
-              coordinates: routeData.geodesicPoints,
-            },
+            geometry,
           },
         ],
       });
-      if (map.getLayer("flight-route-glow")) map.setLayoutProperty("flight-route-glow", "visibility", "visible");
-      if (map.getLayer("flight-route-core")) map.setLayoutProperty("flight-route-core", "visibility", "visible");
     } else {
       routeSrc.setData(EMPTY_FC);
     }
   }
+  if (map.getLayer("flight-route-glow")) map.setLayoutProperty("flight-route-glow", "visibility", visVal);
+  if (map.getLayer("flight-route-core")) map.setLayoutProperty("flight-route-core", "visibility", visVal);
 
   // 3. 起降机场标注
   const aptSrc = map.getSource("flight-airports-source");
   if (aptSrc) {
-    if (routeData && routeData.found && routeData.origin && routeData.destination) {
+    if (isVisible && routeData && routeData.found && routeData.origin && routeData.destination) {
       const o = routeData.origin;
       const d = routeData.destination;
       const features = [
@@ -403,29 +410,31 @@ export function updateSelectedFlight(map, selectedFlight, routeData) {
         },
       ];
       aptSrc.setData({ type: "FeatureCollection", features });
-      if (map.getLayer("flight-airports-glow")) map.setLayoutProperty("flight-airports-glow", "visibility", "visible");
-      if (map.getLayer("flight-airports-dot")) map.setLayoutProperty("flight-airports-dot", "visibility", "visible");
-      if (map.getLayer("flight-airports-label")) map.setLayoutProperty("flight-airports-label", "visibility", "visible");
     } else {
       aptSrc.setData(EMPTY_FC);
     }
   }
+  if (map.getLayer("flight-airports-glow")) map.setLayoutProperty("flight-airports-glow", "visibility", visVal);
+  if (map.getLayer("flight-airports-dot")) map.setLayoutProperty("flight-airports-dot", "visibility", visVal);
+  if (map.getLayer("flight-airports-label")) map.setLayoutProperty("flight-airports-label", "visibility", visVal);
 
-  // 4. 确保航线弧线、起降机场与选中飞机标记始终绘制在普通飞机图层上层 (保证缩放地球时不被密集机群遮挡)
-  const topLayers = [
-    "flight-route-glow",
-    "flight-route-core",
-    "flight-airports-glow",
-    "flight-airports-dot",
-    "flight-airports-label",
-    "flight-selected-glow",
-    "flight-selected-dot",
-  ];
-  topLayers.forEach((layerId) => {
-    if (map.getLayer(layerId)) {
-      map.moveLayer(layerId);
-    }
-  });
+  // 4. 仅在航空图层激活时确保选中叠加层置于顶层
+  if (isVisible) {
+    const topLayers = [
+      "flight-route-glow",
+      "flight-route-core",
+      "flight-airports-glow",
+      "flight-airports-dot",
+      "flight-airports-label",
+      "flight-selected-glow",
+      "flight-selected-dot",
+    ];
+    topLayers.forEach((layerId) => {
+      if (map.getLayer(layerId)) {
+        map.moveLayer(layerId);
+      }
+    });
+  }
 }
 
 /**

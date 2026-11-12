@@ -86,7 +86,14 @@ export default function WorldLiveCams({
   const [flightSearchQuery, setFlightSearchQuery] = useState("");
   const [flightRouteData, setFlightRouteData] = useState(null);
   const [flightRouteLoading, setFlightRouteLoading] = useState(false);
-  const [isFlightsLoading, setIsFlightsLoading] = useState(false);
+  const [isFlightsLoading, setIsFlightsLoading] = useState(true);
+
+  useEffect(() => {
+    if (activeModuleTab !== "aviation") {
+      setSelectedFlight(null);
+      setFlightRouteData(null);
+    }
+  }, [activeModuleTab]);
 
   // 异步加载全球实时航班
   const loadFlights = useCallback(async () => {
@@ -193,17 +200,29 @@ export default function WorldLiveCams({
     }
   }, [mapInstance, flightRouteData]);
 
-  // 切换下一个航班
-  const handleNextFlight = useCallback(() => {
+  // 随机探索：随机挑选一个大概率具有起降航线的在空民航/喷气机进行聚焦呈现
+  const handleRandomFlight = useCallback(() => {
     const list = flightsData?.all || [];
     if (!list.length) return;
-    const curIdx = list.findIndex((f) => f.icao24 === selectedFlight?.icao24);
-    if (curIdx === -1) {
-      handleSelectFlight(list[0]);
-    } else {
-      const nextIdx = (curIdx + 1) % list.length;
-      handleSelectFlight(list[nextIdx]);
-    }
+
+    // 优先挑选民航商业航班或公务机，且正处于空中巡航（有明确呼号）
+    const candidates = list.filter((f) => {
+      if (!f || f.grounded) return false;
+      const cs = (f.callsign || "").trim();
+      if (!cs || cs === "UNKNOWN" || cs.length < 3) return false;
+      return f.category === "commercial" || f.category === "jet" || /^[A-Z]{3}\d/i.test(cs);
+    });
+
+    const pool = candidates.length > 0 ? candidates : list.filter((f) => !f.grounded);
+    if (!pool.length) return;
+
+    // 排除当前已选中的航班
+    const unselected = pool.filter((f) => f.icao24 !== selectedFlight?.icao24);
+    const chosenList = unselected.length > 0 ? unselected : pool;
+    const randomIndex = Math.floor(Math.random() * chosenList.length);
+    const targetFlight = chosenList[randomIndex];
+
+    handleSelectFlight(targetFlight);
   }, [flightsData, selectedFlight, handleSelectFlight]);
 
   // 异步加载全球 45,000+ 全量摄像头网络
@@ -253,27 +272,68 @@ export default function WorldLiveCams({
   }, [allCameras, selectedContinent, streamFilter, searchQuery]);
 
   // 根据底色明暗度与地球缩放大小动态计算自适应外观：
-  // 当大框底色设为浅色（如纯白），且地球缩很小时（zoom <= 2.8），外围暴露浅色底衬，此时面板采用清爽透光亮色；
-  // 当地球放大（zoom > 2.8）暗黑地图铺满全屏时，面板自适应变回深色科技风；
-  // 若陆地底色本身亦为亮色（如象牙素雅），则持续保持高雅明朗。
-  const isAdaptiveLight = useMemo(() => {
+  // 兼顾平滑渐进视觉过渡与极限可读性 (WCAG AAA)，消除中间灰度区域造成的字体发虚融色现象
+  const themeStyles = useMemo(() => {
     const bg = mapTheme?.bg || "#ffffff";
     const bgLum = getLuminance(bg);
     const landLum = getLuminance(mapTheme?.land || "#000000");
     const isBgLight = bgLum > 0.55;
     const isLandLight = baseMapType === "sat" ? false : landLum > 0.55;
 
-    if (!isBgLight && !isLandLight) return false;
+    let isLightSide = false;
 
-    if (isLandLight) return true;
-
-    // 3D 模式下，当球体较小 (zoom <= 2.8)，左右露出浅色底衬，面板采用明亮色；
-    // 当球体放大 (zoom > 2.8)，深色地球铺满全屏，两侧面板自适应变回深色科技风
-    if (projectionMode === "3d") {
-      return currentZoom <= 2.8;
+    if (!isBgLight && !isLandLight) {
+      isLightSide = false;
+    } else if (isLandLight) {
+      isLightSide = true;
+    } else if (projectionMode === "3d") {
+      // 3D 模式下：以 2.8 缩放度作为自然视野转折点
+      // 放大深入地球 (zoom >= 2.8) -> 沉浸式太空极夜深黑科技主题
+      // 缩小拉远俯瞰 (zoom < 2.8) -> 晶莹剔透晨曦白磨砂玻璃主题
+      isLightSide = currentZoom < 2.8;
+    } else {
+      isLightSide = isLandLight;
     }
-    // 2D 平面投影下，底图完全铺满整个视口，若陆地为深色则面板自适应为深色科技风
-    return isLandLight;
+
+    if (!isLightSide) {
+      // ── 暗色科技主题 (Dark Tech Side) ──
+      // 纯净夜航暗黑背景与高对比度浅色文字，保证任何状态下文字清晰锐利
+      return {
+        "--livecam-bg": mapTheme.bg || "#04040a",
+        backgroundColor: mapTheme.bg || "#04040a",
+        "--livecam-panel": "rgba(10, 14, 26, 0.90)",
+        "--livecam-panel-gradient": "linear-gradient(160deg, rgba(14, 20, 38, 0.94) 0%, rgba(9, 13, 26, 0.90) 50%, rgba(4, 6, 16, 0.86) 100%)",
+        "--livecam-card-bg": "rgba(20, 26, 48, 0.82)",
+        "--livecam-card-gradient": "linear-gradient(145deg, rgba(22, 28, 52, 0.88) 0%, rgba(14, 18, 36, 0.80) 100%)",
+        "--livecam-card-hover": "rgba(32, 42, 72, 0.90)",
+        "--livecam-text": "#f8fafc",
+        "--livecam-text-muted": "#94a3b8",
+        "--livecam-cyan": "#00e5ff",
+        "--livecam-panel-border": "rgba(255, 255, 255, 0.12)",
+        "--livecam-panel-border-cyan": "rgba(0, 229, 255, 0.28)",
+        "--livecam-panel-shadow": "0 18px 50px rgba(0, 0, 0, 0.70)",
+        isLightSide: false,
+      };
+    } else {
+      // ── 明亮极昼主题 (Light Frosted Side) ──
+      // 高雅通透磨砂白底衬，搭配墨黑与深靛蓝高对比度文字 (WCAG AAA 级可读性)，告别任何发灰融色
+      return {
+        "--livecam-bg": mapTheme.bg || "#ffffff",
+        backgroundColor: mapTheme.bg || "#ffffff",
+        "--livecam-panel": "rgba(255, 255, 255, 0.94)",
+        "--livecam-panel-gradient": "linear-gradient(160deg, rgba(255, 255, 255, 0.96) 0%, rgba(246, 249, 253, 0.92) 50%, rgba(238, 243, 249, 0.88) 100%)",
+        "--livecam-card-bg": "rgba(241, 245, 249, 0.92)",
+        "--livecam-card-gradient": "linear-gradient(145deg, rgba(245, 248, 252, 0.95) 0%, rgba(238, 243, 249, 0.90) 100%)",
+        "--livecam-card-hover": "rgba(226, 232, 240, 0.96)",
+        "--livecam-text": "#0f172a",
+        "--livecam-text-muted": "#475569",
+        "--livecam-cyan": "#0284c7",
+        "--livecam-panel-border": "rgba(15, 23, 42, 0.10)",
+        "--livecam-panel-border-cyan": "rgba(2, 132, 199, 0.35)",
+        "--livecam-panel-shadow": "0 18px 48px rgba(15, 23, 42, 0.14)",
+        isLightSide: true,
+      };
+    }
   }, [mapTheme?.bg, mapTheme?.land, currentZoom, projectionMode, baseMapType]);
 
   // 选择摄像头
@@ -318,75 +378,104 @@ export default function WorldLiveCams({
   }, []);
 
   // 渲染通用控制操作按钮群组（支持普通头部与全屏沉浸悬浮顶部复用）
-  const renderControlsToolbar = (inFullscreen = false) => (
-    <div className={inFullscreen ? "liveworld-fullscreen-toolbar" : "liveworld-outer-toolbar"}>
-      {/* 3D地球 / 2D地图 */}
-      <button
-        type="button"
-        className={`liveworld-nav-pill ${projectionMode === "3d" ? "is-active" : ""}`}
-        onClick={() => setProjectionMode(projectionMode === "3d" ? "2d" : "3d")}
-        title="切换 3D 地球球体 / 2D 平面投影"
-      >
-        {projectionMode === "3d" ? <Globe size={14} /> : <Map size={14} />}
-        <span>{projectionMode === "3d" ? "3D 地球" : "2D 地图"}</span>
-      </button>
+  const renderControlsToolbar = (inFullscreen = false) => {
+    const iconSize = inFullscreen ? 16 : 14;
+    return (
+      <div className={inFullscreen ? "liveworld-fullscreen-toolbar" : "liveworld-outer-toolbar"}>
+        {inFullscreen && (
+          <>
+            <div className="liveworld-fullscreen-mode-switch" role="group" aria-label="全屏模式切换">
+              <button
+                type="button"
+                className={`liveworld-nav-pill ${activeModuleTab === "cameras" ? "is-active" : ""}`}
+                onClick={() => setActiveModuleTab("cameras")}
+                title="切换至全球实时摄像头"
+              >
+                <Video size={iconSize} />
+                <span>摄像头</span>
+              </button>
+              <button
+                type="button"
+                className={`liveworld-nav-pill ${activeModuleTab === "aviation" ? "is-active" : ""}`}
+                onClick={() => setActiveModuleTab("aviation")}
+                title="切换至全球实时航班"
+              >
+                <Plane size={iconSize} />
+                <span>航班</span>
+              </button>
+            </div>
+            <span className="liveworld-toolbar-divider" aria-hidden="true" />
+          </>
+        )}
 
-      {/* 暗黑MAP / 卫星SAT */}
-      <button
-        type="button"
-        className={`liveworld-nav-pill ${baseMapType === "sat" ? "is-active" : ""}`}
-        onClick={() => setBaseMapType(baseMapType === "sat" ? "dark" : "sat")}
-        title="切换 CARTO 深色矢量底图 / 全球卫星影像"
-      >
-        <Layers size={14} />
-        <span>{baseMapType === "sat" ? "卫星 SAT" : "暗黑 MAP"}</span>
-      </button>
+        {/* 3D地球 / 2D地图 */}
+        <button
+          type="button"
+          className={`liveworld-nav-pill ${projectionMode === "3d" ? "is-active" : ""}`}
+          onClick={() => setProjectionMode(projectionMode === "3d" ? "2d" : "3d")}
+          title="切换 3D 地球球体 / 2D 平面投影"
+        >
+          {projectionMode === "3d" ? <Globe size={iconSize} /> : <Map size={iconSize} />}
+          <span>{projectionMode === "3d" ? "3D 地球" : "2D 地图"}</span>
+        </button>
 
-      {/* 配色 */}
-      <button
-        type="button"
-        className={`liveworld-nav-pill ${isThemeModalOpen ? "is-active" : ""}`}
-        onClick={() => setIsThemeModalOpen(true)}
-        title="自定义地图与功能块底色（底色、陆地、海洋、边界、探头）"
-      >
-        <Palette size={14} />
-        <span>配色</span>
-      </button>
+        {/* 暗黑MAP / 卫星SAT */}
+        <button
+          type="button"
+          className={`liveworld-nav-pill ${baseMapType === "sat" ? "is-active" : ""}`}
+          onClick={() => setBaseMapType(baseMapType === "sat" ? "dark" : "sat")}
+          title="切换 CARTO 深色矢量底图 / 全球卫星影像"
+        >
+          <Layers size={iconSize} />
+          <span>{baseMapType === "sat" ? "卫星 SAT" : "暗黑 MAP"}</span>
+        </button>
 
-      {/* 晨昏线 开/关 */}
-      <button
-        type="button"
-        className={`liveworld-nav-pill ${dayNightVisible ? "is-active" : ""}`}
-        onClick={() => setDayNightVisible((v) => !v)}
-        title="开启 / 关闭全球实时昼夜分界晨昏线与夜半球暗色阴影"
-      >
-        <SunMoon size={14} />
-        <span>晨昏线 {dayNightVisible ? "开" : "关"}</span>
-      </button>
+        {/* 配色 */}
+        <button
+          type="button"
+          className={`liveworld-nav-pill ${isThemeModalOpen ? "is-active" : ""}`}
+          onClick={() => setIsThemeModalOpen(true)}
+          title="自定义地图与功能块底色（底色、陆地、海洋、边界、探头）"
+        >
+          <Palette size={iconSize} />
+          <span>配色</span>
+        </button>
 
-      {/* 重置视角 */}
-      <button
-        type="button"
-        className="liveworld-nav-pill"
-        onClick={handleResetView}
-        title="重置视角，飞回全球中心全景"
-      >
-        <RotateCcw size={14} />
-        <span>重置</span>
-      </button>
+        {/* 晨昏线 开/关 */}
+        <button
+          type="button"
+          className={`liveworld-nav-pill ${dayNightVisible ? "is-active" : ""}`}
+          onClick={() => setDayNightVisible((v) => !v)}
+          title="开启 / 关闭全球实时昼夜分界晨昏线与夜半球暗色阴影"
+        >
+          <SunMoon size={iconSize} />
+          <span>晨昏线 {dayNightVisible ? "开" : "关"}</span>
+        </button>
 
-      {/* 全屏切换 */}
-      <button
-        type="button"
-        className="liveworld-nav-pill"
-        onClick={handleToggleFullscreen}
-        title={isFullscreen ? "退出全屏" : "全屏沉浸探索"}
-      >
-        {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-        {inFullscreen && <span style={{ marginLeft: "4px" }}>退出全屏</span>}
-      </button>
-    </div>
-  );
+        {/* 重置视角 */}
+        <button
+          type="button"
+          className="liveworld-nav-pill"
+          onClick={handleResetView}
+          title="重置视角，飞回全球中心全景"
+        >
+          <RotateCcw size={iconSize} />
+          <span>重置</span>
+        </button>
+
+        {/* 全屏切换 */}
+        <button
+          type="button"
+          className="liveworld-nav-pill"
+          onClick={handleToggleFullscreen}
+          title={isFullscreen ? "退出全屏" : "全屏沉浸探索"}
+        >
+          {isFullscreen ? <Minimize2 size={iconSize} /> : <Maximize2 size={iconSize} />}
+          {inFullscreen && <span>退出全屏</span>}
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="liveworld-master-wrapper">
@@ -430,7 +519,7 @@ export default function WorldLiveCams({
             <Sparkles size={16} className="game-sub-icon" />
             <span>
               {activeModuleTab === "aviation"
-                ? `接入全球多源 ADS-B 航空网络，实时雷达监测 ${(flightsData.total || 8300).toLocaleString()}+ 架在航空器与航线`
+                ? "接入全球多源 ADS-B 航空网络，实时雷达监测飞行状态航空器"
                 : "接入全球 45,000+ 公开探头与 24/7 高清连续视频流，纵览全球实时景象"}
             </span>
           </p>
@@ -444,11 +533,8 @@ export default function WorldLiveCams({
 
       {/* 3. 核心地球黑盒容器 */}
       <div
-        className={`livecam-shell ${isFullscreen ? "is-fullscreen" : ""} ${isAdaptiveLight ? "is-light-theme" : ""}`}
-        style={{
-          "--livecam-bg": mapTheme.bg || "#04040a",
-          backgroundColor: mapTheme.bg || "#04040a",
-        }}
+        className={`livecam-shell ${isFullscreen ? "is-fullscreen" : ""} ${themeStyles.isLightSide ? "is-light-theme" : ""}`}
+        style={themeStyles}
       >
         {/* 全屏状态下的顶部悬浮功能栏 */}
         {isFullscreen && renderControlsToolbar(true)}
@@ -524,7 +610,7 @@ export default function WorldLiveCams({
             onClose={() => setSelectedFlight(null)}
             onLocate={handleLocateFlight}
             onFitRoute={handleFitFlightRoute}
-            onNextFlight={handleNextFlight}
+            onRandomFlight={handleRandomFlight}
           />
         )}
 
