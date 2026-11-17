@@ -8,7 +8,7 @@
  * 3. 实时遥测指标与总数统计看板；
  * 4. 航班卡片列表快速定位与点击追踪联动。
  */
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Search,
   X,
@@ -20,15 +20,20 @@ import {
   Compass,
   Globe,
 } from "lucide-react";
-import { filterFlights } from "../services/flightService";
+import {
+  filterFlights,
+  fetchAircraftDetail,
+  resolveFlightSubLabel,
+  getCachedAircraftDetail,
+} from "../services/flightService";
 import { getCountryDisplayName } from "../utils/airports";
 
 const CATEGORY_ITEMS = [
-  { id: "all", label: "全部", countKey: "total", color: "#38bdf8" },
-  { id: "commercial", label: "民航", countKey: "commercial", color: "#00E5FF" },
-  { id: "private", label: "私人", countKey: "private", color: "#00E676" },
-  { id: "jet", label: "公务机", countKey: "jets", color: "#FF4081" },
-  { id: "military", label: "军用", countKey: "military", color: "#FF3D00" },
+  { id: "all", label: "全部", countKey: "total", color: "var(--flight-cat-all, #334155)" },
+  { id: "commercial", label: "民航", countKey: "commercial", color: "var(--flight-cat-commercial, #0369a1)" },
+  { id: "private", label: "私人", countKey: "private", color: "var(--flight-cat-private, #0f766e)" },
+  { id: "jet", label: "公务机", countKey: "jets", color: "var(--flight-cat-jet, #5b21b6)" },
+  { id: "military", label: "军用", countKey: "military", color: "var(--flight-cat-military, #b45309)" },
 ];
 
 export default function AviationSidebar({
@@ -45,6 +50,7 @@ export default function AviationSidebar({
   isLoading,
 }) {
   const [expandedCountries, setExpandedCountries] = useState(new Set());
+  const [, setDetailTick] = useState(0);
 
   const counts = flightsData?.counts || {
     total: 0,
@@ -91,6 +97,39 @@ export default function AviationSidebar({
   }, [filteredFlights]);
 
   const isSearching = Boolean(searchQuery && searchQuery.trim());
+
+  // 当展开某个国家分组时，后台自动异步补全前排可见航班的真实机型与注册号档案
+  useEffect(() => {
+    let cancelled = false;
+    const targets = [];
+    for (const g of countryGroups) {
+      const isExp = isSearching || expandedCountries.has(g.country);
+      if (!isExp) continue;
+      for (const f of g.flights.slice(0, 18)) {
+        if (f.icao24 && (!f.model || f.model === "Unknown") && !getCachedAircraftDetail(f.icao24)) {
+          targets.push(f.icao24);
+        }
+        if (targets.length >= 24) break;
+      }
+      if (targets.length >= 24) break;
+    }
+    if (targets.length === 0) return;
+
+    (async () => {
+      for (let i = 0; i < targets.length; i += 4) {
+        if (cancelled) return;
+        const batch = targets.slice(i, i + 4);
+        await Promise.allSettled(batch.map((hex) => fetchAircraftDetail(hex)));
+        if (!cancelled) {
+          setDetailTick((t) => t + 1);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [expandedCountries, isSearching, countryGroups]);
 
   // 切换展开/收起某个国家
   const toggleCountry = (country) => {
@@ -190,14 +229,13 @@ export default function AviationSidebar({
                 <button
                   key={item.id}
                   type="button"
-                  className={`livecam-flight-cat-btn ${isActive ? "is-active" : ""}`}
+                  className={`livecam-flight-cat-btn cat-${item.id} ${isActive ? "is-active" : ""}`}
                   onClick={() => onSelectCategory(item.id)}
                   title={isInitialLoading ? `正在加载${item.label}统计` : `筛选${item.label} (${countVal.toLocaleString()} 架)`}
                 >
                   <span className="livecam-flight-cat-label">{item.label}</span>
                   <span
                     className={`livecam-flight-cat-count ${isInitialLoading ? "is-loading" : ""}`}
-                    style={{ color: isActive ? "#ffffff" : item.color }}
                   >
                     {isInitialLoading ? "—" : countVal.toLocaleString()}
                   </span>
@@ -283,7 +321,7 @@ export default function AviationSidebar({
               )}
             </div>
           ) : (
-            countryGroups.map((g) => {
+            countryGroups.map((g, gIdx) => {
               const isExpanded = isSearching ? true : expandedCountries.has(g.country);
 
               return (
@@ -295,6 +333,9 @@ export default function AviationSidebar({
                     onClick={() => toggleCountry(g.country)}
                   >
                     <div className="livecam-country-group-title">
+                      <span className={`livecam-country-rank ${gIdx < 3 ? "is-top" : ""}`}>
+                        {String(gIdx + 1).padStart(2, "0")}
+                      </span>
                       <span className={`livecam-country-flag ${g.display.isGlobe || !g.display.flagUrl ? "is-globe" : ""}`}>
                         {g.display.flagUrl && !g.display.isGlobe ? (
                           <img
@@ -346,12 +387,20 @@ export default function AviationSidebar({
                         const isSelected = selectedFlight?.icao24 === f.icao24;
                         const catColor =
                           f.category === "military"
-                            ? "#FF3D00"
+                            ? "var(--flight-cat-military, #b45309)"
                             : f.category === "jet"
-                            ? "#FF4081"
+                            ? "var(--flight-cat-jet, #5b21b6)"
                             : f.category === "private"
-                            ? "#00E676"
-                            : "#00E5FF";
+                            ? "var(--flight-cat-private, #0f766e)"
+                            : "var(--flight-cat-commercial, #0369a1)";
+                        const catShort =
+                          f.category === "military"
+                            ? "MIL"
+                            : f.category === "jet"
+                            ? "BIZ"
+                            : f.category === "private"
+                            ? "PVT"
+                            : "COM";
 
                         return (
                           <div
@@ -359,39 +408,32 @@ export default function AviationSidebar({
                             className={`livecam-card-item ${isSelected ? "is-selected" : ""}`}
                             onClick={() => onSelectFlight(f)}
                           >
-                            <div className="livecam-card-thumb-wrap" style={{ width: 38, height: 38, background: "var(--livecam-card-bg)", borderRadius: "7px" }}>
-                              <div
+                            <div className="livecam-card-thumb-wrap livecam-flight-radar-thumb">
+                              <span className="radar-thumb-ring" />
+                              <Plane
+                                size={16}
                                 style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
+                                  color: catColor,
+                                  transform: `rotate(${Math.round(f.heading || 0) - 45}deg)`,
+                                  transition: "transform 0.25s ease",
+                                  position: "relative",
+                                  zIndex: 1,
                                 }}
-                              >
-                                <Plane
-                                  size={16}
-                                  style={{
-                                    color: catColor,
-                                    transform: `rotate(${Math.round(f.heading || 0) - 45}deg)`,
-                                    transition: "transform 0.25s ease",
-                                  }}
-                                />
-                              </div>
+                              />
                             </div>
 
                             <div className="livecam-card-info">
-                              <div className="livecam-card-name" style={{ fontSize: "0.88rem", fontWeight: 800 }}>
-                                {f.callsign || f.icao24.toUpperCase()}
+                              <div className="livecam-card-name" style={{ fontSize: "0.86rem", fontWeight: 800, display: "flex", alignItems: "center", gap: 6 }}>
+                                <span>{f.callsign || f.icao24.toUpperCase()}</span>
+                                <span
+                                  className="livecam-flight-mini-cat"
+                                  style={{ color: catColor }}
+                                >
+                                  {catShort}
+                                </span>
                               </div>
                               <div className="livecam-card-sub">
-                                <span>{f.model || "AIRCRAFT"}</span>
-                                {f.registration && (
-                                  <>
-                                    <span style={{ opacity: 0.4 }}>·</span>
-                                    <span>{f.registration}</span>
-                                  </>
-                                )}
+                                <span>{resolveFlightSubLabel(f)}</span>
                               </div>
                             </div>
 

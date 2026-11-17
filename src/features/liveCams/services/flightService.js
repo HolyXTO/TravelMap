@@ -104,6 +104,158 @@ function normalizeFlightsPayload(data, sourceMode) {
 }
 
 /**
+ * 全球主流航空公司三字 ICAO 代码名称映射表 (用于当 OpenSky 匿名广播帧不含机型时的实时语义解析)
+ */
+export const AIRLINE_ICAO_MAP = {
+  EZY: "easyJet 易捷航空",
+  EJU: "easyJet Europe",
+  EZS: "easyJet Switzerland",
+  BAW: "British Airways 英国航空",
+  RYR: "Ryanair 瑞安航空",
+  RUK: "Ryanair UK",
+  WUK: "Wizz Air UK",
+  WZZ: "Wizz Air 威兹航空",
+  WMT: "Wizz Air Malta",
+  VIR: "Virgin Atlantic 维珍航空",
+  EXS: "Jet2.com",
+  TOM: "TUI Airways",
+  LOG: "Loganair",
+  NHZ: "NHV Helicopters",
+  SFY: "Swiftair",
+  ULR: "Ultimate Air",
+  DLH: "Lufthansa 汉莎航空",
+  EWG: "Eurowings 欧洲之翼",
+  CFG: "Condor 神鹰航空",
+  AFR: "Air France 法国航空",
+  TVF: "Transavia France",
+  TRA: "Transavia",
+  KLM: "KLM 荷兰皇家航空",
+  SWR: "SWISS 瑞士国际航空",
+  AUA: "Austrian 奥地利航空",
+  BEL: "Brussels 布鲁塞尔航空",
+  IBE: "Iberia 伊比利亚航空",
+  VLG: "Vueling 伏林航空",
+  AEA: "Air Europa 欧罗巴航空",
+  ITY: "ITA Airways 意大利航空",
+  TAP: "TAP Air Portugal",
+  SAS: "SAS 北欧航空",
+  NOZ: "Norwegian 挪威航空",
+  NSZ: "Norwegian Sweden",
+  FIN: "Finnair 芬兰航空",
+  LOT: "LOT 波兰航空",
+  AEE: "Aegean 爱琴海航空",
+  EIN: "Aer Lingus 爱尔兰航空",
+  ICE: "Icelandair 冰岛航空",
+  BTI: "airBaltic 波罗的海航空",
+  THY: "Turkish Airlines 土耳其航空",
+  PGT: "Pegasus 飞马航空",
+  SXS: "SunExpress",
+  AIZ: "Arkia Israel Airlines",
+  ELY: "El Al 以色列航空",
+  ISR: "Israir Airlines",
+  UAE: "Emirates 阿联酋航空",
+  ETD: "Etihad 阿提哈德航空",
+  FDB: "flydubai 迪拜航空",
+  QTR: "Qatar Airways 卡塔尔航空",
+  SVA: "Saudia 沙特航空",
+  RJA: "Royal Jordanian 约旦皇家航空",
+  GFA: "Gulf Air 海湾航空",
+  OMA: "Oman Air 阿曼航空",
+  KAC: "Kuwait Airways 科威特航空",
+  CCA: "Air China 中国国际航空",
+  CES: "China Eastern 中国东方航空",
+  CSN: "China Southern 中国南方航空",
+  CHH: "Hainan Airlines 海南航空",
+  CSZ: "Shenzhen Airlines 深圳航空",
+  CXA: "XiamenAir 厦门航空",
+  CSC: "Sichuan Airlines 四川航空",
+  CQH: "Spring Airlines 春秋航空",
+  DKH: "Juneyao Air 吉祥航空",
+  CPA: "Cathay Pacific 国泰航空",
+  HKE: "HK Express 香港快运",
+  CAL: "China Airlines 中华航空",
+  EVA: "EVA Air 长荣航空",
+  SJX: "Starlux 星宇航空",
+  ANA: "ANA 全日空航空",
+  JAL: "JAL 日本航空",
+  ADO: "AIRDO 北海道航空",
+  APJ: "Peach 乐桃航空",
+  KAL: "Korean Air 大韩航空",
+  AAR: "Asiana 韩亚航空",
+  JJA: "Jeju Air 济州航空",
+  ESR: "Eastar Jet 易斯达航空",
+  TWB: "T'way Air 德威航空",
+  SIA: "Singapore Airlines 新加坡航空",
+  TGW: "Scoot 酷航",
+  MAS: "Malaysia Airlines 马来西亚航空",
+  AXM: "AirAsia 亚洲航空",
+  THA: "Thai Airways 泰国国际航空",
+  HVN: "Vietnam Airlines 越南航空",
+  VJC: "VietJet Air 越捷航空",
+  GIA: "Garuda Indonesia 印尼鹰航",
+  PAL: "Philippine Airlines 菲律宾航空",
+  IGO: "IndiGo 靛蓝航空",
+  AIC: "Air India 印度航空",
+  AXB: "Air India Express",
+  AKJ: "Akasa Air",
+  AAL: "American Airlines 美国航空",
+  DAL: "Delta Air Lines 达美航空",
+  UAL: "United Airlines 美联航",
+  SWA: "Southwest 西南航空",
+  JBU: "JetBlue 捷蓝航空",
+  ASA: "Alaska Airlines 阿拉斯加航空",
+  NKS: "Spirit Airlines 精神航空",
+  FFT: "Frontier 边疆航空",
+  SKW: "SkyWest Airlines",
+  RPA: "Republic Airways",
+  ENY: "Envoy Air",
+  UPS: "UPS Airlines 联合包裹航空",
+  FDX: "FedEx Express 联邦快递航空",
+  GTI: "Atlas Air 阿特拉斯航空",
+  ACA: "Air Canada 加拿大航空",
+  WJA: "WestJet 西捷航空",
+  AMX: "Aeroméxico 墨西哥航空",
+  VOI: "Volaris",
+  LAN: "LATAM Airlines",
+  LPE: "LATAM Peru",
+  TAM: "LATAM Brasil",
+  ARE: "LATAM Colombia",
+  AVA: "Avianca 哥伦比亚航空",
+  CMP: "Copa Airlines 巴拿马航空",
+  QFA: "Qantas 澳洲航空",
+  VOZ: "Virgin Australia",
+  ANZ: "Air New Zealand 新西兰航空",
+  SAA: "South African Airways",
+  ETH: "Ethiopian Airlines 埃塞俄比亚航空",
+  MSR: "EgyptAir 埃及航空",
+  RAM: "Royal Air Maroc 摩洛哥皇家航空",
+};
+
+export function getCachedAircraftDetail(icao24) {
+  if (!icao24) return null;
+  return aircraftCache.get(icao24.toLowerCase().trim()) || null;
+}
+
+export function resolveFlightSubLabel(flight, cachedDetail) {
+  const detail = cachedDetail || getCachedAircraftDetail(flight?.icao24);
+  if (detail?.model && detail.model !== "Unknown") {
+    return detail.registration ? `${detail.model} · ${detail.registration}` : detail.model;
+  }
+  if (flight?.model && flight.model !== "Unknown") {
+    return flight.registration ? `${flight.model} · ${flight.registration}` : flight.model;
+  }
+  const code = (flight?.airline_code || "").toUpperCase();
+  const hexUpper = (flight?.icao24 || "").toUpperCase();
+  if (code && AIRLINE_ICAO_MAP[code]) {
+    return `${AIRLINE_ICAO_MAP[code]} · #${hexUpper}`;
+  }
+  if (flight?.squawk) {
+    return `ICAO #${hexUpper} · 应答机 ${flight.squawk}`;
+  }
+  return `ICAO #${hexUpper}`;
+}
+
+/**
  * 查询指定航空器真实注册与型号资料 (ADSBDB)
  */
 export async function fetchAircraftDetail(icao24) {
@@ -126,13 +278,20 @@ export async function fetchAircraftDetail(icao24) {
         const json = await res.json();
         const ac = json?.response?.aircraft;
         if (ac) {
+          const mfr = (ac.manufacturer || "").trim();
+          const rawType = (ac.type || ac.type_desc || ac.model || "").trim();
+          const icaoType = (ac.icao_type || ac.icao_type_code || "").trim();
+          const fullModel =
+            mfr && rawType && !rawType.toLowerCase().startsWith(mfr.toLowerCase())
+              ? `${mfr} ${rawType}`
+              : rawType || mfr || icaoType || null;
           const detail = {
             icao24: hex,
             registration: ac.registration || null,
-            typeCode: ac.type || ac.icao_type_code || null,
-            model: ac.type_desc || ac.model || ac.manufacturer || null,
+            typeCode: icaoType || rawType || null,
+            model: fullModel,
             operator: ac.registered_owner || ac.operator || null,
-            manufacturer: ac.manufacturer || null,
+            manufacturer: mfr || null,
           };
           aircraftCache.set(hex, detail);
           return detail;

@@ -138,34 +138,11 @@ export default function LiveCamsSidebar({
     }
   }, [searchQuery, countryGroups]);
 
-  // 3. 当大洲切换时，智能初始化展开状态
+  // 3. 当大洲切换或初始装载时，默认全部收起所有国家
   useEffect(() => {
-    if (countryGroups.length <= 2) {
-      // 仅有 1~2 个国家时，默认全部展开
-      setExpandedCountries(new Set(countryGroups.map((g) => g.country)));
-    } else if (countryGroups.length > 0) {
-      // 多个国家（例如欧洲有 30 多个国家）时，默认展开第一个，保持列表整洁且便于快速点击法国/德国等
-      setExpandedCountries(new Set([countryGroups[0].country]));
-    } else {
-      setExpandedCountries(new Set());
-    }
-    // 重置每个国家的分页限制
+    setExpandedCountries(new Set());
     setCountryLimits({});
   }, [selectedContinent]);
-
-  // 4. 从地图点击选中特定探头时，自动展开该探头所属国家
-  useEffect(() => {
-    if (!selectedCameraId || !cameras) return;
-    const target = cameras.find((c) => String(c.id) === String(selectedCameraId));
-    if (target?.country) {
-      setExpandedCountries((prev) => {
-        if (prev.has(target.country)) return prev;
-        const next = new Set(prev);
-        next.add(target.country);
-        return next;
-      });
-    }
-  }, [selectedCameraId, cameras]);
 
   // 切换单个国家的展开/折叠
   const handleToggleCountry = (countryName) => {
@@ -341,130 +318,134 @@ export default function LiveCamsSidebar({
               未找到匹配的全球监控探头
             </div>
           ) : (
-            countryGroups.map((g) => {
+            countryGroups.map((g, gIdx) => {
               const isExpanded = expandedCountries.has(g.country);
               const limit = countryLimits[g.country] || 20;
               const visibleList = g.cameras.slice(0, limit);
 
               return (
-                <div key={g.country} className="livecam-country-group">
-                  {/* 国家折叠栏 Header */}
-                  <div
-                    className={`livecam-country-header ${isExpanded ? "is-expanded" : ""}`}
-                    onClick={() => handleToggleCountry(g.country)}
-                  >
-                    <div className="livecam-country-title-box">
-                      <span className="livecam-country-chevron">
-                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      </span>
-                      <span className="livecam-country-flag">
-                        {g.country === "其他地区" || g.country === "Other" ? (
-                          <Globe size={15} className="livecam-country-globe-icon" />
-                        ) : (
-                          <>
-                            <img
-                              src={`${import.meta.env.BASE_URL}flags/circle-195/${encodeURIComponent(g.country)}.png`}
-                              alt={g.country}
-                              className="livecam-country-flag-img"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                if (e.currentTarget.nextSibling) {
-                                  e.currentTarget.nextSibling.style.display = "inline-flex";
-                                }
-                              }}
-                            />
-                            <span style={{ display: "none" }} className="livecam-country-globe-fallback">
-                              <Globe size={15} className="livecam-country-globe-icon" />
-                            </span>
-                          </>
-                        )}
-                      </span>
-                      <span className="livecam-country-name">{g.country}</span>
-                    </div>
-
-                    <div className="livecam-country-badges">
-                      {g.liveCount > 0 && (
-                        <span className="livecam-country-live-badge" title={`${g.liveCount} 个实时视频流`}>
-                          <Video size={10} />
-                          <span>{g.liveCount}</span>
+                  <div key={g.country} className="livecam-country-group">
+                    {/* 国家折叠栏 Header */}
+                    <div
+                      className={`livecam-country-header ${isExpanded ? "is-expanded" : ""}`}
+                      onClick={() => handleToggleCountry(g.country)}
+                    >
+                      <div className="livecam-country-title-box">
+                        <span className={`livecam-country-rank ${gIdx < 3 ? "is-top" : ""}`}>
+                          {String(gIdx + 1).padStart(2, "0")}
                         </span>
-                      )}
-                      <span className="livecam-country-count-badge" title={`${g.cameras.length} 个探头`}>
-                        {g.cameras.length}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 该国家展开的摄像头卡片列表 */}
-                  {isExpanded && (
-                    <div className="livecam-country-cards-wrap">
-                      {visibleList.map((cam) => {
-                        const isSelected = String(selectedCameraId) === String(cam.id);
-                        const isVideo = Boolean(cam.hasLiveVideo);
-                        const poster =
-                          cam.media?.posterUrl ||
-                          "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=300";
-
-                        return (
-                          <div
-                            key={cam.id}
-                            className={`livecam-card-item ${isSelected ? "is-selected" : ""}`}
-                            onClick={() => onSelectCamera(cam)}
-                          >
-                            <div className="livecam-card-thumb-wrap">
+                        <span className="livecam-country-chevron">
+                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </span>
+                        <span className="livecam-country-flag">
+                          {g.country === "其他地区" || g.country === "Other" ? (
+                            <Globe size={15} className="livecam-country-globe-icon" />
+                          ) : (
+                            <>
                               <img
-                                src={poster}
-                                alt={cam.name}
-                                className="livecam-card-thumb"
-                                referrerPolicy="no-referrer"
-                                loading="lazy"
+                                src={`${import.meta.env.BASE_URL}flags/circle-195/${encodeURIComponent(g.country)}.png`}
+                                alt={g.country}
+                                className="livecam-country-flag-img"
                                 onError={(e) => {
-                                  e.target.src =
-                                    "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=300";
+                                  e.currentTarget.style.display = "none";
+                                  if (e.currentTarget.nextSibling) {
+                                    e.currentTarget.nextSibling.style.display = "inline-flex";
+                                  }
                                 }}
                               />
-                              <div className={`livecam-card-live-dot ${isVideo ? "is-video" : ""}`} />
-                            </div>
+                              <span style={{ display: "none" }} className="livecam-country-globe-fallback">
+                                <Globe size={15} className="livecam-country-globe-icon" />
+                              </span>
+                            </>
+                          )}
+                        </span>
+                        <span className="livecam-country-name">{g.country}</span>
+                      </div>
 
-                            <div className="livecam-card-info">
-                              <div className="livecam-card-name" title={cam.name}>
-                                {cam.name}
-                              </div>
-
-                              <div className="livecam-card-sub">
-                                <MapPin size={11} />
-                                <span>{cam.country} · {cam.city}</span>
-                                {isVideo ? (
-                                  <span className="livecam-card-video-tag">60FPS LIVE</span>
-                                ) : (
-                                  <span className="livecam-card-snapshot-tag">快照节点</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {/* 该国内部加载更多 */}
-                      {g.cameras.length > limit && (
-                        <div style={{ padding: "6px 8px 10px 8px" }}>
-                          <button
-                            type="button"
-                            className="livecam-country-loadmore-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLoadMoreForCountry(g.country, g.cameras.length);
-                            }}
-                          >
-                            展开更多 {g.country} 探头 (+20 / 剩余 {g.cameras.length - limit})
-                          </button>
-                        </div>
-                      )}
+                      <div className="livecam-country-badges">
+                        {g.liveCount > 0 && (
+                          <span className="livecam-country-live-badge" title={`${g.liveCount} 个实时视频流`}>
+                            <Video size={10} />
+                            <span>{g.liveCount}</span>
+                          </span>
+                        )}
+                        <span className="livecam-country-count-badge" title={`${g.cameras.length} 个探头`}>
+                          {g.cameras.length}
+                        </span>
+                      </div>
                     </div>
-                  )}
-                </div>
-              );
-            })
+
+                    {/* 该国家展开的摄像头卡片列表 */}
+                    {isExpanded && (
+                      <div className="livecam-country-cards-wrap">
+                        {visibleList.map((cam) => {
+                          const isSelected = String(selectedCameraId) === String(cam.id);
+                          const isVideo = Boolean(cam.hasLiveVideo);
+                          const poster =
+                            cam.media?.posterUrl ||
+                            "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=300";
+
+                          return (
+                            <div
+                              key={cam.id}
+                              className={`livecam-card-item ${isSelected ? "is-selected" : ""}`}
+                              onClick={() => onSelectCamera(cam)}
+                            >
+                              <div className="livecam-card-thumb-wrap">
+                                <img
+                                  src={poster}
+                                  alt={cam.name}
+                                  className="livecam-card-thumb"
+                                  referrerPolicy="no-referrer"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.target.src =
+                                      "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=300";
+                                  }}
+                                />
+                                <div className={`livecam-card-live-dot ${isVideo ? "is-video" : ""}`} />
+                                <span className="livecam-card-play-overlay" aria-hidden="true">▶</span>
+                              </div>
+
+                              <div className="livecam-card-info">
+                                <div className="livecam-card-name" title={cam.name}>
+                                  {cam.name}
+                                </div>
+
+                                <div className="livecam-card-sub">
+                                  <MapPin size={11} />
+                                  <span>{cam.country} · {cam.city}</span>
+                                  {isVideo ? (
+                                    <span className="livecam-card-video-tag">60FPS LIVE</span>
+                                  ) : (
+                                    <span className="livecam-card-snapshot-tag">快照节点</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* 该国内部加载更多 */}
+                        {g.cameras.length > limit && (
+                          <div style={{ padding: "6px 8px 10px 8px" }}>
+                            <button
+                              type="button"
+                              className="livecam-country-loadmore-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLoadMoreForCountry(g.country, g.cameras.length);
+                              }}
+                            >
+                              展开更多 {g.country} 探头 (+20 / 剩余 {g.cameras.length - limit})
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
           )}
         </div>
       </div>

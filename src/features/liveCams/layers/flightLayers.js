@@ -28,8 +28,12 @@ export const FLIGHT_LAYER_IDS = [
 export function initFlightIcons(map) {
   if (!map) return;
 
-  const createPlaneIcon = (id, color, size = 28) => {
-    if (map.hasImage(id)) return;
+  const createPlaneIcon = (id, color, size = 28, useOriginalShadow = false) => {
+    if (map.hasImage(id)) {
+      try {
+        map.removeImage(id);
+      } catch (e) {}
+    }
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
@@ -39,11 +43,19 @@ export function initFlightIcons(map) {
     const cx = size / 2;
     const cy = size / 2;
 
-    // 绘制微光外圈底影，提升在明暗底图上的高辨识度
-    ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
-    ctx.shadowBlur = 3;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 1;
+    if (useOriginalShadow) {
+      // 最原始的民航机样式：#00E5FF 极光青蓝 + 经典黑色微光外圈底影
+      ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1;
+    } else {
+      // 其他飞机样式保持不变
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 3.5;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
 
     // OSIRIS 原生精密飞机多边形拓扑
     ctx.fillStyle = color;
@@ -71,16 +83,16 @@ export function initFlightIcons(map) {
     map.addImage(id, { width: size, height: size, data: new Uint8Array(imgData.data) });
   };
 
-  // 1. 商业客运/货运航班：OSIRIS 极光青蓝
-  createPlaneIcon("plane-cyan", "#00E5FF", 28);
-  // 2. 私人航空器：OSIRIS 薄荷嫩绿
-  createPlaneIcon("plane-green", "#00E676", 28);
-  // 3. 公务喷气机：OSIRIS 亮粉/炽橙
-  createPlaneIcon("plane-pink", "#FF4081", 28);
-  // 4. 军用航空器：OSIRIS 战术绯红
-  createPlaneIcon("plane-red", "#FF3D00", 28);
-  // 5. 选中高亮追踪飞机：耀眼金黄
-  createPlaneIcon("plane-gold", "#FFD700", 32);
+  // 1. 商业客运/货运航班：恢复最原始的 #00E5FF 极光青蓝颜色与阴影样式
+  createPlaneIcon("plane-cyan", "#00E5FF", 28, true);
+  // 2. 私人航空器：保持不变
+  createPlaneIcon("plane-green", "#2ee6b8", 28, false);
+  // 3. 公务喷气机：保持不变
+  createPlaneIcon("plane-pink", "#c084fc", 28, false);
+  // 4. 军用航空器：保持不变
+  createPlaneIcon("plane-red", "#ff9f43", 28, false);
+  // 5. 选中高亮追踪飞机：保持不变
+  createPlaneIcon("plane-gold", "#fde047", 32, false);
 }
 
 /**
@@ -136,7 +148,7 @@ export function initFlightLayers(map) {
           "icon-ignore-placement": true,
         },
         paint: {
-          "icon-opacity": 0.9,
+          "icon-opacity": 1.0,
         },
       });
     }

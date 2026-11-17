@@ -5,7 +5,7 @@
  * OSIRIS (https://osirisai.live/) 仿生全球实时摄像头 (Live World) 模块主入口组件。
  * 融合 3D/2D 投影切换、实时天文晨昏线、全球公开监控流与高阶暗黑科技视觉。
  */
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   RadioTower,
   Globe,
@@ -68,6 +68,10 @@ export default function WorldLiveCams({
   const [currentZoom, setCurrentZoom] = useState(2.3);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [mapTheme, setMapTheme] = useState(getSavedMapTheme);
+  const hasUserSelectedCameraRef = useRef(false);
+  const failedSourcesRef = useRef(new Set());
+  const failedCameraIdsRef = useRef(new Set());
+  const autoFallbackAttemptsRef = useRef(0);
 
   // ── 航班模块状态 (Aviation States) ──
   const [flightsData, setFlightsData] = useState({
@@ -336,13 +340,85 @@ export default function WorldLiveCams({
     }
   }, [mapTheme?.bg, mapTheme?.land, currentZoom, projectionMode, baseMapType]);
 
+  // 当初始默认伦敦摄像头 (tfl-JamCams_00001.09096) 不可用时，随机挑选一个可用的动态视频流摄像头替代
+  const pickRandomAvailableLiveCamera = useCallback(
+    (failedCamera) => {
+      if (failedCamera?.id) {
+        failedCameraIdsRef.current.add(String(failedCamera.id));
+      }
+      if (failedCamera?.source === "TfL" || String(failedCamera?.id || "").startsWith("tfl-")) {
+        failedSourcesRef.current.add("TfL");
+      }
+
+      const pool = (allCameras || RAW_CAMERAS).filter((c) => {
+        if (!c || !c.hasLiveVideo) return false;
+        if (failedCameraIdsRef.current.has(String(c.id))) return false;
+        if (failedSourcesRef.current.has(c.source)) return false;
+        const mType = c.media?.type;
+        return mType === "hls" || mType === "mp4" || mType === "mjpeg";
+      });
+
+      if (pool.length === 0) return;
+
+      // 优先从高连通率实时流源中随机抽选
+      const highReliabilitySources = new Set([
+        "OpenCCTV / dsat",
+        "DelDOT",
+        "MDOT SHA CHART",
+        "nadmorski24.pl",
+        "OpenCCTV / twipcam",
+        "OpenCCTV / taiwan-freeway",
+      ]);
+      const preferredPool = pool.filter((c) => highReliabilitySources.has(c.source));
+      const candidates = preferredPool.length > 0 ? preferredPool : pool;
+      const randomCam = candidates[Math.floor(Math.random() * candidates.length)];
+      if (randomCam) {
+        setSelectedCamera(randomCam);
+      }
+    },
+    [allCameras]
+  );
+
+  // 启动时主动探测默认英国伦敦摄像头是否可用；若源站 404/断流且用户尚未手动选择，则立即切换为随机可用动态摄像头
+  useEffect(() => {
+    if (!INITIAL_CAMERA || hasUserSelectedCameraRef.current) return;
+    const probeUrl = INITIAL_CAMERA.media?.feedUrl || INITIAL_CAMERA.media?.posterUrl;
+    if (!probeUrl) return;
+
+    let cancelled = false;
+    const probeImg = new Image();
+    probeImg.onerror = () => {
+      if (!cancelled && !hasUserSelectedCameraRef.current) {
+        pickRandomAvailableLiveCamera(INITIAL_CAMERA);
+      }
+    };
+    probeImg.src = `${probeUrl}${probeUrl.includes("?") ? "&" : "?"}_probe=${Date.now()}`;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pickRandomAvailableLiveCamera]);
+
+  // 播放器层检测到流异常时的回调：若仍处于初始自动推荐阶段，则自动换一个可用动态探头
+  const handleCameraStreamError = useCallback(
+    (failedCam) => {
+      if (hasUserSelectedCameraRef.current) return;
+      if (autoFallbackAttemptsRef.current >= 6) return;
+      autoFallbackAttemptsRef.current += 1;
+      pickRandomAvailableLiveCamera(failedCam);
+    },
+    [pickRandomAvailableLiveCamera]
+  );
+
   // 选择摄像头
   const handleSelectCamera = useCallback((camera) => {
+    hasUserSelectedCameraRef.current = true;
     setSelectedCamera(camera);
   }, []);
 
   // 切换至下一个摄像头 (在当前过滤列表安全闭环循环，到达最后一路时自动绕回首路)
   const handleNextCamera = useCallback(() => {
+    hasUserSelectedCameraRef.current = true;
     if (!displayedCameras || displayedCameras.length === 0) return;
     const currentIndex = displayedCameras.findIndex(
       (c) => String(c.id) === String(selectedCamera?.id)
@@ -598,6 +674,7 @@ export default function WorldLiveCams({
             camera={selectedCamera}
             onClose={() => setSelectedCamera(null)}
             onNextCamera={handleNextCamera}
+            onStreamError={handleCameraStreamError}
           />
         )}
 

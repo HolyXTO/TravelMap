@@ -25,8 +25,9 @@ import {
   Shuffle,
   Maximize2,
   Loader2,
+  Globe,
 } from "lucide-react";
-import { fetchAircraftDetail, fetchFlightRoute } from "../services/flightService";
+import { fetchAircraftDetail, fetchFlightRoute, AIRLINE_ICAO_MAP } from "../services/flightService";
 import { getCountryDisplayName } from "../utils/airports";
 
 export default function FlightViewer({
@@ -100,12 +101,12 @@ export default function FlightViewer({
 
   const catColor =
     flight.category === "military"
-      ? "#FF3D00"
+      ? "var(--flight-cat-military, #b45309)"
       : flight.category === "jet"
-      ? "#FF4081"
+      ? "var(--flight-cat-jet, #5b21b6)"
       : flight.category === "private"
-      ? "#00E676"
-      : "#00E5FF";
+      ? "var(--flight-cat-private, #0f766e)"
+      : "var(--flight-cat-commercial, #0369a1)";
 
   const catLabel =
     flight.category === "military"
@@ -140,6 +141,24 @@ export default function FlightViewer({
       <div className="livecam-viewer-header">
         <div className="livecam-viewer-title-group">
           <div className="livecam-viewer-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {countryDisplay.flagUrl && !countryDisplay.isGlobe ? (
+              <img
+                src={countryDisplay.flagUrl}
+                alt={countryDisplay.zh}
+                className="livecam-flight-header-flag"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (countryDisplay.fallbackFlagUrl && !img.dataset.retried) {
+                    img.dataset.retried = "1";
+                    img.src = countryDisplay.fallbackFlagUrl;
+                    return;
+                  }
+                  img.style.display = "none";
+                }}
+              />
+            ) : (
+              <Globe size={16} style={{ color: "var(--livecam-cyan)", flexShrink: 0 }} />
+            )}
             <span className="livecam-flight-callsign">
               {cs || hex.toUpperCase()}
             </span>
@@ -151,7 +170,7 @@ export default function FlightViewer({
                 padding: "2px 6px",
                 borderRadius: "4px",
                 background: "rgba(255, 255, 255, 0.06)",
-                border: `1px solid ${catColor}55`,
+                border: "1px solid currentColor",
               }}
             >
               {flight.category?.toUpperCase() || "FLIGHT"}
@@ -227,31 +246,63 @@ export default function FlightViewer({
                   </div>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, padding: "0 8px" }}>
-                  <Plane
-                    size={14}
-                    style={{
-                      color: "var(--livecam-cyan)",
-                      transform: "rotate(45deg)",
-                      marginBottom: "2px",
-                    }}
-                  />
-                  <div className="livecam-flight-route-track">
-                    <div
-                      className="livecam-flight-route-bar"
-                      style={{
-                        width: `${routeData.progress || 50}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="livecam-flight-distance">
-                    {isLocalLoop
-                      ? "本场起降 / 闭环往返"
-                      : routeData.totalDistanceKm
-                      ? `${routeData.totalDistanceKm.toLocaleString()} km · 大圆航线`
-                      : "大圆航线"}
-                  </div>
-                </div>
+                {(() => {
+                  const rawProg = Number(routeData.progress) || 50;
+                  const t = Math.max(0.14, Math.min(0.86, rawProg / 100));
+                  const px = 12 + 156 * t;
+                  const py = 27 * (1 - t) * (1 - t) + 4 * 2 * (1 - t) * t + 27 * t * t;
+                  return (
+                    <div className="livecam-route-arc-wrap">
+                      <svg className="livecam-route-arc-svg" viewBox="0 0 180 32" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id={`routeArcGrad-${hex}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#00e5ff" />
+                            <stop offset="100%" stopColor="#38bdf8" />
+                          </linearGradient>
+                          <clipPath id={`routeArcClip-${hex}`}>
+                            <rect x="0" y="0" width={px} height="32" />
+                          </clipPath>
+                        </defs>
+                        {/* 虚线大圆航线底轨 */}
+                        <path
+                          d="M 12,27 Q 90,4 168,27"
+                          fill="none"
+                          stroke="var(--livecam-border-strong)"
+                          strokeWidth="1.6"
+                          strokeDasharray="3 3"
+                        />
+                        {/* 已飞行高亮弧线段 */}
+                        <path
+                          d="M 12,27 Q 90,4 168,27"
+                          fill="none"
+                          stroke={`url(#routeArcGrad-${hex})`}
+                          strokeWidth="2.4"
+                          strokeLinecap="round"
+                          clipPath={`url(#routeArcClip-${hex})`}
+                        />
+                        {/* 起降机场信标点 */}
+                        <circle cx="12" cy="27" r="3" fill="#00e5ff" />
+                        <circle cx="168" cy="27" r="3" fill="var(--livecam-text-muted)" />
+                      </svg>
+                      <span
+                        className="livecam-route-arc-plane"
+                        style={{
+                          left: `${(px / 180) * 100}%`,
+                          top: `${(py / 32) * 100}%`,
+                        }}
+                      >
+                        <Plane size={13} style={{ transform: "rotate(45deg)" }} />
+                      </span>
+                      <div className="livecam-flight-distance">
+                        {isLocalLoop
+                          ? "本场起降 / 闭环往返"
+                          : routeData.totalDistanceKm
+                          ? `${routeData.totalDistanceKm.toLocaleString()} km · 大圆航线`
+                          : "大圆航线"}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div style={{ textAlign: "right" }}>
                   <div className="livecam-flight-airport-code">
@@ -290,10 +341,11 @@ export default function FlightViewer({
           )}
         </div>
 
-        {/* 2. 实时遥测指标矩阵 (4-cell 仪表网格) */}
+        {/* 2. 实时遥测指标矩阵 (4-cell 仪表网格 + 底部微光量程条) */}
         <div className="livecam-flight-telemetry-section">
           <div className="livecam-flight-telemetry-title">
-            TELEMETRY MATRIX · 飞行遥测
+            <span>TELEMETRY MATRIX · 飞行遥测</span>
+            <span className="livecam-telemetry-live-tag">1090ES SYNC</span>
           </div>
           <div className="livecam-flight-telemetry-grid">
             {/* 高度 */}
@@ -305,6 +357,10 @@ export default function FlightViewer({
               <div className="livecam-flight-telemetry-sub">
                 {altitudeFt ? `${altitudeFt.toLocaleString()} ft` : "地面滑行"}
               </div>
+              <span
+                className="livecam-telemetry-micro-bar"
+                style={{ width: `${Math.min(100, Math.max(8, Math.round((altitudeFt / 42000) * 100)))}%` }}
+              />
             </div>
 
             {/* 地速 */}
@@ -316,6 +372,10 @@ export default function FlightViewer({
               <div className="livecam-flight-telemetry-sub">
                 {speedKmh ? `${speedKmh} km/h` : "—"}
               </div>
+              <span
+                className="livecam-telemetry-micro-bar"
+                style={{ width: `${Math.min(100, Math.max(8, Math.round(((flight.speed_knots || 0) / 580) * 100)))}%` }}
+              />
             </div>
 
             {/* 航向 */}
@@ -328,6 +388,10 @@ export default function FlightViewer({
               <div className="livecam-flight-telemetry-sub">
                 方位基准: 真北地面航迹
               </div>
+              <span
+                className="livecam-telemetry-micro-bar is-subtle"
+                style={{ width: `${Math.min(100, Math.max(10, Math.round(((flight.heading || 0) / 360) * 100)))}%` }}
+              />
             </div>
 
             {/* 应答机 */}
@@ -339,6 +403,10 @@ export default function FlightViewer({
               <div className="livecam-flight-telemetry-sub">
                 状态: {flight.grounded ? "地面停泊" : "在空巡航"}
               </div>
+              <span
+                className="livecam-telemetry-micro-bar is-subtle"
+                style={{ width: flight.grounded ? "25%" : "100%" }}
+              />
             </div>
           </div>
         </div>
@@ -353,7 +421,14 @@ export default function FlightViewer({
             <div className="livecam-flight-identity-row">
               <span className="livecam-flight-identity-label">机型型号:</span>
               <span className="livecam-flight-identity-val">
-                {aircraftDetail?.model || flight.model || "—"}
+                {aircraftDetail?.model ||
+                  (flight.model && flight.model !== "Unknown"
+                    ? flight.model
+                    : isDetailLoading
+                    ? "正在检索档案..."
+                    : flight.category === "commercial"
+                    ? "民航客机 (未广播型号)"
+                    : "通用航空器")}
               </span>
             </div>
             <div className="livecam-flight-identity-row">
@@ -365,7 +440,10 @@ export default function FlightViewer({
             <div className="livecam-flight-identity-row">
               <span className="livecam-flight-identity-label">所属运营方:</span>
               <span className="livecam-flight-identity-val" style={{ opacity: 0.9 }}>
-                {aircraftDetail?.operator || routeData?.airline || "—"}
+                {aircraftDetail?.operator ||
+                  routeData?.airline ||
+                  AIRLINE_ICAO_MAP[(flight.airline_code || "").toUpperCase()] ||
+                  "—"}
               </span>
             </div>
             <div className="livecam-flight-identity-row">

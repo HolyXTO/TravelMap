@@ -3761,4 +3761,276 @@
   border-color: rgba(2, 132, 199, 0.3);
 }
 
+/* =========================================================================
+   左侧栏国家排名序列徽章、抽屉头部国旗与内敛航空分类色彩系统
+   ========================================================================= */
+.livecam-shell {
+  --flight-cat-all: #f1f5f9;
+  --flight-cat-commercial: #5cc8ff;
+  --flight-cat-private: #2ee6b8;
+  --flight-cat-jet: #c084fc;
+  --flight-cat-military: #ff9f43;
+}
+
+.livecam-shell.is-light-theme {
+  --flight-cat-all: #1e293b;
+  --flight-cat-commercial: #0ea5e9;
+  --flight-cat-private: #10b981;
+  --flight-cat-jet: #8b5cf6;
+  --flight-cat-military: #f59e0b;
+}
+
+.livecam-flight-cat-btn.cat-all .livecam-flight-cat-count {
+  color: var(--flight-cat-all);
+}
+
+.livecam-flight-cat-btn.cat-commercial .livecam-flight-cat-count {
+  color: var(--flight-cat-commercial);
+}
+
+.livecam-flight-cat-btn.cat-private .livecam-flight-cat-count {
+  color: var(--flight-cat-private);
+}
+
+.livecam-flight-cat-btn.cat-jet .livecam-flight-cat-count {
+  color: var(--flight-cat-jet);
+}
+
+.livecam-flight-cat-btn.cat-military .livecam-flight-cat-count {
+  color: var(--flight-cat-military);
+}
+
+.livecam-flight-cat-btn.is-active .livecam-flight-cat-count {
+  color: #ffffff !important;
+}
+
+.livecam-flight-header-flag {
+  width: 22px;
+  height: 15px;
+  border-radius: 3px;
+  object-fit: cover;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  flex-shrink: 0;
+}
+
+.livecam-country-rank {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--livecam-text-muted);
+  background: var(--livecam-surface-subtle, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--livecam-border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  padding: 1px 4.5px;
+  line-height: 1.2;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.livecam-country-rank.is-top {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+/* 摄像头卡片缩略图悬停准星播放标 */
+.livecam-card-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 11, 22, 0.48);
+  color: #ffffff;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+
+.livecam-card-item:hover .livecam-card-play-overlay,
+.livecam-card-item.is-selected .livecam-card-play-overlay {
+  opacity: 1;
+}
+
+/* 航班卡片雷达罗盘缩略框与分类简写标 */
+.livecam-flight-radar-thumb {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 9px !important;
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.12) 0%, var(--livecam-card-bg) 75%) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.livecam-flight-radar-thumb .radar-thumb-ring {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1px dashed rgba(0, 229, 255, 0.35);
+}
+
+.livecam-flight-mini-cat {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 0.5px 4px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+}
+
+/* =========================================================================
+   四、右侧详情抽屉：大圆航线弧形轨迹与光学取景准星 (Drawer Telemetry Upgrade)
+   ========================================================================= */
+.livecam-route-arc-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  padding: 0 8px;
+  position: relative;
+}
+
+.livecam-route-arc-svg {
+  width: 100%;
+  height: 28px;
+  overflow: visible;
+  display: block;
+}
+
+.livecam-route-arc-plane {
+  position: absolute;
+  transform: translate(-50%, -58%);
+  color: var(--livecam-cyan, #00e5ff);
+  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.65));
+  pointer-events: none;
+  transition: left 0.35s ease, top 0.35s ease;
+}
+
+.livecam-flight-telemetry-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.livecam-telemetry-live-tag {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--livecam-cyan, #00e5ff);
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.livecam-flight-telemetry-cell {
+  position: relative;
+  overflow: hidden;
+}
+
+.livecam-telemetry-micro-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--livecam-cyan, #00e5ff) 0%, #3b82f6 100%);
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.livecam-telemetry-micro-bar.is-subtle {
+  opacity: 0.38;
+}
+
+/* 摄像头播放器光学取景四角准星 */
+.livecam-viewfinder-corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: rgba(0, 229, 255, 0.55);
+  border-style: solid;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.livecam-viewfinder-corner.is-tl {
+  top: 7px;
+  left: 7px;
+  border-width: 1.5px 0 0 1.5px;
+}
+
+.livecam-viewfinder-corner.is-tr {
+  top: 7px;
+  right: 7px;
+  border-width: 1.5px 1.5px 0 0;
+}
+
+.livecam-viewfinder-corner.is-bl {
+  bottom: 7px;
+  left: 7px;
+  border-width: 0 0 1.5px 1.5px;
+}
+
+.livecam-viewfinder-corner.is-br {
+  bottom: 7px;
+  right: 7px;
+  border-width: 0 1.5px 1.5px 0;
+}
+
+.livecam-data-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.livecam-signal-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+}
+
+.livecam-signal-bars i {
+  display: inline-block;
+  width: 2.5px;
+  border-radius: 1px;
+  background: #00e676;
+  animation: livecam-sig-bounce 1.2s ease-in-out infinite alternate;
+}
+
+.livecam-signal-bars i:nth-child(1) {
+  height: 4px;
+  animation-delay: 0s;
+}
+.livecam-signal-bars i:nth-child(2) {
+  height: 7px;
+  animation-delay: 0.2s;
+}
+.livecam-signal-bars i:nth-child(3) {
+  height: 10px;
+  animation-delay: 0.4s;
+}
+.livecam-signal-bars i:nth-child(4) {
+  height: 6px;
+  animation-delay: 0.1s;
+}
+
+@keyframes livecam-sig-bounce {
+  from {
+    opacity: 0.45;
+    transform: scaleY(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+
 

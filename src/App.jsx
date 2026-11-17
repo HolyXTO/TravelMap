@@ -4921,6 +4921,8 @@ function VisualJourneyTimeline({
   const [dragOverMomentId, setDragOverMomentId] = useState(null);
   const [dropSuccessIds, setDropSuccessIds] = useState([]);
   const [reorderToast, setReorderToast] = useState(null);
+  const [collapsedYears, setCollapsedYears] = useState(() => new Set());
+  const [expandedFlagYears, setExpandedFlagYears] = useState(() => new Set());
   const toastTimerRef = useRef(null);
   const successTimerRef = useRef(null);
 
@@ -5055,11 +5057,11 @@ function VisualJourneyTimeline({
     });
 
     const list = Object.values(groupMap);
-    // 从早到晚排序：
+    // 按时间倒序排列（最新到访的城市排在最前面；常驻/多次始终排在最后）：
     list.sort((a, b) => {
       if (a.date === "常驻/多次") return 1;
       if (b.date === "常驻/多次") return -1;
-      const dateDiff = a.date.localeCompare(b.date);
+      const dateDiff = b.date.localeCompare(a.date);
       if (dateDiff !== 0) return dateDiff;
 
       // 同一天多地点先后顺序
@@ -5086,7 +5088,7 @@ function VisualJourneyTimeline({
     return list;
   }, [visits, placeLookup, sameDayOrders]);
 
-  // 年份统计元数据
+  // 年份统计元数据（含各国国旗对象收集与感知非线性高度归一化，彻底消除单年峰值压扁其余年份的问题）
   const yearsSummary = useMemo(() => {
     const summary = {};
     allMoments.forEach((m) => {
@@ -5097,6 +5099,7 @@ function VisualJourneyTimeline({
           count: 0,
           cities: new Set(),
           countries: new Set(),
+          countryPlacesMap: new Map(),
           months: {},
           themeTag: YEAR_THEME_LABELS[y] || "行止之间 · 岁月沉香",
         };
@@ -5104,6 +5107,11 @@ function VisualJourneyTimeline({
       summary[y].count++;
       if (m.cityName) summary[y].cities.add(m.cityName);
       if (m.countryName) summary[y].countries.add(m.countryName);
+      if (m.countryPlace && m.countryName) {
+        if (!summary[y].countryPlacesMap.has(m.countryName)) {
+          summary[y].countryPlacesMap.set(m.countryName, m.countryPlace);
+        }
+      }
       if (m.month) {
         summary[y].months[m.month] = (summary[y].months[m.month] || 0) + 1;
       }
@@ -5112,18 +5120,23 @@ function VisualJourneyTimeline({
     const sortedYears = Object.keys(summary).sort((a, b) => {
       if (a === "常驻/多次") return 1;
       if (b === "常驻/多次") return -1;
-      return a.localeCompare(b);
+      return b.localeCompare(a);
     });
 
+    let maxDatedCount = 1;
     let maxCount = 1;
     sortedYears.forEach((y) => {
       if (summary[y].count > maxCount) maxCount = summary[y].count;
+      if (y !== "常驻/多次" && summary[y].count > maxDatedCount) {
+        maxDatedCount = summary[y].count;
+      }
     });
 
     return {
       years: sortedYears,
       data: summary,
       maxCount,
+      maxDatedCount: Math.max(1, maxDatedCount),
     };
   }, [allMoments]);
 
@@ -5160,6 +5173,60 @@ function VisualJourneyTimeline({
       return true;
     });
   }, [allMoments, timelineProfile, viewMode, selectedYear, selectedMonth, searchQuery, xiaoId, tangId]);
+
+  // 为每条足迹生成全局编年序号 (按时间先后从 NO. 001 ~ NO. N)
+  const momentSerialMap = useMemo(() => {
+    const map = new Map();
+    const chronological = [...allMoments].sort((a, b) => {
+      if (a.date === "常驻/多次") return 1;
+      if (b.date === "常驻/多次") return -1;
+      const d = a.date.localeCompare(b.date);
+      if (d !== 0) return d;
+      return a.id.localeCompare(b.id);
+    });
+    chronological.forEach((m, idx) => {
+      map.set(m.id, String(idx + 1).padStart(3, "0"));
+    });
+    return map;
+  }, [allMoments]);
+
+  // 计算每个年份在时光波浪图中的感知高度百分比与平滑贝塞尔曲线路径（仅连接真实年份，不连接常驻）
+  const yearWaveMetrics = useMemo(() => {
+    const n = availableYears.length;
+    if (n === 0) return { heights: {}, linePath: "", areaPath: "", points: [] };
+
+    const heights = {};
+    const pts = availableYears.map((y, idx) => {
+      const count = yearsSummary.data[y]?.count || 0;
+      const refMax = y === "常驻/多次" ? yearsSummary.maxCount : yearsSummary.maxDatedCount;
+      const ratio = Math.min(1, count / Math.max(1, refMax));
+      const pct = count === 0 ? 18 : Math.round(24 + Math.pow(ratio, 0.48) * 74);
+      heights[y] = pct;
+
+      const x = n === 1 ? 500 : ((idx + 0.5) / n) * 1000;
+      const yCoord = 96 - (pct / 100) * 76;
+      return { x, y: yCoord, year: y, count, pct };
+    });
+
+    // 仅对真实编年（2026 -> 2013）绘制连续波浪线，不把最后的“常驻/多次”连入曲线
+    const datedPts = pts.filter((p) => p.year !== "常驻/多次");
+    let linePath = "";
+    if (datedPts.length > 0) {
+      linePath = `M ${datedPts[0].x.toFixed(1)} ${datedPts[0].y.toFixed(1)}`;
+      for (let i = 0; i < datedPts.length - 1; i++) {
+        const p0 = datedPts[i];
+        const p1 = datedPts[i + 1];
+        const cx = ((p0.x + p1.x) / 2).toFixed(1);
+        linePath += ` C ${cx} ${p0.y.toFixed(1)}, ${cx} ${p1.y.toFixed(1)}, ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`;
+      }
+    }
+
+    const firstX = datedPts[0]?.x.toFixed(1) || "0";
+    const lastX = datedPts[datedPts.length - 1]?.x.toFixed(1) || "1000";
+    const areaPath = linePath ? `${linePath} L ${lastX} 100 L ${firstX} 100 Z` : "";
+
+    return { heights, linePath, areaPath, points: pts };
+  }, [availableYears, yearsSummary]);
 
   // 按年份分组供视图渲染
   const groupedMomentsByYear = useMemo(() => {
@@ -5203,13 +5270,38 @@ function VisualJourneyTimeline({
   const handleSelectYear = (year) => {
     const idx = availableYears.indexOf(year);
     if (idx !== -1) setScrubberIndex(idx);
+    setCollapsedYears((prev) => {
+      if (!prev.has(year)) return prev;
+      const next = new Set(prev);
+      next.delete(year);
+      return next;
+    });
     if (viewMode === "focus") {
       setSelectedYear(year);
       setSelectedMonth("all");
     } else {
-      scrollToYearElement(year, true);
+      setTimeout(() => scrollToYearElement(year, true), 20);
     }
   };
+
+  const toggleYearCollapse = useCallback((year) => {
+    setCollapsedYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(year)) next.delete(year);
+      else next.add(year);
+      return next;
+    });
+  }, []);
+
+  const toggleFlagExpand = useCallback((e, year) => {
+    e.stopPropagation();
+    setExpandedFlagYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(year)) next.delete(year);
+      else next.add(year);
+      return next;
+    });
+  }, []);
 
   // 时光回放定时器
   useEffect(() => {
@@ -5375,31 +5467,122 @@ function VisualJourneyTimeline({
     setDragOverMomentId(null);
   };
 
+  // 格式化经纬度显示（兼容 place.center = [lng, lat] 与 place.lat/lng）
+  const formatMomentCoords = (place) => {
+    if (!place) return null;
+    const coords =
+      placeLatLng(place) ||
+      (typeof place.lat === "number" && typeof place.lng === "number"
+        ? { lat: place.lat, lng: place.lng }
+        : null);
+    if (!coords) return null;
+    const latStr = `${Math.abs(coords.lat).toFixed(2)}°${coords.lat >= 0 ? "N" : "S"}`;
+    const lngStr = `${Math.abs(coords.lng).toFixed(2)}°${coords.lng >= 0 ? "E" : "W"}`;
+    return `${latStr} · ${lngStr}`;
+  };
+
+  // 严格按照 availableYears（2026 -> 2013 -> 常驻/多次）顺序生成年份列表，避免 JS Object.keys 将数字年份强制升序排列
+  const visibleYearKeys = useMemo(
+    () => availableYears.filter((y) => groupedMomentsByYear[y]?.length > 0),
+    [availableYears, groupedMomentsByYear]
+  );
+  const datedYears = useMemo(
+    () => availableYears.filter((y) => y !== "常驻/多次"),
+    [availableYears]
+  );
+  const newestYear = datedYears[0] || availableYears[0] || "2026";
+  const earliestYear = datedYears[datedYears.length - 1] || availableYears[0] || "2013";
+  const hasResidentGroup = availableYears.includes("常驻/多次");
+
+  const isAllYearsCollapsed =
+    visibleYearKeys.length > 0 && visibleYearKeys.every((y) => collapsedYears.has(y));
+  const handleToggleAllYears = () => {
+    if (isAllYearsCollapsed) {
+      setCollapsedYears(new Set());
+    } else {
+      setCollapsedYears(new Set(visibleYearKeys));
+    }
+  };
+
   return (
     <div className="journey-timeline-card" id="journey-timeline-section">
-      {/* 头部标题与统计 */}
+      {/* 1. 单行紧凑标题与多维交互控制台 */}
       <div className="timeline-header">
-        <div className="timeline-title-row">
-          <div className="timeline-title-left">
-            <Sparkles size={22} className="timeline-sparkle-icon" />
-            <h3>
-              时光足迹 · <span className="timeline-sub-en">Journey Timeline</span>
-            </h3>
-            <div className="timeline-badge-group">
-              <span className="timeline-pill-badge highlight">
-                <Calendar size={13} /> 2013 - 2026 · 13年时光流转
-              </span>
-              <span className="timeline-pill-badge">
-                <Compass size={13} /> {totalStats.momentsCount}次足迹
-              </span>
-              <span className="timeline-pill-badge">
-                <MapPin size={13} /> {totalStats.cityCount} 座城市 · {totalStats.countryCount} 个国家
-              </span>
+        <div className="timeline-controls-bar">
+          <div className="timeline-controls-left">
+            <div className="timeline-main-title-row">
+              <Sparkles size={18} className="timeline-sparkle-icon" />
+              <h3>
+                时光足迹 <span className="timeline-title-divider">·</span>{" "}
+                <span className="timeline-sub-en">JOURNEY TIMELINE</span>
+              </h3>
             </div>
+
+            <span className="timeline-dock-sep" />
+
+            {/* 旅人视角切换 */}
+            <div className="timeline-segmented-dock" role="group" aria-label="旅人筛选">
+              <button
+                type="button"
+                className={`timeline-seg-btn ${timelineProfile === "all" ? "active" : ""}`}
+                onClick={() => setTimelineProfile("all")}
+              >
+                <span className="seg-dot is-dual" />
+                <span>Xiao & Tang</span>
+              </button>
+              <button
+                type="button"
+                className={`timeline-seg-btn xiao ${timelineProfile === xiaoId ? "active" : ""}`}
+                onClick={() => setTimelineProfile(xiaoId)}
+              >
+                <span className="seg-dot is-xiao" />
+                <span>Xiao</span>
+              </button>
+              <button
+                type="button"
+                className={`timeline-seg-btn tang ${timelineProfile === tangId ? "active" : ""}`}
+                onClick={() => setTimelineProfile(tangId)}
+              >
+                <span className="seg-dot is-tang" />
+                <span>Tang</span>
+              </button>
+            </div>
+
+            {visibleYearKeys.length > 1 && (
+              <button
+                type="button"
+                className="timeline-expand-all-btn"
+                onClick={handleToggleAllYears}
+                title={isAllYearsCollapsed ? "展开全部年份卡片" : "收起全部年份卡片"}
+              >
+                {isAllYearsCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+                <span>{isAllYearsCollapsed ? "全部展开" : "全部收起"}</span>
+              </button>
+            )}
           </div>
 
-          <div className="timeline-filter-group">
-            {/* 自动回溯播放按钮 */}
+          <div className="timeline-controls-right">
+            {/* 实时搜索框 */}
+            <div className="timeline-search-box">
+              <Search size={14} className="timeline-search-icon" />
+              <input
+                type="text"
+                placeholder="检索城市、国家或年份..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="timeline-search-clear"
+                  onClick={() => setSearchQuery("")}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* 时光回溯放映机按钮 */}
             <button
               type="button"
               className={`timeline-play-btn ${isPlaying ? "playing" : ""}`}
@@ -5407,132 +5590,117 @@ function VisualJourneyTimeline({
               title={isPlaying ? "点击暂停自动回溯" : "点击逐年自动回溯足迹时光"}
             >
               {isPlaying ? <Pause size={14} /> : <Play size={14} />}
-              {isPlaying ? "暂停回溯" : "时光回溯播放"}
+              <span>{isPlaying ? "暂停放映" : "时光回溯放映"}</span>
             </button>
-
-            {/* 模式切换：连续长轴 vs 年份聚焦 */}
-            <button
-              type="button"
-              className={`timeline-toggle-btn ${viewMode === "stream" ? "active" : ""}`}
-              onClick={() => {
-                setViewMode("stream");
-                setSelectedYear("all");
-                setSelectedMonth("all");
-              }}
-            >
-              连续长轴
-            </button>
-            <button
-              type="button"
-              className={`timeline-toggle-btn ${viewMode === "focus" ? "active" : ""}`}
-              onClick={() => {
-                setViewMode("focus");
-                setSelectedYear(currentScrubberYear);
-                setSelectedMonth("all");
-              }}
-            >
-              年份聚焦
-            </button>
-          </div>
-        </div>
-
-        {/* 控制与筛选栏 */}
-        <div className="timeline-controls-bar">
-          {/* 人员筛选 */}
-          <div className="timeline-filter-group">
-            <span style={{ fontSize: "12px", fontWeight: "700", color: "#64748b" }}>人员：</span>
-            <button
-              type="button"
-              className={`timeline-toggle-btn ${timelineProfile === "all" ? "active" : ""}`}
-              onClick={() => setTimelineProfile("all")}
-            >
-              全部（Xiao & Tang）
-            </button>
-            <button
-              type="button"
-              className={`timeline-toggle-btn xiao ${timelineProfile === xiaoId ? "active" : ""}`}
-              onClick={() => setTimelineProfile(xiaoId)}
-            >
-              Xiao
-            </button>
-            <button
-              type="button"
-              className={`timeline-toggle-btn tang ${timelineProfile === tangId ? "active" : ""}`}
-              onClick={() => setTimelineProfile(tangId)}
-            >
-              Tang
-            </button>
-          </div>
-
-          {/* 实时搜索框 */}
-          <div className="timeline-search-box">
-            <Search size={14} color="#94a3b8" />
-            <input
-              type="text"
-              placeholder="搜索城市、国家、日期..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }}
-              >
-                <X size={13} color="#94a3b8" />
-              </button>
-            )}
           </div>
         </div>
       </div>
 
-      {/* 宏观时间流速刻度与拖拽游标 */}
+      {/* 2. 明亮清爽的时光波浪图谱与年份游标 (倒序：2026 -> 2013，常驻独立置于末尾) */}
       <div className="timeline-scrubber-section">
-        <div className="timeline-scrubber-top">
-          <span>
-            🗓️ 拖拽滑块或点击年份跳至该年足迹（柱高代表到访频次）：
-            <strong style={{ color: "#2563eb", marginLeft: 6 }}>
-              {currentScrubberYear}年 {currentScrubberData ? `(到访 ${currentScrubberData.count} 次)` : ""}
-            </strong>
-          </span>
-          <div style={{ display: "flex", gap: "8px" }}>
+        {/* 当前聚焦年份信息条 */}
+        <div className="timeline-spotlight-bar">
+          <div className="timeline-spotlight-left">
+            <span className="timeline-spotlight-year-badge">
+              {currentScrubberYear === "常驻/多次" ? "常驻与多次" : `${currentScrubberYear} 年`}
+            </span>
+            {currentScrubberData && (
+              <span className="timeline-spotlight-metrics">
+                到访 <strong>{currentScrubberData.count}</strong> 次 · 跨越{" "}
+                <strong>{currentScrubberData.cities.size}</strong> 城 /{" "}
+                <strong>{currentScrubberData.countries.size}</strong> 国
+              </span>
+            )}
+          </div>
+
+          <div className="timeline-spotlight-jumps">
             <button
               type="button"
-              className="timeline-locate-btn"
-              onClick={() => handleSelectYear(availableYears[0])}
+              className={`timeline-jump-pill ${currentScrubberYear === newestYear ? "is-active" : ""}`}
+              onClick={() => handleSelectYear(newestYear)}
             >
-              起点 ({availableYears[0]})
+              ⏮ 最新 ({newestYear})
             </button>
             <button
               type="button"
-              className="timeline-locate-btn"
-              onClick={() => handleSelectYear(availableYears[availableYears.length - 1])}
+              className={`timeline-jump-pill ${currentScrubberYear === earliestYear ? "is-active" : ""}`}
+              onClick={() => handleSelectYear(earliestYear)}
             >
-              最新 ({availableYears[availableYears.length - 1]})
+              启程 ({earliestYear}) ⏭
             </button>
+            {hasResidentGroup && (
+              <button
+                type="button"
+                className={`timeline-jump-pill is-resident ${
+                  currentScrubberYear === "常驻/多次" ? "is-active" : ""
+                }`}
+                onClick={() => handleSelectYear("常驻/多次")}
+              >
+                常驻足迹
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 热力刻度槽 */}
+        {/* 波浪曲线衬底 + 立体晶柱刻度槽（常驻不连入波浪线） */}
         <div className="timeline-density-track">
+          {/* SVG 连续流光波浪背景层（仅连接 2026 -> 2013） */}
+          {yearWaveMetrics.linePath && (
+            <svg
+              className="timeline-wave-svg"
+              viewBox="0 0 1000 100"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <defs>
+                <linearGradient id="timelineWaveAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0d9488" stopOpacity="0.18" />
+                  <stop offset="60%" stopColor="#0ea5e9" stopOpacity="0.06" />
+                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.0" />
+                </linearGradient>
+                <linearGradient id="timelineWaveLineGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#0d9488" />
+                  <stop offset="50%" stopColor="#0284c7" />
+                  <stop offset="100%" stopColor="#f59e0b" />
+                </linearGradient>
+              </defs>
+              <path d={yearWaveMetrics.areaPath} fill="url(#timelineWaveAreaGrad)" />
+              <path
+                d={yearWaveMetrics.linePath}
+                fill="none"
+                stroke="url(#timelineWaveLineGrad)"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                className="timeline-wave-stroke"
+              />
+            </svg>
+          )}
+
           {availableYears.map((y, idx) => {
             const yearData = yearsSummary.data[y];
             const count = yearData ? yearData.count : 0;
-            const heightPercent = Math.max(16, Math.min(100, Math.round((count / yearsSummary.maxCount) * 100)));
-            const isSelected = (viewMode === "focus" && selectedYear === y) || (viewMode === "stream" && scrubberIndex === idx);
+            const heightPercent = yearWaveMetrics.heights[y] || 24;
+            const isSelected = scrubberIndex === idx;
+            const isResident = y === "常驻/多次";
 
             return (
               <div
                 key={y}
-                className={`timeline-year-notch ${isSelected ? "active" : ""}`}
+                className={`timeline-year-notch ${isSelected ? "active" : ""} ${
+                  isResident ? "is-resident-notch" : ""
+                }`}
                 onClick={() => handleSelectYear(y)}
-                title={`${y}年：到访 ${count} 次地点`}
+                title={`${y === "常驻/多次" ? "常驻与多次" : `${y}年`}：到访 ${count} 次地点（${
+                  yearData?.cities.size || 0
+                } 城 / ${yearData?.countries.size || 0} 国）`}
               >
                 <div className="timeline-notch-bar-wrap">
                   <span className="timeline-notch-count">{count}</span>
-                  <div className="timeline-notch-bar" style={{ height: `${heightPercent}%` }} />
+                  <div className="timeline-notch-bar" style={{ height: `${heightPercent}%` }}>
+                    <span className="timeline-notch-cap" />
+                  </div>
                 </div>
-                <span className="timeline-notch-label">{y === "常驻/多次" ? "常驻" : y}</span>
+                <span className="timeline-notch-label">{isResident ? "常驻" : y}</span>
               </div>
             );
           })}
@@ -5543,187 +5711,285 @@ function VisualJourneyTimeline({
           <input
             type="range"
             min={0}
-            max={availableYears.length - 1}
+            max={Math.max(0, availableYears.length - 1)}
             value={scrubberIndex}
             onChange={handleScrubberChange}
             className="timeline-scrubber-slider"
           />
         </div>
-
-        {/* 月份细分子尺度标签（单年聚焦模式下展开） */}
-        {viewMode === "focus" && selectedYear !== "all" && yearsSummary.data[selectedYear] && (
-          <div className="timeline-month-chips">
-            <span className="timeline-month-title">📅 月份精细尺度：</span>
-            <button
-              type="button"
-              className={`timeline-month-pill ${selectedMonth === "all" ? "active" : ""}`}
-              onClick={() => setSelectedMonth("all")}
-            >
-              全年全部 ({yearsSummary.data[selectedYear].count})
-            </button>
-            {Object.keys(yearsSummary.data[selectedYear].months).sort().map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={`timeline-month-pill ${selectedMonth === m ? "active" : ""}`}
-                onClick={() => setSelectedMonth(m)}
-              >
-                {parseInt(m, 10)}月 ({yearsSummary.data[selectedYear].months[m]})
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* 足迹时刻流长卷 */}
+      {/* 3. 编年足迹长卷（倒序排列、单行稳固章头 + 独立展开国家名录画廊、固定3列等宽卡片） */}
       <div className="timeline-stream-container" ref={timelineScrollRef}>
         {filteredMoments.length === 0 ? (
           <div className="timeline-empty-hint">
-            <p>该筛选条件下暂无足迹记录</p>
+            <Compass size={28} style={{ opacity: 0.45, marginBottom: 6 }} />
+            <p>该筛选条件下暂无匹配的足迹记录</p>
           </div>
         ) : (
-          Object.keys(groupedMomentsByYear).map((year) => {
+          visibleYearKeys.map((year) => {
             const yearMoments = groupedMomentsByYear[year];
             const summary = yearsSummary.data[year];
+            const yearCountryPlaces = summary ? Array.from(summary.countryPlacesMap.values()) : [];
+            const isYearCollapsed = collapsedYears.has(year);
+            const isFlagsExpanded = expandedFlagYears.has(year);
+            const MAX_INLINE_FLAGS = 19;
+            const visibleFlagPlaces = isFlagsExpanded
+              ? yearCountryPlaces
+              : yearCountryPlaces.slice(0, MAX_INLINE_FLAGS);
+            const hiddenFlagCount = Math.max(0, yearCountryPlaces.length - MAX_INLINE_FLAGS);
 
             return (
-              <div key={year} className="timeline-year-group" id={`timeline-year-node-${year}`}>
-                <div className="timeline-year-milestone">
-                  <div className="timeline-milestone-marker">
-                    <div className="timeline-milestone-dot" />
-                    <span className="timeline-year-text">{year === "常驻/多次" ? "常驻与多次到访" : `${year} 年`}</span>
-                    <span className="timeline-year-tag">{summary?.themeTag}</span>
-                  </div>
-                  {summary && (
-                    <div className="timeline-year-stats">
-                      <span>📍 {summary.cities.size} 座城市 · {summary.countries.size} 个国家</span>
-                      <span className="timeline-stat-sep">/</span>
-                      <span>{yearMoments.length} 处足迹</span>
+              <div
+                key={year}
+                className={`timeline-year-group ${isYearCollapsed ? "is-collapsed" : ""}`}
+                id={`timeline-year-node-${year}`}
+              >
+                {/* 年份章头横幅：左侧年份+统计，右侧国旗（超出时直接展开为2~3行纯国旗，不显示多余文字名录） */}
+                <div
+                  className="timeline-year-milestone"
+                  onClick={() => toggleYearCollapse(year)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleYearCollapse(year);
+                    }
+                  }}
+                >
+                  <div className="timeline-year-bar-main">
+                    <div className="timeline-milestone-marker">
+                      <div className="timeline-milestone-dot">
+                        <span className="timeline-milestone-ring" />
+                      </div>
+                      <span className="timeline-year-text">
+                        {year === "常驻/多次" ? "常驻与多次到访" : year}
+                      </span>
+                      {summary && (
+                        <div className="timeline-year-stats">
+                          <span>{summary.cities.size} 城</span>
+                          <span className="timeline-stat-sep">·</span>
+                          <span>{summary.countries.size} 国</span>
+                          <span className="timeline-stat-sep">·</span>
+                          <strong>{yearMoments.length} 处足迹</strong>
+                        </div>
+                      )}
                     </div>
-                  )}
+
+                    <div className="timeline-year-right-meta">
+                      {/* 国旗勋章带：默认单行展示18枚，点击 +N 后按钮位置固定在首行最右侧原处，其余国旗向下对齐展开 */}
+                      {yearCountryPlaces.length > 0 && (
+                        <div
+                          className={`timeline-year-flags-strip ${isFlagsExpanded ? "is-expanded" : ""}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div
+                            className={`timeline-year-flags-grid ${
+                              yearCountryPlaces.length > MAX_INLINE_FLAGS ? "is-multi-col" : ""
+                            }`}
+                          >
+                            {visibleFlagPlaces.map((cp, idx) => (
+                              <span
+                                key={cp.id || idx}
+                                className="timeline-year-mini-flag"
+                                title={displayCountryName(cp)}
+                              >
+                                <FlagIcon place={cp} />
+                              </span>
+                            ))}
+                          </div>
+                          {yearCountryPlaces.length > MAX_INLINE_FLAGS && (
+                            <button
+                              type="button"
+                              className={`timeline-year-flag-more ${isFlagsExpanded ? "is-active" : ""}`}
+                              onClick={(e) => toggleFlagExpand(e, year)}
+                              title={
+                                isFlagsExpanded
+                                  ? "收起国旗"
+                                  : `点击展开全部 ${yearCountryPlaces.length} 个国家国旗`
+                              }
+                            >
+                              {isFlagsExpanded ? "收起" : `+${hiddenFlagCount}`}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        className={`timeline-year-collapse-btn ${isYearCollapsed ? "is-collapsed" : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleYearCollapse(year);
+                        }}
+                        title={isYearCollapsed ? `展开 ${year} 年足迹` : `收起 ${year} 年足迹`}
+                      >
+                        <span>{isYearCollapsed ? "展开" : "收起"}</span>
+                        {isYearCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="timeline-moments-grid">
-                  {yearMoments.map((moment) => {
-                    const hasXiao = moment.profiles.includes(xiaoId);
-                    const hasTang = moment.profiles.includes(tangId);
-                    const isDual = hasXiao && hasTang;
+                {/* 3列等宽足迹卡片网格（支持按年份展开/收起，单卡/双卡同样保持 1/3 宽度） */}
+                {!isYearCollapsed && (
+                  <div className="timeline-moments-grid">
+                    {yearMoments.map((moment) => {
+                      const hasXiao = moment.profiles.includes(xiaoId);
+                      const hasTang = moment.profiles.includes(tangId);
+                      const isDual = hasXiao && hasTang;
+                      const travelerClass = isDual
+                        ? "traveler-dual"
+                        : hasXiao
+                        ? "traveler-xiao"
+                        : "traveler-tang";
 
-                    const isSameDayMulti = (sameDayCounts[moment.date] || 0) > 1;
-                    let canReorder = false;
+                      const isSameDayMulti = (sameDayCounts[moment.date] || 0) > 1;
+                      let canReorder = false;
 
-                    if (isSameDayMulti) {
-                      const sameDayList = yearMoments.filter((m) => m.date === moment.date);
-                      if (sameDayList.length > 1) {
-                        canReorder = true;
+                      if (isSameDayMulti) {
+                        const sameDayList = yearMoments.filter((m) => m.date === moment.date);
+                        if (sameDayList.length > 1) {
+                          canReorder = true;
+                        }
                       }
-                    }
 
-                    const isDraggingThis = draggingMomentId === moment.id;
-                    const isDragOverThis = dragOverMomentId === moment.id;
-                    const isJustDroppedThis = dropSuccessIds.includes(moment.id);
+                      const isDraggingThis = draggingMomentId === moment.id;
+                      const isDragOverThis = dragOverMomentId === moment.id;
+                      const isJustDroppedThis = dropSuccessIds.includes(moment.id);
 
-                    // 计算评分字符串
-                    let ratingContent = null;
-                    const rXiao = moment.ratings[xiaoId];
-                    const rTang = moment.ratings[tangId];
-                    if (isDual) {
-                      if (rXiao && rTang && rXiao === rTang) {
-                        ratingContent = `★ ${rXiao.toFixed(1)}`;
-                      } else if (rXiao || rTang) {
+                      // 计算评分字符串（无论单人或双人，均明确标注姓名，如 ★ Xiao 7.0）
+                      let ratingContent = null;
+                      const rXiao = moment.ratings[xiaoId];
+                      const rTang = moment.ratings[tangId];
+                      if (rXiao || rTang) {
                         const parts = [];
                         if (rXiao) parts.push(`Xiao ${rXiao.toFixed(1)}`);
                         if (rTang) parts.push(`Tang ${rTang.toFixed(1)}`);
                         ratingContent = `★ ${parts.join(" · ")}`;
                       }
-                    } else if (rXiao) {
-                      ratingContent = `★ ${rXiao.toFixed(1)}`;
-                    } else if (rTang) {
-                      ratingContent = `★ ${rTang.toFixed(1)}`;
-                    }
 
-                    return (
-                      <div
-                        key={moment.id}
-                        className={`timeline-moment-card ${
-                          canReorder ? "is-reorderable" : ""
-                        } ${isDraggingThis ? "is-dragging" : ""} ${
-                          isDragOverThis ? "is-drag-over" : ""
-                        } ${isJustDroppedThis ? "drop-success" : ""}`}
-                        draggable={canReorder}
-                        onDragStart={(e) => canReorder && handleDragStart(e, moment)}
-                        onDragOver={(e) => canReorder && handleDragOver(e, moment)}
-                        onDragLeave={(e) => canReorder && handleDragLeave(e, moment)}
-                        onDrop={(e) => canReorder && handleDrop(e, moment)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        {isDragOverThis && (
-                          <div className="timeline-drag-target-indicator">
-                            <ArrowRightLeft size={12} className="timeline-indicator-icon" />
-                            <span>调换先后顺序</span>
-                          </div>
-                        )}
+                      const serialNo = momentSerialMap.get(moment.id) || "001";
+                      const coordsStr = formatMomentCoords(moment.cityPlace || moment.countryPlace);
+                      const isoWatermark = (
+                        isoA2ForPlace(moment.countryPlace) ||
+                        moment.countryPlace?.id ||
+                        "EXP"
+                      )
+                        .toString()
+                        .toUpperCase()
+                        .slice(0, 3);
 
-                        <div className="timeline-card-header">
-                          <span className="timeline-date-chip">
-                            <Clock size={11} /> {moment.date}
+                      return (
+                        <div
+                          key={moment.id}
+                          className={`timeline-moment-card ${travelerClass} ${
+                            canReorder ? "is-reorderable" : ""
+                          } ${isDraggingThis ? "is-dragging" : ""} ${
+                            isDragOverThis ? "is-drag-over" : ""
+                          } ${isJustDroppedThis ? "drop-success" : ""}`}
+                          draggable={canReorder}
+                          onDragStart={(e) => canReorder && handleDragStart(e, moment)}
+                          onDragOver={(e) => canReorder && handleDragOver(e, moment)}
+                          onDragLeave={(e) => canReorder && handleDragLeave(e, moment)}
+                          onDrop={(e) => canReorder && handleDrop(e, moment)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          {/* 护照印章背景水印字 */}
+                          <span className="timeline-card-watermark" aria-hidden="true">
+                            {isoWatermark}
                           </span>
 
-                          {isDual ? (
-                            <span className="timeline-traveler-badge dual">👫 共同探索</span>
-                          ) : hasXiao ? (
-                            <span className="timeline-traveler-badge xiao">👤 Xiao</span>
-                          ) : (
-                            <span className="timeline-traveler-badge tang">👤 Tang</span>
+                          {isDragOverThis && (
+                            <div className="timeline-drag-target-indicator">
+                              <ArrowRightLeft size={12} className="timeline-indicator-icon" />
+                              <span>调换先后顺序</span>
+                            </div>
                           )}
-                        </div>
 
-                        <div className="timeline-card-place">
-                          {moment.countryPlace && <FlagIcon place={moment.countryPlace} />}
-                          <span className="timeline-card-city">{moment.cityName}</span>
-                          {moment.countryName && moment.countryName !== moment.cityName && (
-                            <span className="timeline-card-country">({moment.countryName})</span>
-                          )}
-                        </div>
+                          {/* 顶部编号与旅人铭牌 */}
+                          <div className="timeline-card-header">
+                            <div className="timeline-card-header-left">
+                              <span className="timeline-serial-tag">NO.{serialNo}</span>
+                              <span className="timeline-date-chip">
+                                <Clock size={10} /> {moment.date}
+                              </span>
+                            </div>
 
-                        {(ratingContent || moment.tags.size > 0) && (
-                          <div className="timeline-card-meta">
-                            {ratingContent && (
-                              <span className="timeline-rating-badge">{ratingContent}</span>
+                            {isDual ? (
+                              <span className="timeline-traveler-badge dual">Xiao & Tang</span>
+                            ) : hasXiao ? (
+                              <span className="timeline-traveler-badge xiao">Xiao</span>
+                            ) : (
+                              <span className="timeline-traveler-badge tang">Tang</span>
                             )}
-                            {Array.from(moment.tags).map((t) => (
-                              <span key={t} className="timeline-tag-badge">{t}</span>
-                            ))}
                           </div>
-                        )}
 
-                        <div className="timeline-card-actions">
-                          {onSelectPlace && (
-                            <button
-                              type="button"
-                              className="timeline-locate-btn"
-                              onClick={() => onSelectPlace(moment.cityPlace || moment.countryPlace)}
-                              title="在上方主地图中定位此地点"
-                            >
-                              <MapPin size={12} /> 在地图中定位
-                            </button>
-                          )}
+                          {/* 中部核心目的地与经纬度区（不展示个人文字评价） */}
+                          <div className="timeline-card-body-main">
+                            <div className="timeline-card-place-group">
+                              <div className="timeline-card-place">
+                                {moment.countryPlace && <FlagIcon place={moment.countryPlace} />}
+                                <div className="timeline-card-place-titles">
+                                  <div className="timeline-card-city-line">
+                                    <span className="timeline-card-city">{moment.cityName}</span>
+                                    {moment.countryName && moment.countryName !== moment.cityName && (
+                                      <span className="timeline-card-country">{moment.countryName}</span>
+                                    )}
+                                  </div>
+                                  {coordsStr && (
+                                    <div className="timeline-card-coords">
+                                      <Compass size={10} />
+                                      <span>{coordsStr}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
 
-                          {isEditor && onEditVisit && moment.visits.length > 0 && (
-                            <button
-                              type="button"
-                              className="timeline-locate-btn"
-                              onClick={() => onEditVisit(moment.visits[0])}
-                              style={{ color: "#64748b" }}
-                            >
-                              <Pencil size={11} /> 编辑
-                            </button>
-                          )}
+                          {/* 底部登机牌撕票虚线存根区 */}
+                          <div className="timeline-card-actions">
+                            <div className="timeline-card-meta">
+                              {ratingContent ? (
+                                <span className="timeline-rating-badge">{ratingContent}</span>
+                              ) : (
+                                <span className="timeline-verified-badge">✓ 已点亮足迹</span>
+                              )}
+                              {Array.from(moment.tags).map((t) => (
+                                <span key={t} className="timeline-tag-badge">{t}</span>
+                              ))}
+                            </div>
+
+                            <div className="timeline-card-btn-group">
+                              {isEditor && onEditVisit && moment.visits.length > 0 && (
+                                <button
+                                  type="button"
+                                  className="timeline-locate-btn is-edit"
+                                  onClick={() => onEditVisit(moment.visits[0])}
+                                >
+                                  <Pencil size={11} /> 编辑
+                                </button>
+                              )}
+
+                              {onSelectPlace && (
+                                <button
+                                  type="button"
+                                  className="timeline-locate-btn"
+                                  onClick={() => onSelectPlace(moment.cityPlace || moment.countryPlace)}
+                                  title="在上方主地图中定位此地点"
+                                >
+                                  <MapPin size={11} /> 地图定位 ↗
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })
@@ -7816,16 +8082,23 @@ function FlagIcon({ place }) {
   if (!iso || iso.length !== 2) {
     return <span className="flag fallback-flag">{place?.flag || "◇"}</span>;
   }
+  const lowerIso = iso.toLowerCase();
   return (
     <span className="flag">
       <img
         alt=""
-        loading="lazy"
+        decoding="async"
         onError={(event) => {
-          event.currentTarget.parentElement?.classList.add("fallback-flag");
-          event.currentTarget.replaceWith(document.createTextNode(flagEmoji(iso)));
+          const img = event.currentTarget;
+          if (!img.dataset.retried) {
+            img.dataset.retried = "1";
+            img.src = `https://flagcdn.com/w40/${lowerIso}.png`;
+            return;
+          }
+          img.parentElement?.classList.add("fallback-flag");
+          img.replaceWith(document.createTextNode(flagEmoji(iso)));
         }}
-        src={`https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/${iso}.svg`}
+        src={`https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/${lowerIso}.svg`}
       />
     </span>
   );
@@ -8753,8 +9026,8 @@ function PlaceSearchPanel({
       const hasTang = item.visits.some((v) => v.profileId === tangId);
 
       if (currentProfile === "all") {
-        // "当选择“X&T”的时候，下面就显示两人一起去过的地方"
-        return hasXiao && hasTang;
+        // 当选择“Xiao & Tang”的时候，显示两人的全部足迹记录（Xiao 或 Tang 去过的均计入，每个地区只展示一次）
+        return hasXiao || hasTang;
       }
       if (currentProfile === xiaoId) {
         // "当选择“xiao”的时候，下面就显示xiao去过的地方"

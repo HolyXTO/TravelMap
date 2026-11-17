@@ -37,8 +37,9 @@ const formatCoordWithDirection = (lat, lng, decimals = 2) => {
   return `${Math.abs(lat).toFixed(decimals)}°${latDir}, ${Math.abs(lng).toFixed(decimals)}°${lngDir}`;
 };
 
-export default function CameraViewer({ camera, onClose, onNextCamera }) {
+export default function CameraViewer({ camera, onClose, onNextCamera, onStreamError }) {
   const [currentImgUrl, setCurrentImgUrl] = useState("");
+  const [fallbackToImage, setFallbackToImage] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const [liveTime, setLiveTime] = useState("");
   const [isMediaLoading, setIsMediaLoading] = useState(true);
@@ -66,6 +67,7 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
     if (!camera) return;
     setIsMediaLoading(true);
     setMediaError(false);
+    setFallbackToImage(false);
     pendingUpdateUrlRef.current = null;
 
     const media = camera.media || {};
@@ -196,9 +198,11 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
 
         let fatalRetryCount = 0;
         const handleFatalFallback = () => {
+          onStreamError?.(camera);
           const hasRealFeed = media.feedUrl && !media.feedUrl.includes("unsplash.com");
           if (hasRealFeed) {
             setCurrentImgUrl(media.feedUrl);
+            setFallbackToImage(true);
             setIsMediaLoading(false);
             setMediaError(false);
           } else {
@@ -245,9 +249,21 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
           videoRef.current?.play().catch(() => {});
         });
         videoRef.current.addEventListener("error", () => {
-          if (media.feedUrl || media.posterUrl) {
-            setCurrentImgUrl(media.feedUrl || media.posterUrl);
-            setIsMediaLoading(false);
+          onStreamError?.(camera);
+          const hasRealFeed = media.feedUrl && !media.feedUrl.includes("unsplash.com");
+          if (hasRealFeed) {
+            const probeImg = new Image();
+            probeImg.onload = () => {
+              setCurrentImgUrl(media.feedUrl);
+              setFallbackToImage(true);
+              setIsMediaLoading(false);
+              setMediaError(false);
+            };
+            probeImg.onerror = () => {
+              setIsMediaLoading(false);
+              setMediaError(true);
+            };
+            probeImg.src = media.feedUrl;
           } else {
             setIsMediaLoading(false);
             setMediaError(true);
@@ -267,9 +283,21 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
           videoRef.current?.play().catch(() => {});
         });
         videoRef.current.addEventListener("error", () => {
-          if (media.feedUrl || media.posterUrl) {
-            setCurrentImgUrl(media.feedUrl || media.posterUrl);
-            setIsMediaLoading(false);
+          onStreamError?.(camera);
+          const hasRealFeed = media.feedUrl && !media.feedUrl.includes("unsplash.com");
+          if (hasRealFeed) {
+            const probeImg = new Image();
+            probeImg.onload = () => {
+              setCurrentImgUrl(media.feedUrl);
+              setFallbackToImage(true);
+              setIsMediaLoading(false);
+              setMediaError(false);
+            };
+            probeImg.onerror = () => {
+              setIsMediaLoading(false);
+              setMediaError(true);
+            };
+            probeImg.src = media.feedUrl;
           } else {
             setIsMediaLoading(false);
             setMediaError(true);
@@ -372,6 +400,7 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
   const handleManualRefresh = () => {
     setIsMediaLoading(true);
     setMediaError(false);
+    setFallbackToImage(false);
     pendingUpdateUrlRef.current = null;
 
     if (mediaType === "hls" && hlsRef.current && media.streamUrl) {
@@ -511,7 +540,7 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
               )}
             </div>
           </div>
-        ) : mediaType === "hls" ? (
+        ) : mediaType === "hls" && !fallbackToImage ? (
           <video
             key={`hls-${camera.id}`}
             ref={videoRef}
@@ -524,7 +553,7 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
             disablePictureInPicture={true}
             controlsList="nodownload noplaybackrate"
           />
-        ) : mediaType === "mp4" ? (
+        ) : mediaType === "mp4" && !fallbackToImage ? (
           <video
             key={`mp4-${camera.id}`}
             ref={videoRef}
@@ -591,6 +620,12 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
         <div className="livecam-media-timestamp">
           {liveTime || "LOCAL TIME SYNC"}
         </div>
+
+        {/* 光学取景器四角准星标线 */}
+        <span className="livecam-viewfinder-corner is-tl" aria-hidden="true" />
+        <span className="livecam-viewfinder-corner is-tr" aria-hidden="true" />
+        <span className="livecam-viewfinder-corner is-bl" aria-hidden="true" />
+        <span className="livecam-viewfinder-corner is-br" aria-hidden="true" />
       </div>
 
       {/* 详细信息与元数据 */}
@@ -603,7 +638,15 @@ export default function CameraViewer({ camera, onClose, onNextCamera }) {
         </div>
 
         <div className="livecam-data-section">
-          <div className="livecam-data-section-title">STREAM TELEMETRY · 信号遥测</div>
+          <div className="livecam-data-section-title">
+            <span>STREAM TELEMETRY · 信号遥测</span>
+            <span className="livecam-signal-bars" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+          </div>
           <div className="livecam-data-grid">
             <div className="livecam-data-pill">
               <span className="livecam-data-label">地理坐标</span>
