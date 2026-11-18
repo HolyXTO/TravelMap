@@ -3119,33 +3119,33 @@
   border-radius: 20px;
 }
 
-/* 2. 顶部悬浮控制栏居中升级（支持模式直切，桌面宽屏大尺寸易读且防两侧碰撞） */
+/* 2. 顶部悬浮控制栏居中升级（对齐左右两栏之间的几何中心：因右侧抽屉略宽，向左微移 8px 使左右留白严格对称） */
 .livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar {
   top: 20px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(calc(-50% - 8px));
   right: auto;
   z-index: 60;
-  padding: 9px 16px;
-  gap: 9px;
+  padding: 9px clamp(8px, 0.78vw, 16px);
+  gap: clamp(4px, 0.42vw, 9px);
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.72);
 }
 
 .livecam-shell.is-fullscreen .liveworld-fullscreen-mode-switch {
-  gap: 5px;
+  gap: clamp(2px, 0.25vw, 5px);
   padding: 3px;
 }
 
 .livecam-shell.is-fullscreen .liveworld-toolbar-divider {
   height: 24px;
-  margin: 0 4px;
+  margin: 0 clamp(1px, 0.2vw, 4px);
 }
 
 .livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar .liveworld-nav-pill {
-  padding: 10px 16px;
-  font-size: 14px;
+  padding: 10px clamp(8px, 0.78vw, 15px);
+  font-size: clamp(12px, 0.8vw, 14px);
   font-weight: 700;
-  gap: 7px;
+  gap: clamp(4px, 0.35vw, 7px);
 }
 
 /* 3. 左侧栏内部字号与尺寸填充 (摄像头 & 航班) */
@@ -3464,27 +3464,32 @@
 /* 6. 全屏模式下针对中小笔记本视口的防拥挤、防折行自适应 */
 @media (max-width: 1680px) {
   .livecam-shell.is-fullscreen .livecam-sidebar {
-    width: clamp(310px, 21.2vw, 355px);
+    width: clamp(300px, 20.5vw, 345px);
   }
 
   .livecam-shell.is-fullscreen .livecam-viewer-drawer {
-    width: clamp(325px, 22.2vw, 370px);
+    width: clamp(312px, 21.5vw, 360px);
   }
 
   .livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar {
-    padding: 6px 10px;
-    gap: 5px;
+    padding: 9px clamp(8px, 0.68vw, 12px);
+    gap: clamp(3px, 0.32vw, 6px);
+  }
+
+  .livecam-shell.is-fullscreen .liveworld-fullscreen-mode-switch {
+    gap: 2px;
+    padding: 3px;
   }
 
   .livecam-shell.is-fullscreen .liveworld-toolbar-divider {
-    height: 18px;
+    height: 22px;
     margin: 0 2px;
   }
 
   .livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar .liveworld-nav-pill {
-    padding: 7px 10px;
-    font-size: 12.5px;
-    gap: 4px;
+    padding: 10px clamp(6px, 0.65vw, 12px);
+    font-size: clamp(12px, 0.8vw, 13.5px);
+    gap: clamp(3px, 0.28vw, 5px);
   }
 
   .livecam-shell.is-fullscreen .livecam-sidebar-header {
@@ -3514,7 +3519,8 @@
   }
 }
 
-@media (max-width: 1320px) {
+/* 极窄屏 (< 1360px) 保持左右两框高度不动，仅收窄中间功能栏允许内部轻度滚动 */
+@media (max-width: 1360px) {
   .livecam-shell.is-fullscreen .liveworld-fullscreen-toolbar {
     max-width: calc(100vw - 680px);
     overflow-x: auto;
@@ -4034,3 +4040,520 @@
 
 
 
+/* =========================================================================
+   全球实时卫星追踪模块 (Orbital Satellite Tracker)
+   ========================================================================= */
+.livecam-sat-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--livecam-border, rgba(255, 255, 255, 0.08));
+  background: rgba(15, 23, 42, 0.45);
+  font-size: 11px;
+}
+
+.livecam-shell.is-light-theme .livecam-sat-status-banner {
+  background: rgba(241, 245, 249, 0.85);
+}
+
+.livecam-sat-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
+.livecam-sat-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.livecam-sat-status-pill.is-live {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.livecam-sat-status-pill.is-cached {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.livecam-sat-status-pill.is-stale {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.livecam-sat-status-pill.is-unavailable {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.livecam-shell.is-light-theme .livecam-sat-status-pill.is-live {
+  color: #047857;
+}
+.livecam-shell.is-light-theme .livecam-sat-status-pill.is-cached {
+  color: #0369a1;
+}
+.livecam-shell.is-light-theme .livecam-sat-status-pill.is-stale {
+  color: #b45309;
+}
+.livecam-shell.is-light-theme .livecam-sat-status-pill.is-unavailable {
+  color: #b91c1c;
+}
+
+.livecam-sat-epoch-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--livecam-text-muted, #94a3b8);
+  font-variant-numeric: tabular-nums;
+}
+
+.livecam-sat-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.livecam-sat-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.livecam-sat-cat-btn:first-child {
+  grid-column: 1 / -1;
+}
+
+.livecam-sat-cat-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--livecam-border, rgba(255, 255, 255, 0.1));
+  background: rgba(15, 23, 42, 0.42);
+  color: var(--livecam-text, #e2e8f0);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.15s ease;
+}
+
+.livecam-sat-cat-btn:hover {
+  border-color: var(--sat-cat-color, #38bdf8);
+  background: rgba(30, 41, 59, 0.65);
+}
+
+.livecam-sat-cat-btn.is-active {
+  border-color: var(--sat-cat-color, #38bdf8);
+  background: color-mix(in srgb, var(--sat-cat-color, #38bdf8) 18%, transparent);
+  font-weight: 600;
+}
+
+.livecam-shell.is-light-theme .livecam-sat-cat-btn {
+  background: rgba(255, 255, 255, 0.72);
+  color: #1e293b;
+}
+
+.livecam-shell.is-light-theme .livecam-sat-cat-btn:hover {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.livecam-sat-cat-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.livecam-sat-cat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.livecam-sat-cat-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livecam-sat-cat-count {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--livecam-text-muted, #94a3b8);
+}
+
+.livecam-group-summary-sub {
+  font-size: 10.5px;
+  color: var(--livecam-text-muted, #94a3b8);
+  font-variant-numeric: tabular-nums;
+}
+
+.livecam-sat-item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--livecam-border, rgba(255, 255, 255, 0.08));
+  background: rgba(15, 23, 42, 0.36);
+  color: var(--livecam-text, #e2e8f0);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.livecam-sat-item:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(30, 41, 59, 0.62);
+}
+
+.livecam-sat-item.is-active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+}
+
+.livecam-shell.is-light-theme .livecam-sat-item {
+  background: rgba(255, 255, 255, 0.72);
+  color: #0f172a;
+}
+
+.livecam-shell.is-light-theme .livecam-sat-item:hover {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.livecam-shell.is-light-theme .livecam-sat-item.is-active {
+  border-color: #0284c7;
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.livecam-sat-item-main {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.livecam-sat-item-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.livecam-sat-item-name {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livecam-sat-item-norad {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--livecam-text-muted, #94a3b8);
+  flex-shrink: 0;
+}
+
+.livecam-sat-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 15px;
+  font-size: 10.5px;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: var(--livecam-text-muted, #94a3b8);
+}
+
+.livecam-sat-item-cat {
+  font-weight: 600;
+}
+
+.livecam-sat-item-cospar {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livecam-sat-loadmore-btn {
+  width: 100%;
+  margin: 6px 0 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--livecam-border-strong, rgba(148, 163, 184, 0.35));
+  background: transparent;
+  color: var(--livecam-cyan, #38bdf8);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.livecam-sat-loadmore-btn:hover {
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.livecam-sat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 16px;
+  font-size: 12px;
+  color: var(--livecam-text-muted, #94a3b8);
+}
+
+/* 右侧卫星详情分组样式 */
+.livecam-sat-badge-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.livecam-sat-section {
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--livecam-border, rgba(255, 255, 255, 0.09));
+  background: rgba(15, 23, 42, 0.38);
+  margin-bottom: 10px;
+}
+
+.livecam-shell.is-light-theme .livecam-sat-section {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.livecam-sat-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--livecam-text-muted, #94a3b8);
+  margin-bottom: 9px;
+}
+
+.livecam-sat-identity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.livecam-sat-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.livecam-sat-regime-chip {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.livecam-shell.is-light-theme .livecam-sat-regime-chip {
+  color: #0369a1;
+}
+
+.livecam-sat-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.livecam-sat-metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(2, 6, 23, 0.42);
+  border: 1px solid var(--livecam-border, rgba(255, 255, 255, 0.07));
+}
+
+.livecam-shell.is-light-theme .livecam-sat-metric-card {
+  background: rgba(241, 245, 249, 0.9);
+}
+
+.livecam-sat-metric-label {
+  font-size: 10px;
+  color: var(--livecam-text-muted, #94a3b8);
+}
+
+.livecam-sat-metric-value {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--livecam-text, #f8fafc);
+}
+
+.livecam-shell.is-light-theme .livecam-sat-metric-value {
+  color: #0f172a;
+}
+
+.livecam-sat-kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.livecam-sat-kv-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+}
+
+.livecam-sat-kv-label {
+  color: var(--livecam-text-muted, #94a3b8);
+  flex-shrink: 0;
+}
+
+.livecam-sat-kv-value {
+  color: var(--livecam-text, #e2e8f0);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.livecam-shell.is-light-theme .livecam-sat-kv-value {
+  color: #1e293b;
+}
+
+.livecam-sat-inline-status {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.livecam-sat-inline-status.is-live {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.14);
+}
+.livecam-sat-inline-status.is-cached {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+}
+.livecam-sat-inline-status.is-stale {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.16);
+}
+.livecam-sat-inline-status.is-unavailable {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.livecam-sat-footnote {
+  margin: 9px 0 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--livecam-text-muted, #94a3b8);
+}
+
+.livecam-sat-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.livecam-sat-ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--livecam-border-strong, rgba(148, 163, 184, 0.25));
+  background: rgba(15, 23, 42, 0.55);
+  color: var(--livecam-text, #e2e8f0);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.livecam-sat-ctrl-btn:hover:not(:disabled) {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.livecam-sat-ctrl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.livecam-sat-ctrl-btn.is-primary {
+  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+}
+
+.livecam-sat-ctrl-btn.is-active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.22);
+  color: #e0f2fe;
+}
+
+.livecam-shell.is-light-theme .livecam-sat-ctrl-btn {
+  background: rgba(255, 255, 255, 0.86);
+  color: #1e293b;
+}
+
+.livecam-shell.is-light-theme .livecam-sat-ctrl-btn.is-primary,
+.livecam-shell.is-light-theme .livecam-sat-ctrl-btn.is-active {
+  background: rgba(14, 165, 233, 0.14);
+  border-color: #0284c7;
+  color: #0369a1;
+}

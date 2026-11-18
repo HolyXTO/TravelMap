@@ -1,18 +1,47 @@
 import { defineConfig } from "vite";
 import { handleFlightApi } from "./tools/flightServerMiddleware.mjs";
+import { handleSatelliteApi } from "./tools/satelliteServerMiddleware.mjs";
+
+function stubSatelliteWasmPlugin() {
+  return {
+    name: "stub-unused-satellite-wasm",
+    enforce: "pre",
+    resolveId(source, importer) {
+      if (
+        importer &&
+        importer.includes("satellite.js") &&
+        (source.includes("wasm-build") || source.startsWith("#wasm-"))
+      ) {
+        return "\0virtual:empty-satellite-wasm";
+      }
+      return null;
+    },
+    load(id) {
+      if (id === "\0virtual:empty-satellite-wasm") {
+        return "export default function noopWasm() { return Promise.resolve({}); }";
+      }
+      return null;
+    },
+  };
+}
 
 export default defineConfig({
   base: "/TravelMap/",
+  worker: {
+    format: "es",
+    plugins: () => [stubSatelliteWasmPlugin()],
+  },
   optimizeDeps: {
     exclude: ["maplibre-gl"],
   },
   server: {
     host: "127.0.0.1",
     watch: {
-      ignored: ["**/tools/**"],
+      ignored: ["**/tools/**", "**/.cache/**"],
     },
   },
   plugins: [
+    stubSatelliteWasmPlugin(),
     {
       name: "aviation-and-cctv-proxy-middleware",
       configureServer(server) {
@@ -23,6 +52,14 @@ export default defineConfig({
             if (handled) return;
           } catch (err) {
             console.error("[Vite Flight Proxy Error]", err);
+          }
+
+          // 1b. 全球实时卫星 GP 轨道要素缓存 API (/api/satellites/catalog)
+          try {
+            const handledSat = await handleSatelliteApi(req, res);
+            if (handledSat) return;
+          } catch (err) {
+            console.error("[Vite Satellite Proxy Error]", err);
           }
 
           // 2. 德州 CCTV 图像代理

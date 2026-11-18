@@ -16,6 +16,7 @@ import {
   PinOff,
   Swords,
   RadioTower,
+  Satellite,
 } from "lucide-react";
 
 export default function LeftSidebarNav({
@@ -244,6 +245,19 @@ export default function LeftSidebarNav({
       bgColor: "#e0f2fe",
       action: () => {
         if (setActiveLiveTab) setActiveLiveTab("aviation");
+        scrollToPageSection("live-cams-section");
+      },
+      submenus: null,
+    },
+    {
+      id: "live-satellites",
+      title: "全球实时卫星",
+      enTitle: "Live Satellites",
+      icon: Satellite,
+      accentColor: "#0ea5e9",
+      bgColor: "#e0f2fe",
+      action: () => {
+        if (setActiveLiveTab) setActiveLiveTab("satellites");
         scrollToPageSection("live-cams-section");
       },
       submenus: null,

@@ -16,6 +16,7 @@ export default function LiveCamsStatusBar({
   baseMapType = "dark",
   activeModuleTab = "cameras",
   flightCount = 0,
+  satelliteCount = 0,
 }) {
   const [coords, setCoords] = useState(centerCoords);
   const [currentZoom, setCurrentZoom] = useState(zoom);
@@ -81,6 +82,12 @@ export default function LiveCamsStatusBar({
           <div className="livecam-status-item" style={{ color: "#00E5FF" }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#00E5FF", display: "inline-block", marginRight: 4 }} />
             <span>RADAR: {flightCount.toLocaleString()} AIRCRAFT IN AIRSPACE</span>
+          </div>
+        )}
+        {activeModuleTab === "satellites" && satelliteCount > 0 && (
+          <div className="livecam-status-item" style={{ color: "#38BDF8" }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#38BDF8", display: "inline-block", marginRight: 4 }} />
+            <span>ORBIT: {satelliteCount.toLocaleString()} TRACKED OBJECTS</span>
           </div>
         )}
       </div>

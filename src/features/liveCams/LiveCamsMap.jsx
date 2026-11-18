@@ -50,6 +50,12 @@ import {
   updateSelectedFlight,
   setFlightLayersVisibility,
 } from "./layers/flightLayers";
+import {
+  createSatelliteLayer,
+  SATELLITE_LAYER_ID as SAT_3D_LAYER_ID,
+  parseColorInt,
+} from "./layers/satellite3DLayer";
+import { CATEGORY_RGB, getCategoryMeta } from "./utils/satelliteClassification";
 
 const SATELLITE_SOURCE_ID = "livecam-satellite-source";
 const SATELLITE_LAYER_ID = "livecam-satellite-layer";
@@ -65,11 +71,21 @@ export default function LiveCamsMap({
   resetTrigger,
   mapTheme,
   // ── 航班模块专属新属性 ──
-  activeModuleTab = "cameras", // 'cameras' | 'aviation'
+  activeModuleTab = "cameras", // 'cameras' | 'aviation' | 'satellites'
   flights = [],
   selectedFlight = null,
   flightRouteData = null,
   onSelectFlight,
+  // ── 卫星模块专属新属性 ──
+  filteredSatellites = [],
+  satellitePositionsRef = null,
+  satelliteRevision = 0,
+  selectedSatellite = null,
+  selectedOrbit = null,
+  showOrbitTrack = true,
+  followSelectedSatellite = false,
+  onSelectSatellite,
+  onCancelFollowSatellite,
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -82,13 +98,21 @@ export default function LiveCamsMap({
   const selectedFlightRef = useRef(selectedFlight);
   const flightRouteDataRef = useRef(flightRouteData);
   const activeModuleTabRef = useRef(activeModuleTab);
+  const projectionModeRef = useRef(projectionMode);
   const onSelectCameraRef = useRef(onSelectCamera);
   const onSelectFlightRef = useRef(onSelectFlight);
+  const onSelectSatelliteRef = useRef(onSelectSatellite);
+  const onCancelFollowSatelliteRef = useRef(onCancelFollowSatellite);
+  const satLayerRef = useRef(null);
+  const satPointsMetaRef = useRef([]);
 
   // 同步最新引用
   activeModuleTabRef.current = activeModuleTab;
+  projectionModeRef.current = projectionMode;
   onSelectCameraRef.current = onSelectCamera;
   onSelectFlightRef.current = onSelectFlight;
+  onSelectSatelliteRef.current = onSelectSatellite;
+  onCancelFollowSatelliteRef.current = onCancelFollowSatellite;
   camerasRef.current = cameras;
   flightsRef.current = flights;
 
@@ -243,7 +267,7 @@ export default function LiveCamsMap({
       baseStyle.layers.push(...dayNightLayers);
     }
 
-    const initialCamVis = activeModuleTab === "aviation" ? "none" : "visible";
+    const initialCamVis = activeModuleTab === "cameras" ? "visible" : "none";
 
     // 探头外层阴影圈 (OSIRIS cctv-glow: 黑色柔和底衬)
     baseStyle.layers.push({
@@ -326,8 +350,8 @@ export default function LiveCamsMap({
       style: baseStyle,
       projection: { type: projectionMode === "3d" ? "globe" : "mercator" },
       center: [33.21, 18.21],
-      zoom: 2.3,
-      minZoom: 1.2,
+      zoom: activeModuleTabRef.current === "satellites" ? 1.4 : 2.3,
+      minZoom: 1.0,
       maxZoom: 18,
       pitch: 0,
       maxPitch: 85,
@@ -566,8 +590,66 @@ export default function LiveCamsMap({
           updateFlightsSource(map, flightsRef.current);
         }
 
-        // 根据当前最新 activeModuleTabRef 设置图层可见性
+        // 1.5 初始化并挂载 3D 轨道卫星 WebGL2 图层 (OSIRIS 风格离地渲染 + 离屏精准拾取)
+        if (!map.getLayer(SAT_3D_LAYER_ID)) {
+          const satLayer = createSatelliteLayer(SAT_3D_LAYER_ID);
+          satLayerRef.current = satLayer;
+          satLayer.setExaggeration(projectionModeRef.current === "3d" ? 1 : 0);
+          satLayer.setVisible(activeModuleTabRef.current === "satellites");
+          map.addLayer(satLayer);
+        }
+
+        // 卫星地图指针交互 (悬浮提示 + GPU 离屏点击拾取 + 拖拽取消跟随)
+        map.on("mousemove", (e) => {
+          if (activeModuleTabRef.current !== "satellites" || !satLayerRef.current) return;
+          const idx = satLayerRef.current.pick(e.point.x, e.point.y);
+          satLayerRef.current.setHovered(idx);
+          const item = idx !== null ? satPointsMetaRef.current[idx] : null;
+          if (!item) {
+            map.getCanvas().style.cursor = "";
+            hoverPopup.remove();
+            return;
+          }
+          map.getCanvas().style.cursor = "pointer";
+          const meta = getCategoryMeta(item.sat.category, false);
+          hoverPopup
+            .setLngLat([item.lng, item.lat])
+            .setHTML(
+              `<div class="livecam-tip-content">
+                <div class="livecam-tip-header">
+                  <span class="livecam-tip-badge is-video" style="border-color:${meta.color};color:${meta.color};">🛰️ ${item.sat.name}</span>
+                  <span class="livecam-tip-city">NORAD ${item.sat.noradId}</span>
+                </div>
+                <div class="livecam-tip-name" style="font-family:monospace;font-size:11px;color:#38bdf8;margin-top:2px;">
+                  ALT: ${item.altKm.toFixed(1)} km · VEL: ${Number.isFinite(item.velKmS) ? item.velKmS.toFixed(2) : "—"} km/s · ${meta.label}
+                </div>
+              </div>`,
+            )
+            .addTo(map);
+        });
+
+        map.on("click", (e) => {
+          if (activeModuleTabRef.current !== "satellites" || !satLayerRef.current) return;
+          const idx = satLayerRef.current.pick(e.point.x, e.point.y);
+          if (idx === null) return;
+          const item = satPointsMetaRef.current[idx];
+          if (item && item.sat) {
+            hoverPopup.remove();
+            onSelectSatelliteRef.current?.(item.sat);
+          }
+        });
+
+        map.on("dragstart", () => {
+          if (activeModuleTabRef.current === "satellites") {
+            onCancelFollowSatelliteRef.current?.();
+          }
+        });
+
+        // 根据当前最新 activeModuleTabRef 显式三路切换图层可见性
+        const isCameras = activeModuleTabRef.current === "cameras";
         const isAviation = activeModuleTabRef.current === "aviation";
+        const isSatellites = activeModuleTabRef.current === "satellites";
+
         setFlightLayersVisibility(map, isAviation);
         updateSelectedFlight(
           map,
@@ -575,12 +657,15 @@ export default function LiveCamsMap({
           isAviation ? flightRouteDataRef.current : null,
           isAviation
         );
-        const camVis = isAviation ? "none" : "visible";
+        const camVis = isCameras ? "visible" : "none";
         [CAMERAS_DOTS_LAYER_ID, CAMERAS_GLOW_LAYER_ID, CAMERAS_LABEL_LAYER_ID].forEach((cid) => {
           if (map.getLayer(cid)) map.setLayoutProperty(cid, "visibility", camVis);
         });
+        if (satLayerRef.current) {
+          satLayerRef.current.setVisible(isSatellites);
+        }
       } catch (err) {
-        console.warn("[LiveCamsMap] Flight layers init notice:", err);
+        console.warn("[LiveCamsMap] Flight/Satellite layers init notice:", err);
       }
 
       // 无论首屏加载先后，确保最新探头数据全量灌注进 WebGL 渲染管线
@@ -645,6 +730,11 @@ export default function LiveCamsMap({
     map.setProjection({
       type: projectionMode === "3d" ? "globe" : "mercator",
     });
+
+    // 3D 球体显示离地高度；2D 平面贴合地表显示星下点
+    if (satLayerRef.current) {
+      satLayerRef.current.setExaggeration(projectionMode === "3d" ? 1 : 0);
+    }
 
     if (projectionMode === "3d") {
       if (typeof map.setSky === "function") {
@@ -711,7 +801,7 @@ export default function LiveCamsMap({
 
     map.flyTo({
       center: [33.21, 18.21],
-      zoom: 2.3,
+      zoom: activeModuleTabRef.current === "satellites" ? 1.4 : 2.3,
       pitch: 0,
       bearing: 0,
       padding: { top: 0, bottom: 34, left: 0, right: 0 },
@@ -724,6 +814,7 @@ export default function LiveCamsMap({
   // 7. 当外部选中某摄像头时飞过去 (初始加载跳过自动下潜放大，保持 3D 地球宏观全貌；后续用户点击或按“下一个”时飞过去)
   useEffect(() => {
     if (!selectedCamera) return;
+    if (activeModuleTabRef.current !== "cameras") return;
     const map = mapRef.current;
     if (!map || !isLoadedRef.current) return;
 
@@ -740,14 +831,17 @@ export default function LiveCamsMap({
     });
   }, [selectedCamera]);
 
-  // 8. 实时子功能选项卡切换：探头图层 vs 航班图层显隐协同切换
+  // 8. 实时子功能选项卡显式三路切换：摄像头 vs 航班 vs 卫星
   useEffect(() => {
     activeModuleTabRef.current = activeModuleTab;
     const map = mapRef.current;
     if (!map) return;
 
     const applyVisibility = () => {
+      const isCameras = activeModuleTab === "cameras";
       const isAviation = activeModuleTab === "aviation";
+      const isSatellites = activeModuleTab === "satellites";
+
       setFlightLayersVisibility(map, isAviation);
       updateSelectedFlight(
         map,
@@ -756,14 +850,29 @@ export default function LiveCamsMap({
         isAviation
       );
 
-      const camVis = isAviation ? "none" : "visible";
+      const camVis = isCameras ? "visible" : "none";
       [CAMERAS_DOTS_LAYER_ID, CAMERAS_GLOW_LAYER_ID, CAMERAS_LABEL_LAYER_ID].forEach((cid) => {
         if (map.getLayer(cid)) {
           map.setLayoutProperty(cid, "visibility", camVis);
         }
       });
 
-      // 切换选项卡时立即清除遗留的悬浮提示弹窗
+      if (satLayerRef.current) {
+        satLayerRef.current.setVisible(isSatellites);
+      }
+
+      // 卫星模式自动微缩地球以便完整显示外围卫星环；切回其他模式恢复标准视距
+      try {
+        const curZoom = map.getZoom();
+        if (isSatellites && curZoom > 1.85 && curZoom <= 3.0) {
+          map.easeTo({ zoom: 1.4, duration: 750 });
+        } else if (!isSatellites && curZoom < 1.65) {
+          map.easeTo({ zoom: 2.3, duration: 750 });
+        }
+      } catch {}
+
+      // 切换选项卡时立即清除遗留的悬浮提示弹窗与手型光标
+      map.getCanvas().style.cursor = "";
       const popups = document.querySelectorAll(".livecam-hover-popup");
       popups.forEach((p) => p.remove());
     };
@@ -801,6 +910,101 @@ export default function LiveCamsMap({
       );
     }
   }, [selectedFlight, flightRouteData, activeModuleTab]);
+
+  // 11. 实时卫星推算位置、选中高亮、单星轨迹与镜头跟随同步
+  useEffect(() => {
+    const layer = satLayerRef.current;
+    const map = mapRef.current;
+    if (!layer || !map) return;
+
+    if (activeModuleTab !== "satellites") {
+      layer.setVisible(false);
+      return;
+    }
+    layer.setVisible(true);
+
+    const posStore = satellitePositionsRef?.current;
+    const data = posStore?.data;
+    if (!data || !filteredSatellites || filteredSatellites.length === 0) {
+      satPointsMetaRef.current = [];
+      layer.setPoints([]);
+      layer.setSelected(null);
+      layer.setOrbit(null);
+      return;
+    }
+
+    const pts = [];
+    const metaList = [];
+    let selectedInstanceIdx = null;
+    let selectedCoords = null;
+    const targetNorad = selectedSatellite?.noradId || null;
+
+    for (let i = 0; i < filteredSatellites.length; i += 1) {
+      const sat = filteredSatellites[i];
+      const offset = sat.index * 4;
+      if (offset + 3 >= data.length) continue;
+
+      const lng = data[offset];
+      const lat = data[offset + 1];
+      const altKm = data[offset + 2];
+      const velKmS = data[offset + 3];
+      if (!Number.isFinite(lng) || !Number.isFinite(lat) || !Number.isFinite(altKm)) {
+        continue;
+      }
+
+      const rgb = CATEGORY_RGB[sat.category] || CATEGORY_RGB.other;
+      const isMajorStation =
+        sat.noradId === "25544" ||
+        sat.noradId === "48274" ||
+        sat.groups?.includes("stations");
+      const size = isMajorStation ? 1.65 : 1.0;
+
+      const instanceIdx = pts.length;
+      if (targetNorad && sat.noradId === targetNorad) {
+        selectedInstanceIdx = instanceIdx;
+        selectedCoords = [lng, lat];
+      }
+
+      pts.push({
+        lng,
+        lat,
+        altKm,
+        r: rgb[0],
+        g: rgb[1],
+        b: rgb[2],
+        size,
+      });
+      metaList.push({ sat, lng, lat, altKm, velKmS });
+    }
+
+    satPointsMetaRef.current = metaList;
+    layer.setPoints(pts);
+    layer.setSelected(selectedInstanceIdx);
+
+    if (showOrbitTrack && selectedSatellite && selectedOrbit && selectedOrbit.noradId === selectedSatellite.noradId) {
+      const catColor = getCategoryMeta(selectedSatellite.category, false).color;
+      layer.setOrbit(selectedOrbit, parseColorInt(catColor, 0x38bdf8), 0x94a3b8);
+    } else {
+      layer.setOrbit(null);
+    }
+
+    if (followSelectedSatellite && selectedCoords && !map.isMoving()) {
+      map.easeTo({
+        center: selectedCoords,
+        duration: 750,
+        essential: true,
+      });
+    }
+  }, [
+    activeModuleTab,
+    filteredSatellites,
+    satelliteRevision,
+    satellitePositionsRef,
+    selectedSatellite,
+    selectedOrbit,
+    showOrbitTrack,
+    followSelectedSatellite,
+  ]);
 
   return (
     <div className="livecam-map-wrapper" style={{ position: "relative", width: "100%", height: "100%" }}>

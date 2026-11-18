@@ -102,14 +102,22 @@ const COLOR_FIELDS = [
   },
 ];
 
+const MODULE_LABEL_MAP = {
+  cameras: "全球实时摄像头",
+  aviation: "全球实时航班",
+  satellites: "全球实时卫星",
+};
+
 export default function MapThemeModal({
   isOpen,
   onClose,
   currentTheme,
   onThemeChange,
   onResetTheme,
+  activeModuleTab = "cameras",
 }) {
   if (!isOpen) return null;
+  const activeModuleLabel = MODULE_LABEL_MAP[activeModuleTab] || "当前模块";
 
   // 判断是否与某一预设完全匹配
   const matchedPresetId = THEME_PRESETS.find((preset) => {
@@ -145,9 +153,9 @@ export default function MapThemeModal({
           <div className="livecam-theme-modal-title-wrap">
             <Palette size={18} color="#00e5ff" />
             <div>
-              <div className="livecam-theme-modal-title">地图配色方案</div>
+              <div className="livecam-theme-modal-title">地图配色方案 · {activeModuleLabel}</div>
               <div className="livecam-theme-modal-subtitle">
-                自由调整功能块底色、海洋、陆地、边界及监控探头色彩
+                独立配置「{activeModuleLabel}」的功能块底色、海洋、陆地、边界及光标色彩
               </div>
             </div>
           </div>
@@ -310,7 +318,7 @@ export default function MapThemeModal({
             onClick={onResetTheme}
           >
             <RotateCcw size={14} />
-            <span>恢复默认配色</span>
+            <span>恢复本模块默认配色</span>
           </button>
           <button
             type="button"

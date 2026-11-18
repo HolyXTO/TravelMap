@@ -512,10 +512,16 @@ export const COUNTRY_META = {};
 const COUNTRY_META_NORMALIZED = new Map();
 
 for (const [code, zh, ...names] of COUNTRY_DEFINITIONS) {
-  const entry = { zh, code, flag: isoToEmojiFlag(code) };
+  const entry = { zh, code, canonicalEn: names[0], flag: isoToEmojiFlag(code) };
   for (const name of names) {
     COUNTRY_META[name] = entry;
-    COUNTRY_META_NORMALIZED.set(normalizeCountryKey(name), { ...entry, canonicalEn: names[0] });
+    COUNTRY_META_NORMALIZED.set(normalizeCountryKey(name), entry);
+  }
+  if (zh && !COUNTRY_META[zh]) {
+    COUNTRY_META[zh] = entry;
+  }
+  if (zh && !COUNTRY_META_NORMALIZED.has(normalizeCountryKey(zh))) {
+    COUNTRY_META_NORMALIZED.set(normalizeCountryKey(zh), entry);
   }
 }
 
@@ -534,6 +540,8 @@ export function getCountryDisplayName(countryName) {
   const normalized = normalizeCountryKey(raw);
   if (
     !raw ||
+    raw === "其他地区" ||
+    raw === "其他" ||
     normalized === "other" ||
     normalized === "others" ||
     normalized === "unknown" ||
@@ -546,9 +554,10 @@ export function getCountryDisplayName(countryName) {
   const meta = COUNTRY_META[raw] || COUNTRY_META_NORMALIZED.get(normalized);
   if (meta) {
     const code = meta.code.toLowerCase();
+    const isInputZh = /[\u4e00-\u9fff]/.test(raw);
     return {
       zh: meta.zh,
-      en: raw,
+      en: isInputZh ? (meta.canonicalEn || raw) : raw,
       code,
       isGlobe: false,
       flag: meta.flag || isoToEmojiFlag(code),

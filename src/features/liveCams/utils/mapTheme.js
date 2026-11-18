@@ -126,10 +126,25 @@ export const THEME_PRESETS = [
   },
 ];
 
-// 默认配色严格设为推荐预设风格的第一项（用户当前本地配置风格）
+// 默认配色严格设为推荐预设风格的第一项（极简纯白 · 极昼靛蓝）
 export const DEFAULT_THEME = { ...THEME_PRESETS[0].colors };
 
-const THEME_STORAGE_KEY = "TRAVELMAP_LIVEWORLD_THEME_CUSTOM";
+// 荒漠大地 · 琥珀暖金（全球实时卫星默认配色）
+export const SAHARA_AMBER_THEME = {
+  ...(THEME_PRESETS.find((p) => p.id === "sahara-amber")?.colors || THEME_PRESETS[4].colors),
+};
+
+export const DEFAULT_THEME_BY_TAB = {
+  cameras: { ...DEFAULT_THEME },
+  aviation: { ...DEFAULT_THEME },
+  satellites: { ...SAHARA_AMBER_THEME },
+};
+
+export function getDefaultThemeForTab(tab = "cameras") {
+  return { ...(DEFAULT_THEME_BY_TAB[tab] || DEFAULT_THEME) };
+}
+
+const THEME_STORAGE_KEY_PREFIX = "TRAVELMAP_LIVEWORLD_THEME_CUSTOM_V2_";
 
 /**
  * 相对亮度计算工具 (WCAG 2.0 标准)
@@ -151,33 +166,34 @@ export function getLuminance(hexColor) {
 }
 
 /**
- * 从本地缓存获取用户已保存的配色，如无则返回默认配色
+ * 从本地缓存获取对应模块已保存的配色，如无则返回该模块的默认配色
  */
-export function getSavedMapTheme() {
+export function getSavedMapTheme(tab = "cameras") {
+  const fallback = getDefaultThemeForTab(tab);
   try {
-    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    const raw = localStorage.getItem(`${THEME_STORAGE_KEY_PREFIX}${tab}`);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === "object" && parsed.land && parsed.ocean) {
         return {
-          ...DEFAULT_THEME,
+          ...fallback,
           ...parsed,
-          bg: parsed.bg || DEFAULT_THEME.bg,
+          bg: parsed.bg || fallback.bg,
         };
       }
     }
   } catch (e) {
     console.warn("[mapTheme] Failed to read saved theme from localStorage:", e);
   }
-  return { ...DEFAULT_THEME };
+  return fallback;
 }
 
 /**
- * 持久化用户自定或选择的配色
+ * 持久化指定模块的地图配色
  */
-export function saveMapTheme(theme) {
+export function saveMapTheme(theme, tab = "cameras") {
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(theme));
+    localStorage.setItem(`${THEME_STORAGE_KEY_PREFIX}${tab}`, JSON.stringify(theme));
   } catch (e) {
     console.warn("[mapTheme] Failed to write theme to localStorage:", e);
   }

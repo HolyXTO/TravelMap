@@ -25,6 +25,7 @@ import {
   FolderClosed,
 } from "lucide-react";
 import { CAMERA_CONTINENTS } from "./services/cameraCatalog";
+import { getCountryDisplayName } from "./utils/airports";
 
 // 常用国家 Emoji 国旗速查字典
 const COUNTRY_FLAGS = {
@@ -311,8 +312,8 @@ export default function LiveCamsSidebar({
           )}
         </div>
 
-        {/* 摄像头列表主体：按国家手风琴 (Accordion) 折叠/展开呈现 */}
-        <div className="livecam-list-body">
+        {/* 摄像头列表主体：按国家手风琴 (Accordion) 折叠/展开呈现（与航班/卫星统一紧凑排版） */}
+        <div className="livecam-sidebar-list">
           {countryGroups.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px 10px", color: "var(--livecam-text-muted)", fontSize: "0.82rem" }}>
               未找到匹配的全球监控探头
@@ -322,62 +323,80 @@ export default function LiveCamsSidebar({
               const isExpanded = expandedCountries.has(g.country);
               const limit = countryLimits[g.country] || 20;
               const visibleList = g.cameras.slice(0, limit);
+              const display = getCountryDisplayName(g.country);
 
               return (
-                  <div key={g.country} className="livecam-country-group">
+                  <div key={g.country} className="livecam-country-group-item">
                     {/* 国家折叠栏 Header */}
-                    <div
-                      className={`livecam-country-header ${isExpanded ? "is-expanded" : ""}`}
+                    <button
+                      type="button"
+                      className={`livecam-country-group-header ${isExpanded ? "is-expanded" : ""}`}
                       onClick={() => handleToggleCountry(g.country)}
                     >
-                      <div className="livecam-country-title-box">
+                      <div className="livecam-country-group-title">
                         <span className={`livecam-country-rank ${gIdx < 3 ? "is-top" : ""}`}>
                           {String(gIdx + 1).padStart(2, "0")}
                         </span>
-                        <span className="livecam-country-chevron">
-                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        <span
+                          className={`livecam-country-flag ${
+                            display.isGlobe || !display.flagUrl ? "is-globe" : ""
+                          }`}
+                        >
+                          {display.flagUrl && !display.isGlobe ? (
+                            <img
+                              src={display.flagUrl}
+                              alt={g.country}
+                              className="livecam-country-flag-rect"
+                              loading="lazy"
+                              onError={(e) => {
+                                const img = e.currentTarget;
+                                if (display.fallbackFlagUrl && !img.dataset.retried) {
+                                  img.dataset.retried = "1";
+                                  img.src = display.fallbackFlagUrl;
+                                  return;
+                                }
+                                img.style.display = "none";
+                                if (img.nextSibling) {
+                                  img.nextSibling.style.display = "inline-flex";
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <span
+                            className="livecam-country-globe-fallback"
+                            style={{
+                              display: display.flagUrl && !display.isGlobe ? "none" : "inline-flex",
+                            }}
+                          >
+                            <Globe size={14} className="livecam-country-globe-icon" />
+                          </span>
                         </span>
-                        <span className="livecam-country-flag">
-                          {g.country === "其他地区" || g.country === "Other" ? (
-                            <Globe size={15} className="livecam-country-globe-icon" />
-                          ) : (
-                            <>
-                              <img
-                                src={`${import.meta.env.BASE_URL}flags/circle-195/${encodeURIComponent(g.country)}.png`}
-                                alt={g.country}
-                                className="livecam-country-flag-img"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = "none";
-                                  if (e.currentTarget.nextSibling) {
-                                    e.currentTarget.nextSibling.style.display = "inline-flex";
-                                  }
-                                }}
-                              />
-                              <span style={{ display: "none" }} className="livecam-country-globe-fallback">
-                                <Globe size={15} className="livecam-country-globe-icon" />
-                              </span>
-                            </>
-                          )}
-                        </span>
-                        <span className="livecam-country-name">{g.country}</span>
+                        <span className="livecam-country-name-zh">{display.zh}</span>
+                        {display.en && display.zh !== display.en && (
+                          <span className="livecam-country-name-en">({display.en})</span>
+                        )}
                       </div>
 
-                      <div className="livecam-country-badges">
+                      <div className="livecam-country-group-meta">
                         {g.liveCount > 0 && (
                           <span className="livecam-country-live-badge" title={`${g.liveCount} 个实时视频流`}>
                             <Video size={10} />
                             <span>{g.liveCount}</span>
                           </span>
                         )}
-                        <span className="livecam-country-count-badge" title={`${g.cameras.length} 个探头`}>
-                          {g.cameras.length}
+                        <span className="livecam-country-count-tag" title={`${g.cameras.length} 个探头`}>
+                          {g.cameras.length.toLocaleString()}
                         </span>
+                        <ChevronDown
+                          size={14}
+                          className={`livecam-country-arrow ${isExpanded ? "is-open" : ""}`}
+                        />
                       </div>
-                    </div>
+                    </button>
 
                     {/* 该国家展开的摄像头卡片列表 */}
                     {isExpanded && (
-                      <div className="livecam-country-cards-wrap">
+                      <div className="livecam-country-group-flights">
                         {visibleList.map((cam) => {
                           const isSelected = String(selectedCameraId) === String(cam.id);
                           const isVideo = Boolean(cam.hasLiveVideo);

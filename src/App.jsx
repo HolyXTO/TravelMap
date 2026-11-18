@@ -2727,6 +2727,9 @@ function App() {
   const [activeLiveTab, setActiveLiveTab] = useState(() => {
     try {
       const h = (typeof window !== "undefined" ? window.location.hash : "").toLowerCase();
+      if (h === "#live-satellites" || h === "#satellites" || h === "#space") {
+        return "satellites";
+      }
       if (h === "#live-flights" || h === "#live-aviation" || h === "#aviation") {
         return "aviation";
       }
@@ -2734,11 +2737,17 @@ function App() {
     return "cameras";
   });
 
-  // 监听 URL Hash 快速深链定位 (支持 #live-flights / #live-aviation 直达全球实时航班)
+  // 监听 URL Hash 快速深链定位 (支持 #live-flights / #live-satellites 直达全球动态模块)
   useEffect(() => {
     const handleHashNav = (isInitial = false) => {
       const hash = (window.location.hash || "").toLowerCase();
-      if (hash === "#live-flights" || hash === "#live-aviation" || hash === "#aviation") {
+      if (hash === "#live-satellites" || hash === "#satellites" || hash === "#space") {
+        if (isInitial && "scrollRestoration" in window.history) {
+          window.history.scrollRestoration = "manual";
+        }
+        setActiveLiveTab("satellites");
+        scrollToPageSection("live-cams-section", { instant: isInitial });
+      } else if (hash === "#live-flights" || hash === "#live-aviation" || hash === "#aviation") {
         if (isInitial && "scrollRestoration" in window.history) {
           window.history.scrollRestoration = "manual";
         }
@@ -3421,6 +3430,9 @@ function App() {
     try {
       const h = (typeof window !== "undefined" ? window.location.hash : "").toLowerCase();
       return [
+        "#live-satellites",
+        "#satellites",
+        "#space",
         "#live-flights",
         "#live-aviation",
         "#aviation",

@@ -18,6 +18,7 @@ import {
   Minimize2,
   Video,
   Plane,
+  Satellite,
   Sparkles,
 } from "lucide-react";
 import LiveCamsMap from "./LiveCamsMap";
@@ -25,11 +26,19 @@ import LiveCamsSidebar from "./LiveCamsSidebar";
 import CameraViewer from "./CameraViewer";
 import AviationSidebar from "./aviation/AviationSidebar";
 import FlightViewer from "./aviation/FlightViewer";
+import SatelliteSidebar from "./satellites/SatelliteSidebar";
+import SatelliteViewer from "./satellites/SatelliteViewer";
+import { useSatellites } from "./satellites/useSatellites";
 import LiveCamsStatusBar from "./LiveCamsStatusBar";
 import MapThemeModal from "./components/MapThemeModal";
 import { RAW_CAMERAS, filterCameras, loadFullCamerasData } from "./services/cameraCatalog";
 import { fetchFlightsData, fetchFlightRoute } from "./services/flightService";
-import { getSavedMapTheme, saveMapTheme, DEFAULT_THEME, getLuminance } from "./utils/mapTheme";
+import {
+  getSavedMapTheme,
+  saveMapTheme,
+  getDefaultThemeForTab,
+  getLuminance,
+} from "./utils/mapTheme";
 import "./liveCams.css";
 
 const INITIAL_CAMERA =
@@ -65,9 +74,16 @@ export default function WorldLiveCams({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [resetTrigger, setResetTrigger] = useState(0);
   const [mapInstance, setMapInstance] = useState(null);
-  const [currentZoom, setCurrentZoom] = useState(2.3);
+  const [currentZoom, setCurrentZoom] = useState(() =>
+    activeModuleTab === "satellites" ? 1.45 : 2.3,
+  );
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
-  const [mapTheme, setMapTheme] = useState(getSavedMapTheme);
+  const [mapThemes, setMapThemes] = useState(() => ({
+    cameras: getSavedMapTheme("cameras"),
+    aviation: getSavedMapTheme("aviation"),
+    satellites: getSavedMapTheme("satellites"),
+  }));
+  const mapTheme = mapThemes[activeModuleTab] || getDefaultThemeForTab(activeModuleTab);
   const hasUserSelectedCameraRef = useRef(false);
   const failedSourcesRef = useRef(new Set());
   const failedCameraIdsRef = useRef(new Set());
@@ -98,6 +114,52 @@ export default function WorldLiveCams({
       setFlightRouteData(null);
     }
   }, [activeModuleTab]);
+
+  // ── 卫星模块状态 (Satellite States - 仅在激活时懒加载 GP 目录与 SGP4 Web Worker) ──
+  const satState = useSatellites({ enabled: activeModuleTab === "satellites" });
+
+  // 选中某颗卫星并平滑转向其星下点所在半球
+  const handleSelectSatellite = useCallback(
+    (sat, shouldLocate = true) => {
+      satState.selectSatellite(sat);
+      if (!sat || !shouldLocate || !mapInstance) return;
+
+      const buf = satState.positionsRef.current?.data;
+      const offset = sat.index * 4;
+      if (buf && offset + 2 < buf.length) {
+        const lng = buf[offset];
+        const lat = buf[offset + 1];
+        if (Number.isFinite(lng) && Number.isFinite(lat)) {
+          const curZoom = mapInstance.getZoom();
+          const targetZoom = curZoom > 6.5 ? 3.5 : Math.max(curZoom, 2.5);
+          mapInstance.flyTo({
+            center: [lng, lat],
+            zoom: targetZoom,
+            duration: 850,
+            essential: true,
+          });
+        }
+      }
+    },
+    [satState.selectSatellite, satState.positionsRef, mapInstance],
+  );
+
+  // 右侧卡片定位卫星视角 (保持低于 SAT_MAX_ZOOM，防止低空近地放大遮挡/消失)
+  const handleLocateSatellite = useCallback(
+    (lat, lng) => {
+      if (mapInstance && Number.isFinite(lat) && Number.isFinite(lng)) {
+        const curZoom = mapInstance.getZoom();
+        const targetZoom = Math.min(Math.max(curZoom, 2.8), 4.8);
+        mapInstance.flyTo({
+          center: [lng, lat],
+          zoom: targetZoom,
+          duration: 800,
+          essential: true,
+        });
+      }
+    },
+    [mapInstance],
+  );
 
   // 异步加载全球实时航班
   const loadFlights = useCallback(async () => {
@@ -441,17 +503,27 @@ export default function WorldLiveCams({
     setIsFullscreen((prev) => !prev);
   }, []);
 
-  // 配色方案更新
-  const handleThemeChange = useCallback((newTheme) => {
-    setMapTheme(newTheme);
-    saveMapTheme(newTheme);
-  }, []);
+  // 配色方案更新（按摄像头 / 航班 / 卫星三个功能模块独立存储）
+  const handleThemeChange = useCallback(
+    (newTheme) => {
+      setMapThemes((prev) => ({
+        ...prev,
+        [activeModuleTab]: newTheme,
+      }));
+      saveMapTheme(newTheme, activeModuleTab);
+    },
+    [activeModuleTab],
+  );
 
-  // 恢复默认配色
+  // 恢复当前功能模块的默认配色
   const handleResetTheme = useCallback(() => {
-    setMapTheme({ ...DEFAULT_THEME });
-    saveMapTheme(DEFAULT_THEME);
-  }, []);
+    const defTheme = getDefaultThemeForTab(activeModuleTab);
+    setMapThemes((prev) => ({
+      ...prev,
+      [activeModuleTab]: defTheme,
+    }));
+    saveMapTheme(defTheme, activeModuleTab);
+  }, [activeModuleTab]);
 
   // 渲染通用控制操作按钮群组（支持普通头部与全屏沉浸悬浮顶部复用）
   const renderControlsToolbar = (inFullscreen = false) => {
@@ -479,6 +551,15 @@ export default function WorldLiveCams({
                 <Plane size={iconSize} />
                 <span>航班</span>
               </button>
+              <button
+                type="button"
+                className={`liveworld-nav-pill ${activeModuleTab === "satellites" ? "is-active" : ""}`}
+                onClick={() => setActiveModuleTab("satellites")}
+                title="切换至全球实时卫星"
+              >
+                <Satellite size={iconSize} />
+                <span>卫星</span>
+              </button>
             </div>
             <span className="liveworld-toolbar-divider" aria-hidden="true" />
           </>
@@ -495,15 +576,15 @@ export default function WorldLiveCams({
           <span>{projectionMode === "3d" ? "3D 地球" : "2D 地图"}</span>
         </button>
 
-        {/* 暗黑MAP / 卫星SAT */}
+        {/* 矢量底图 / 卫星影像 */}
         <button
           type="button"
           className={`liveworld-nav-pill ${baseMapType === "sat" ? "is-active" : ""}`}
           onClick={() => setBaseMapType(baseMapType === "sat" ? "dark" : "sat")}
-          title="切换 CARTO 深色矢量底图 / 全球卫星影像"
+          title="切换 CARTO 矢量底图 / 全球卫星影像"
         >
           <Layers size={iconSize} />
-          <span>{baseMapType === "sat" ? "卫星 SAT" : "暗黑 MAP"}</span>
+          <span>{baseMapType === "sat" ? "卫星影像" : "矢量底图"}</span>
         </button>
 
         {/* 配色 */}
@@ -547,7 +628,7 @@ export default function WorldLiveCams({
           title={isFullscreen ? "退出全屏" : "全屏沉浸探索"}
         >
           {isFullscreen ? <Minimize2 size={iconSize} /> : <Maximize2 size={iconSize} />}
-          {inFullscreen && <span>退出全屏</span>}
+          <span>{inFullscreen ? "退出全屏" : "全屏"}</span>
         </button>
       </div>
     );
@@ -555,7 +636,7 @@ export default function WorldLiveCams({
 
   return (
     <div className="liveworld-master-wrapper">
-      {/* 1. 顶部子功能切换选项卡 (全球实时摄像头 vs 全球实时航班) */}
+      {/* 1. 顶部子功能切换选项卡 (全球实时摄像头 vs 全球实时航班 vs 全球实时卫星) */}
       <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
         <div className="travel-games-tab-switcher">
           <button
@@ -574,6 +655,14 @@ export default function WorldLiveCams({
             <Plane size={16} />
             <span>全球实时航班</span>
           </button>
+          <button
+            type="button"
+            className={`game-nav-tab-btn ${activeModuleTab === "satellites" ? "is-active" : ""}`}
+            onClick={() => setActiveModuleTab("satellites")}
+          >
+            <Satellite size={16} />
+            <span>全球实时卫星</span>
+          </button>
         </div>
       </div>
 
@@ -583,12 +672,18 @@ export default function WorldLiveCams({
           <h2 className="notes-hero-title">
             {activeModuleTab === "aviation" ? (
               <Plane className="notes-hero-icon" size={24} color="#00E5FF" />
+            ) : activeModuleTab === "satellites" ? (
+              <Satellite className="notes-hero-icon" size={24} color="#38BDF8" />
             ) : (
               <RadioTower className="notes-hero-icon" size={24} color="#0284c7" />
             )}
             <span className="game-hero-brand-text">LIVE WORLD</span>
             <span className="notes-title-sub">
-              {activeModuleTab === "aviation" ? "全球实时航班" : "全球实时摄像头"}
+              {activeModuleTab === "aviation"
+                ? "全球实时航班"
+                : activeModuleTab === "satellites"
+                ? "全球实时卫星"
+                : "全球实时摄像头"}
             </span>
           </h2>
           <p className="travel-game-subtitle">
@@ -596,6 +691,8 @@ export default function WorldLiveCams({
             <span>
               {activeModuleTab === "aviation"
                 ? "接入全球多源 ADS-B 航空网络，实时雷达监测飞行状态航空器"
+                : activeModuleTab === "satellites"
+                ? "基于 CelesTrak 公开 GP 轨道要素，实时追踪在轨卫星与轨迹"
                 : "接入全球 45,000+ 公开探头与 24/7 高清连续视频流，纵览全球实时景象"}
             </span>
           </p>
@@ -615,7 +712,7 @@ export default function WorldLiveCams({
         {/* 全屏状态下的顶部悬浮功能栏 */}
         {isFullscreen && renderControlsToolbar(true)}
 
-        {/* 左侧多维筛选与探索侧栏 (根据当前功能选项卡动态切换) */}
+        {/* 左侧多维筛选与探索侧栏 (根据当前功能选项卡三路动态切换) */}
         {activeModuleTab === "cameras" ? (
           <LiveCamsSidebar
             cameras={displayedCameras}
@@ -633,7 +730,7 @@ export default function WorldLiveCams({
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
           />
-        ) : (
+        ) : activeModuleTab === "aviation" ? (
           <AviationSidebar
             flightsData={flightsData}
             selectedCategory={selectedFlightCategory}
@@ -646,6 +743,24 @@ export default function WorldLiveCams({
             onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
             onRefresh={loadFlights}
             isLoading={isFlightsLoading}
+          />
+        ) : (
+          <SatelliteSidebar
+            catalog={satState.catalog}
+            isLoading={satState.isLoading}
+            rateLimitMessage={satState.rateLimitMessage}
+            selectedCategory={satState.selectedCategory}
+            onSelectCategory={satState.setSelectedCategory}
+            searchQuery={satState.searchQuery}
+            onSearchChange={satState.setSearchQuery}
+            filteredSatellites={satState.filteredSatellites}
+            selectedNoradId={satState.selectedNoradId}
+            onSelectSatellite={(sat) => handleSelectSatellite(sat, true)}
+            validCount={satState.validCount}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
+            onRefresh={satState.refreshCatalog}
+            isLightTheme={themeStyles.isLightSide}
           />
         )}
 
@@ -665,9 +780,18 @@ export default function WorldLiveCams({
           selectedFlight={selectedFlight}
           flightRouteData={flightRouteData}
           onSelectFlight={handleSelectFlight}
+          filteredSatellites={satState.filteredSatellites}
+          satellitePositionsRef={satState.positionsRef}
+          satelliteRevision={satState.positionRevision}
+          selectedSatellite={satState.selectedSatellite}
+          selectedOrbit={satState.selectedOrbit}
+          showOrbitTrack={satState.showOrbitTrack}
+          followSelectedSatellite={satState.followSelected}
+          onSelectSatellite={(sat) => handleSelectSatellite(sat, false)}
+          onCancelFollowSatellite={() => satState.setFollowSelected(false)}
         />
 
-        {/* 右侧抽屉 (摄像头播放器 / 航班战术详情面板) */}
+        {/* 右侧抽屉 (摄像头播放器 / 航班战术详情面板 / 卫星轨道详情面板) */}
         {activeModuleTab === "cameras" && selectedCamera && (
           <CameraViewer
             key={selectedCamera.id}
@@ -691,6 +815,22 @@ export default function WorldLiveCams({
           />
         )}
 
+        {activeModuleTab === "satellites" && satState.selectedSatellite && (
+          <SatelliteViewer
+            key={satState.selectedSatellite.noradId}
+            satellite={satState.selectedSatellite}
+            telemetry={satState.selectedTelemetry}
+            catalog={satState.catalog}
+            showOrbitTrack={satState.showOrbitTrack}
+            onToggleOrbitTrack={() => satState.setShowOrbitTrack((v) => !v)}
+            followSelected={satState.followSelected}
+            onToggleFollow={() => satState.setFollowSelected((v) => !v)}
+            onLocate={handleLocateSatellite}
+            onClose={() => satState.selectSatellite(null)}
+            isLightTheme={themeStyles.isLightSide}
+          />
+        )}
+
         {/* 底部信息状态栏 */}
         <LiveCamsStatusBar
           map={mapInstance}
@@ -698,6 +838,7 @@ export default function WorldLiveCams({
           baseMapType={baseMapType}
           activeModuleTab={activeModuleTab}
           flightCount={flightsData.total}
+          satelliteCount={satState.validCount || satState.catalog?.totalCount || 0}
         />
       </div>
 
@@ -708,6 +849,7 @@ export default function WorldLiveCams({
         currentTheme={mapTheme}
         onThemeChange={handleThemeChange}
         onResetTheme={handleResetTheme}
+        activeModuleTab={activeModuleTab}
       />
     </div>
   );
