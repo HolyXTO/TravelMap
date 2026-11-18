@@ -197,9 +197,6 @@ export default function LiveCamsSidebar({
           <div className="livecam-sidebar-title-group">
             <Video size={16} color="#00e5ff" />
             <span className="livecam-sidebar-title">全球实时监控</span>
-            <span className="livecam-sidebar-count-badge">
-              {cameras.length.toLocaleString()} 探头
-            </span>
           </div>
           <button
             type="button"

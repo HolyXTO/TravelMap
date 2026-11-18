@@ -693,7 +693,7 @@ export default function WorldLiveCams({
                 ? "接入全球多源 ADS-B 航空网络，实时雷达监测飞行状态航空器"
                 : activeModuleTab === "satellites"
                 ? "基于 CelesTrak 公开 GP 轨道要素，实时追踪在轨卫星与轨迹"
-                : "接入全球 45,000+ 公开探头与 24/7 高清连续视频流，纵览全球实时景象"}
+                : "接入全球 40,000+ 公开探头与 24/7 高清连续视频流，纵览全球实时景象"}
             </span>
           </p>
         </div>

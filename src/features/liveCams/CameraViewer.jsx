@@ -39,6 +39,8 @@ const formatCoordWithDirection = (lat, lng, decimals = 2) => {
 
 export default function CameraViewer({ camera, onClose, onNextCamera, onStreamError }) {
   const [currentImgUrl, setCurrentImgUrl] = useState("");
+  const [mjpegSlots, setMjpegSlots] = useState(["", ""]);
+  const [activeMjpegSlot, setActiveMjpegSlot] = useState(0);
   const [fallbackToImage, setFallbackToImage] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const [liveTime, setLiveTime] = useState("");
@@ -49,6 +51,11 @@ export default function CameraViewer({ camera, onClose, onNextCamera, onStreamEr
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
   const pendingUpdateUrlRef = useRef(null);
+  const mjpegImgRefs = useRef([null, null]);
+  const activeMjpegSlotRef = useRef(0);
+  activeMjpegSlotRef.current = activeMjpegSlot;
+  const mjpegFailsRef = useRef(0);
+  const mjpegClearTimerRef = useRef(null);
 
   // 1. 本地时钟与当地时区时间戳实时更新 (根据探头所在国家及经纬度呈现当地真实时间)
   useEffect(() => {
@@ -357,12 +364,65 @@ export default function CameraViewer({ camera, onClose, onNextCamera, onStreamEr
       }
     }
 
-    // 2.4 MJPEG 实时连续视频流 (单次挂载原生流地址，由浏览器内部流水线实时刷新，严禁定时器打断)
+    // 2.4 MJPEG 实时连续视频流：
+    // 台湾高公局/交控等 MJPEG 服务端通常约 8-10 秒会主动断开 Transfer-Encoding: chunked 长连接
+    // （导致浏览器报 ERR_INCOMPLETE_CHUNKED_ENCODING 并将 <img> 宽高清零变黑）。
+    // 这里采用双槽无缝接力：每 6 秒后台预建下一条连接并在首帧解码后秒切，配合 1 秒掉帧看门狗实时重连，做到零黑屏持续播放。
     if (mediaType === "mjpeg") {
       const stream = media.streamUrl || media.feedUrl || media.url;
       if (stream) {
-        setCurrentImgUrl(stream);
+        const buildBustUrl = () => {
+          const sep = stream.includes("?") ? "&" : "?";
+          return `${stream}${sep}_t=${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        };
+
+        mjpegFailsRef.current = 0;
+        activeMjpegSlotRef.current = 0;
+        setActiveMjpegSlot(0);
+        setMjpegSlots([buildBustUrl(), ""]);
         setIsMediaLoading(false);
+
+        // 每 6 秒后台向备用槽发起新流预热，避免到达服务端 ~8.9 秒断流上限
+        const rolloverTimer = setInterval(() => {
+          const cur = activeMjpegSlotRef.current;
+          const standby = cur === 0 ? 1 : 0;
+          setMjpegSlots((prev) => {
+            const next = [...prev];
+            next[standby] = buildBustUrl();
+            return next;
+          });
+        }, 6000);
+
+        // 每 1 秒巡检当前活跃槽：若遇到提前断流 (complete && naturalWidth === 0)，立即用备用槽重连
+        const mjpegWatchdog = setInterval(() => {
+          const cur = activeMjpegSlotRef.current;
+          const curEl = mjpegImgRefs.current[cur];
+          if (curEl && curEl.complete && curEl.naturalWidth === 0) {
+            const standby = cur === 0 ? 1 : 0;
+            setMjpegSlots((prev) => {
+              if (prev[standby]) return prev; // 备用槽已在拉流中
+              const next = [...prev];
+              next[standby] = buildBustUrl();
+              return next;
+            });
+          }
+        }, 1000);
+
+        return () => {
+          clearTimeout(stallWatchdog);
+          clearInterval(rolloverTimer);
+          clearInterval(mjpegWatchdog);
+          if (mjpegClearTimerRef.current) {
+            clearTimeout(mjpegClearTimerRef.current);
+            mjpegClearTimerRef.current = null;
+          }
+          setMjpegSlots(["", ""]);
+          if (videoEl) {
+            videoEl.removeEventListener("playing", handleClearWatchdog);
+            videoEl.removeEventListener("timeupdate", handleClearWatchdog);
+          }
+          cleanupVideo();
+        };
       }
     }
 
@@ -414,7 +474,14 @@ export default function CameraViewer({ camera, onClose, onNextCamera, onStreamEr
       const stream = media.streamUrl || media.feedUrl || media.url;
       if (stream) {
         const sep = stream.includes("?") ? "&" : "?";
-        setCurrentImgUrl(`${stream}${sep}_t=${Date.now()}`);
+        const url = `${stream}${sep}_t=${Date.now()}`;
+        const standby = activeMjpegSlotRef.current === 0 ? 1 : 0;
+        mjpegFailsRef.current = 0;
+        setMjpegSlots((prev) => {
+          const next = [...prev];
+          next[standby] = url;
+          return next;
+        });
       }
     } else {
       const base = media.feedUrl || media.url || media.posterUrl;
@@ -581,6 +648,69 @@ export default function CameraViewer({ camera, onClose, onNextCamera, onStreamEr
               setMediaError(true);
             }}
           />
+        ) : mediaType === "mjpeg" && !fallbackToImage ? (
+          <div style={{ position: "relative", width: "100%", height: "100%" }}>
+            {[0, 1].map((slotIdx) => {
+              const slotSrc = mjpegSlots[slotIdx];
+              const isActive = activeMjpegSlot === slotIdx;
+              if (!slotSrc) return null;
+              return (
+                <img
+                  key={`mjpeg-slot-${slotIdx}`}
+                  ref={(el) => {
+                    mjpegImgRefs.current[slotIdx] = el;
+                  }}
+                  src={slotSrc}
+                  alt={camera.name}
+                  className="livecam-media-element"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    zIndex: isActive ? 2 : 1,
+                    opacity: isActive ? 1 : 0,
+                    pointerEvents: isActive ? "auto" : "none",
+                  }}
+                  referrerPolicy="no-referrer"
+                  onLoad={(e) => {
+                    const img = e.currentTarget;
+                    if (img.naturalWidth > 0) {
+                      mjpegFailsRef.current = 0;
+                      setIsMediaLoading(false);
+                      setMediaError(false);
+                      if (activeMjpegSlotRef.current !== slotIdx) {
+                        const prevSlot = activeMjpegSlotRef.current;
+                        activeMjpegSlotRef.current = slotIdx;
+                        setActiveMjpegSlot(slotIdx);
+                        if (mjpegClearTimerRef.current) clearTimeout(mjpegClearTimerRef.current);
+                        mjpegClearTimerRef.current = setTimeout(() => {
+                          setMjpegSlots((prev) => {
+                            const next = [...prev];
+                            next[prevSlot] = "";
+                            return next;
+                          });
+                        }, 150);
+                      }
+                    }
+                  }}
+                  onError={() => {
+                    mjpegFailsRef.current += 1;
+                    // 若备用槽失败仅清理；若活跃槽首次连续失败多次才触发报错降级
+                    if (activeMjpegSlotRef.current !== slotIdx) {
+                      setMjpegSlots((prev) => {
+                        const next = [...prev];
+                        next[slotIdx] = "";
+                        return next;
+                      });
+                    } else if (mjpegFailsRef.current >= 4) {
+                      setIsMediaLoading(false);
+                      onStreamError?.(camera);
+                      setMediaError(true);
+                    }
+                  }}
+                />
+              );
+            })}
+          </div>
         ) : (
           <img
             src={currentImgUrl || media.posterUrl}
